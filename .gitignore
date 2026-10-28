@@ -2,6 +2,7 @@
 node_modules/
 out/
 dist/
+dist-web/
 .tmp-pack/
 _asar_tmp/
 .gradle/

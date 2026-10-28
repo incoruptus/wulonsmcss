@@ -5,6 +5,7 @@ import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { Badge } from "@/components/ui/misc";
 import { cx } from "@/lib/utils";
+import { isDesktopVisual } from "@/lib/shell";
 
 const TITLES: Record<string, string> = {
   "/": "概览",
@@ -59,7 +60,8 @@ export function TitleBar() {
         <Badge variant={statusMeta.variant} size="sm">
           {statusMeta.label}
         </Badge>
-        <div className="no-drag flex items-center">
+        {isDesktopVisual() ? (
+          <div className="no-drag flex items-center">
           <button
             className="grid size-8 place-items-center rounded-md text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-1000"
             onClick={() => window.mcss.window.minimize()}
@@ -87,7 +89,8 @@ export function TitleBar() {
           >
             <X className="size-4" />
           </button>
-        </div>
+          </div>
+        ) : null}
       </div>
     </header>
   );

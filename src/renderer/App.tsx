@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
+import { WebAgentBanner } from "@/components/app/WebAgentBanner";
 import { FirstRunWizard } from "@/components/app/FirstRunWizard";
 import Overview from "@/pages/Overview";
 import Instances from "@/pages/Instances";
@@ -65,6 +66,7 @@ export default function App() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-200 text-gray-1000">
       <TitleBar />
+      <WebAgentBanner />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main className="min-w-0 flex-1 overflow-y-auto scroll-thin">
