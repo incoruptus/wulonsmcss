@@ -15,6 +15,7 @@ import Settings from "@/pages/Settings";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { buildDeps, runSync } from "@/lib/sync/engine";
+import { detectShell } from "@/lib/shell";
 
 export default function App() {
   const load = useConfig((s) => s.load);
@@ -71,7 +72,8 @@ export default function App() {
         <Sidebar />
         <main className="min-w-0 flex-1 overflow-y-auto scroll-thin">
           <Routes>
-            <Route path="/" element={<Overview />} />
+            {/* Web 形态没有本地实例，首页直接给「加入房间」 */}
+            <Route path="/" element={detectShell() === "web" ? <Join /> : <Overview />} />
             <Route path="/instances" element={<Instances />} />
             <Route path="/instances/:id" element={<InstanceDetail />} />
             <Route path="/library" element={<Library />} />

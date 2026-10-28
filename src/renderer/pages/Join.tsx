@@ -134,6 +134,35 @@ export default function Join() {
                 </ol>
               </div>
 
+              {room.mods.length ? (
+                <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
+                  <div className="flex items-center justify-between">
+                    <div className="t-label-13 font-medium text-gray-1000">需要这些 Mod（{room.mods.length}）</div>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={async () => {
+                        const text = room.mods.map((m) => m.n ?? m.p).join("\n");
+                        (await copyText(text)) ? toast.success("Mod 清单已复制") : toast.error("复制失败");
+                      }}
+                    >
+                      <Copy className="size-3" />
+                      复制清单
+                    </Button>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {room.mods.map((m) => (
+                      <Badge key={m.p + m.v} variant="gray" size="sm">
+                        {m.n ?? m.p}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="t-label-12 mt-2 text-gray-700">
+                    这些 Mod 记的是 Modrinth 版本号，助手可以直接按 id 拉齐；暂时也可以去资源库手动搜。
+                  </p>
+                </div>
+              ) : null}
+
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   onClick={() => {

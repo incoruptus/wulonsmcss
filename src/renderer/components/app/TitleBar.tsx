@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Minus, Square, X, Copy } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Minus, Square, X, Copy, Users } from "lucide-react";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { Badge } from "@/components/ui/misc";
@@ -18,6 +18,7 @@ const TITLES: Record<string, string> = {
 
 export function TitleBar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [maximized, setMaximized] = useState(false);
   const instances = useConfig((s) => s.cfg.instances);
   const activeId = useConfig((s) => s.cfg.activeInstanceId);
@@ -57,6 +58,14 @@ export function TitleBar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <button
+          onClick={() => navigate("/join")}
+          className="no-drag inline-flex h-6 items-center gap-1 rounded-full bg-gray-100 px-2.5 t-label-12 text-gray-1000 transition-colors hover:bg-gray-200"
+          title="朋友发来的房间码，粘进来就能进服"
+        >
+          <Users className="size-3" />
+          加入房间
+        </button>
         <Badge variant={statusMeta.variant} size="sm">
           {statusMeta.label}
         </Badge>
