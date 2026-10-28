@@ -82,6 +82,18 @@ interface AppConfig {
 
 ---
 
+## 打包
+
+```bash
+node package-win.js     # 便携版 → ../wulons-mcss-b27.0.0/WulonsMCSS-win32-x64/
+pnpm dist               # NSIS 安装包（electron-builder）
+```
+
+v27.0.0 便携版已构建并实测：`WulonsMCSS.exe` 约 189MB，asar 外的 `resources/mwm` 供多世界生成器使用；
+首次启动若是全新机器会走首启向导，若检测到旧版（v26）配置会自动迁移成多实例结构。
+
+---
+
 ## 开发命令
 
 ```bash

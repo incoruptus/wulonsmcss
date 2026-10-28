@@ -81,7 +81,8 @@ async function buildPayload(cfg: AppConfig, deps: SyncDeps): Promise<SyncPayload
   const sync = cfg.sync!;
   const instances = [];
   for (const inst of cfg.instances) {
-    const mods = inst.dir ? await deps.scanMods(inst.dir).catch(() => []) : [];
+    // 本机没有目录（从别的设备同步来的实例）时，沿用它上次的清单，别把云端清单推成空
+    const mods = inst.dir ? await deps.scanMods(inst.dir).catch(() => []) : (cfg.remoteCatalogs?.[inst.id]?.mods ?? []);
     instances.push(toSyncInstance(inst, mods));
   }
   return {
