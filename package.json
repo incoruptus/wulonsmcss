@@ -8,12 +8,13 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js",
+    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js && node scripts/check-parity.cjs --strict",
     "dist": "electron-builder --config electron-builder.yml",
     "build:web": "vite build --config vite.web.config.mts",
     "dev:web": "vite --config vite.web.config.mts",
     "build:agent": "cargo build --release --manifest-path agent/Cargo.toml",
-    "agent": "agent/target/release/mcss-agent.exe"
+    "agent": "agent/target/release/mcss-agent.exe",
+    "test:parity": "node scripts/check-parity.cjs"
   },
   "dependencies": {
     "@fontsource/sora": "^5.0.0",

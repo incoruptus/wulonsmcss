@@ -2455,6 +2455,21 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "app:open-path" => open_path(arg0),
         "app:open-external" => open_path(arg0),
         "app:detect-java" => detect_java(),
+        // 与桌面版保持一致：目前只做「探测并回报」，真正的自动安装是后续版本的事
+        "app:install-java" => {
+            let list = detect_java()?;
+            let first = list.arr().and_then(|a| a.first()).cloned();
+            Ok(match first {
+                Some(found) => Json::obj(vec![
+                    ("ok", Json::Bool(true)),
+                    ("path", found.get("path").cloned().unwrap_or(Json::Null)),
+                ]),
+                None => Json::obj(vec![
+                    ("ok", Json::Bool(false)),
+                    ("error", Json::s("没有找到可用的 Java，请手动指定")),
+                ]),
+            })
+        }
         "app:ai-docs" => ai_docs_path(),
         "ai:docs-path" => ai_docs_path(),
         "config:reset" => config_reset(shared),
