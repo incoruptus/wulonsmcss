@@ -15,5 +15,9 @@ agent/target/
 *.backup
 *.old_*
 
+# 截图与临时文件
+_shot-*.png
+tsc.log
+
 # 日志
 *.log
