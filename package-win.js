@@ -107,6 +107,13 @@ if (fs.existsSync(path.join(mwmDir, 'src'))) {
   fs.cpSync(path.join(mwmDir, 'package.json'), path.join(RESOURCES_DIR, 'mwm', 'package.json'))
 }
 
+// AI 排错知识库：放到 asar 外的 resources/ai，提示词里会给用户这个路径
+const aiDocs = path.join(APP_DIR, 'docs', 'ai')
+if (fs.existsSync(aiDocs)) {
+  console.log('Copying AI docs...')
+  execSync(`xcopy "${aiDocs}" "${path.join(RESOURCES_DIR, 'ai')}\\" /E /I /Q /Y >nul 2>nul`, { shell: true })
+}
+
 // Step 4: Write metadata
 fs.writeFileSync(path.join(OUT_DIR, 'version'), pkg.version)
 fs.writeFileSync(path.join(OUT_DIR, 'LICENSE'), 'ISC License\nCopyright (c) 2026 隐刻INCO')

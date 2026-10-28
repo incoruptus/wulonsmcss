@@ -109,6 +109,7 @@ export function createHttpClient(base: string, token: string): McssApi {
       pickJava: () => invoke("app:pick-java"),
       detectJava: () => invoke("app:detect-java"),
       detectLaunchers: () => invoke("app:detect-launchers"),
+      aiDocs: () => invoke("app:ai-docs"),
       lanAddress: () => invoke("app:lan-address"),
       installJava: () => invoke("app:install-java"),
     },

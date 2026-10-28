@@ -58,6 +58,7 @@ export interface McssApi {
     pickJava: () => Promise<string | null>;
     detectJava: () => Promise<JavaInfo[]>;
     detectLaunchers: () => Promise<{ name: string; path: string }[]>;
+    aiDocs: () => Promise<string>;
     lanAddress: () => Promise<{ ip: string }>;
     installJava: () => Promise<{ ok: boolean; path?: string; error?: string }>;
   };

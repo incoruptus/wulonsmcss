@@ -254,6 +254,12 @@ ipcMain.handle("app:install-java", async () => {
 
 ipcMain.handle("app:detect-java", () => javaIpc.detectJava());
 
+/** AI 知识库目录（开发在仓库 docs/ai，打包后在 resources/ai） */
+ipcMain.handle("app:ai-docs", () => {
+  if (app.isPackaged) return path.join(process.resourcesPath, "ai");
+  return path.join(__dirname, "..", "..", "docs", "ai");
+});
+
 /** 探测常见启动器（只做「找到并帮你打开」，不做实例注入） */
 ipcMain.handle("app:detect-launchers", () => {
   const home = require("os").homedir();

@@ -21,6 +21,10 @@ extraResources:
       - "**/*"
   - from: wulons-mcss-mwm/package.json
     to: mwm/package.json
+  - from: docs/ai
+    to: ai
+    filter:
+      - "**/*"
 
 win:
   target:

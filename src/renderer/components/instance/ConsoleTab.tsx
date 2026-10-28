@@ -18,6 +18,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import { useServer } from "@/stores/server";
 import { suggestCommands } from "@/lib/commands";
 import { diagnose, type Diagnosis } from "@/lib/crash";
+import { buildAiPrompt } from "@/lib/ai-handoff";
 import { copyText, cx } from "@/lib/utils";
 import type { Instance } from "@/lib/types";
 import type { LogEntry } from "@/lib/api";
@@ -502,6 +503,22 @@ function DiagnosisCard({
                 {a.label}
               </Button>
             ))}
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={async () => {
+                const docsPath = await window.mcss.app.aiDocs().catch(() => "");
+                const prompt = buildAiPrompt({
+                  instance,
+                  symptom: { title: diagnosis.title, detail: diagnosis.detail },
+                  logs: useServer.getState().logs.map((l) => `[${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`),
+                  docsPath,
+                });
+                (await copyText(prompt)) ? toast.success("已复制排错包，粘给任意 AI 即可") : toast.error("复制失败");
+              }}
+            >
+              让 AI 看看
+            </Button>
             <Button size="xs" variant="ghost" onClick={onDismiss}>
               知道了
             </Button>
