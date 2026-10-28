@@ -533,6 +533,94 @@ fn export_mrpack(shared: &Shared, opts: &Json) -> Result<Json, String> {
     ]))
 }
 
+/// 给本地 Mod 反查 Modrinth 版本：先按 fabric id 当 slug，再按名字搜索，
+/// 都要求「文件名完全一致」才算命中（宁可漏，不可错）。
+fn resolve_one(item: &Json) -> Option<Json> {
+    let id = item.get("id").and_then(|v| v.str()).unwrap_or("");
+    let file = item.get("file").and_then(|v| v.str()).unwrap_or("");
+    let version = item.get("version").and_then(|v| v.str()).unwrap_or("");
+    let name = item.get("name").and_then(|v| v.str()).unwrap_or("");
+    if file.is_empty() {
+        return None;
+    }
+
+    let mut projects: Vec<(String, String)> = Vec::new();
+    if !id.is_empty() {
+        if let Ok(p) = get_json(&format!("https://api.modrinth.com/v2/project/{}", urlencode(id))) {
+            if let Some(pid) = p.get("id").and_then(|v| v.str()) {
+                let title = p.get("title").and_then(|v| v.str()).unwrap_or("").to_string();
+                projects.push((pid.to_string(), title));
+            }
+        }
+    }
+
+    if projects.is_empty() && !name.is_empty() {
+        if let Ok(res) = modrinth_search(name, None) {
+            if let Some(hits) = res.get("hits").and_then(|v| v.arr()) {
+                for hit in hits.iter().take(3) {
+                    if let (Some(pid), Some(title)) = (
+                        hit.get("id").and_then(|v| v.str()),
+                        hit.get("title").and_then(|v| v.str()),
+                    ) {
+                        projects.push((pid.to_string(), title.to_string()));
+                    }
+                }
+            }
+        }
+    }
+
+    for (pid, title) in projects {
+        let Ok(list) = get_json(&format!("https://api.modrinth.com/v2/project/{pid}/version")) else {
+            continue;
+        };
+        let Some(versions) = list.arr() else { continue };
+
+        let matches_file = |v: &Json| {
+            v.get("files")
+                .and_then(|f| f.arr())
+                .map(|files| {
+                    files
+                        .iter()
+                        .any(|f| f.get("filename").and_then(|x| x.str()) == Some(file))
+                })
+                .unwrap_or(false)
+        };
+
+        if let Some(hit) = versions.iter().find(|v| matches_file(v)) {
+            if let Some(vid) = hit.get("id").and_then(|v| v.str()) {
+                return Some(Json::obj(vec![
+                    ("file", Json::s(file)),
+                    ("p", Json::s(&pid)),
+                    ("v", Json::s(vid)),
+                    ("n", Json::s(&title)),
+                    ("matched", Json::s("file")),
+                ]));
+            }
+        }
+        if !version.is_empty() {
+            let hit = versions
+                .iter()
+                .find(|v| v.get("version_number").and_then(|x| x.str()) == Some(version));
+            if let Some(hit) = hit {
+                if let Some(vid) = hit.get("id").and_then(|v| v.str()) {
+                    return Some(Json::obj(vec![
+                        ("file", Json::s(file)),
+                        ("p", Json::s(&pid)),
+                        ("v", Json::s(vid)),
+                        ("n", Json::s(&title)),
+                        ("matched", Json::s("version")),
+                    ]));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn resolve_modrinth(list: &[Json]) -> Vec<Json> {
+    list.iter().filter_map(resolve_one).collect()
+}
+
 fn prepare_client(shared: &Shared, opts: &Json) -> Result<Json, String> {    let dir = opts.get("dir").and_then(|v| v.str()).unwrap_or("").to_string();
     if dir.is_empty() {
         return Err("缺少目标目录".into());
@@ -768,6 +856,7 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
 
 /// 知识库在编译期嵌进二进制：agent 单文件分发，不依赖外部 docs 目录
 const KNOWLEDGE_MD: &str = include_str!("../../docs/ai/knowledge.md");
+const AI_README: &str = include_str!("../../docs/ai/README.md");
 
 fn is_secret_key(key: &str) -> bool {
     let k = key.to_ascii_lowercase();
@@ -1194,6 +1283,333 @@ fn toggle_mod(jar_path: &str, enable: bool) -> Result<Json, String> {
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
 }
 
+/* ---------------------------- 桌面能力对齐 ---------------------------- */
+
+/// 打开文件/文件夹/URL（等价于双击）
+fn open_path(target: &str) -> Result<Json, String> {
+    if target.is_empty() {
+        return Err("缺少路径".into());
+    }
+    Command::new("cmd")
+        .args(["/c", "start", "", target])
+        .spawn()
+        .map_err(|e| format!("打开失败：{e}"))?;
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
+fn copy_dir(src: &Path, dest: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dest)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let to = dest.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &to)?;
+        } else {
+            std::fs::copy(entry.path(), &to)?;
+            let _ = std::fs::metadata(entry.path()).and_then(|m| {
+                if let Ok(t) = m.modified() {
+                    let _ = set_mtime(&to, t);
+                }
+                Ok(())
+            });
+        }
+    }
+    Ok(())
+}
+
+fn set_mtime(path: &Path, t: SystemTime) -> std::io::Result<()> {
+    // 标准库没有 set_mtime；用 PowerShell 补一下代价太大，这里忽略，保持简单
+    let _ = (path, t);
+    Ok(())
+}
+
+fn copy_path(src: &str, dest: &str) -> Result<Json, String> {
+    let src_path = Path::new(src);
+    if !src_path.exists() {
+        return Err("源文件不存在".into());
+    }
+    let dest_path = Path::new(dest);
+    if let Some(parent) = dest_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if src_path.is_dir() {
+        copy_dir(src_path, dest_path).map_err(|e| format!("复制目录失败：{e}"))?;
+    } else {
+        std::fs::copy(src_path, dest_path).map_err(|e| format!("复制文件失败：{e}"))?;
+    }
+    Ok(Json::obj(vec![("ok", Json::Bool(true)), ("dest", Json::s(dest))]))
+}
+
+fn remove_path(target: &str) -> Result<Json, String> {
+    let path = Path::new(target);
+    if !path.exists() {
+        return Ok(Json::obj(vec![("ok", Json::Bool(true))]));
+    }
+    if path.is_dir() {
+        std::fs::remove_dir_all(path).map_err(|e| format!("删除目录失败：{e}"))?;
+    } else {
+        std::fs::remove_file(path).map_err(|e| format!("删除文件失败：{e}"))?;
+    }
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
+fn props_read(file: &str) -> Result<Json, String> {
+    let text = std::fs::read_to_string(file).map_err(|e| format!("读取失败：{e}"))?;
+    let mut items = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some((k, v)) = trimmed.split_once('=') {
+            items.push((k.trim().to_string(), Json::s(v.trim())));
+        }
+    }
+    Ok(Json::Obj(items))
+}
+
+fn props_write(file: &str, props: &Json) -> Result<Json, String> {
+    let Json::Obj(items) = props else {
+        return Err("属性必须是对象".into());
+    };
+    let mut content = String::from("#Minecraft server properties\n");
+    if let Ok(meta) = std::fs::metadata(file) {
+        if let Ok(modified) = meta.modified() {
+            if let Ok(dur) = modified.duration_since(UNIX_EPOCH) {
+                content.push_str(&format!("#{}\n", dur.as_secs()));
+            }
+        }
+    }
+    for (k, v) in items {
+        let value = match v {
+            Json::Str(s) => s.clone(),
+            Json::Num(n) => {
+                if n.fract() == 0.0 {
+                    format!("{}", *n as i64)
+                } else {
+                    format!("{n}")
+                }
+            }
+            Json::Bool(b) => b.to_string(),
+            Json::Null => String::new(),
+            other => other.to_string(),
+        };
+        content.push_str(&format!("{k}={value}\n"));
+    }
+    std::fs::write(file, content).map_err(|e| format!("写入失败：{e}"))?;
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
+fn config_reset(shared: &Shared) -> Result<Json, String> {
+    let mut state = shared.lock().unwrap();
+    state.config = default_config();
+    save_config(&state.config_path, &state.config.clone());
+    Ok(state.config.clone())
+}
+
+/// AI 知识库：编译期内嵌，首次调用时落到磁盘，返回目录路径给提示词用
+fn ai_docs_path() -> Result<Json, String> {
+    let dir = std::env::var("APPDATA")
+        .map(|p| PathBuf::from(p).join("wulons-mcss").join("ai"))
+        .unwrap_or_else(|_| std::env::temp_dir().join("wulons-mcss-ai"));
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建目录失败：{e}"))?;
+    std::fs::write(dir.join("knowledge.md"), KNOWLEDGE_MD).map_err(|e| format!("写入失败：{e}"))?;
+    std::fs::write(dir.join("README.md"), AI_README).map_err(|e| format!("写入失败：{e}"))?;
+    Ok(Json::s(&dir.to_string_lossy()))
+}
+
+fn parse_java_major(text: &str) -> Option<i64> {
+    let idx = text.find("version \"")?;
+    let rest = &text[idx + 9..];
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+    let mut parts = digits.split('.');
+    let first: i64 = parts.next()?.parse().ok()?;
+    if first == 1 {
+        parts.next()?.parse().ok()
+    } else {
+        Some(first)
+    }
+}
+
+fn probe_java(path: &str) -> Option<Json> {
+    let out = Command::new(path)
+        .arg("-version")
+        .output()
+        .ok()?;
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stderr), String::from_utf8_lossy(&out.stdout));
+    let major = parse_java_major(&text)?;
+    let version = text
+        .split("version \"")
+        .nth(1)
+        .and_then(|s| s.split('"').next())
+        .map(String::from)
+        .unwrap_or_default();
+    Some(Json::obj(vec![
+        ("path", Json::s(path)),
+        ("major", Json::n(major as f64)),
+        ("version", Json::s(&version)),
+    ]))
+}
+
+fn detect_java() -> Result<Json, String> {
+    let mut candidates: Vec<String> = Vec::new();
+    let mut push = |p: PathBuf| {
+        let s = p.to_string_lossy().to_string();
+        if !candidates.contains(&s) {
+            candidates.push(s);
+        }
+    };
+
+    if let Ok(home) = std::env::var("JAVA_HOME") {
+        push(PathBuf::from(home).join("bin").join("java.exe"));
+    }
+
+    let appdata = std::env::var("APPDATA").unwrap_or_default();
+    let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+
+    // 官方启动器与 Microsoft Store 版的运行时
+    for runtime_root in [
+        PathBuf::from(&appdata).join(".minecraft").join("runtime"),
+        PathBuf::from(&local)
+            .join("Packages")
+            .join("Microsoft.4297127D64EC6_8wekyb3d8bbwe")
+            .join("LocalCache")
+            .join("Local")
+            .join("runtime"),
+    ] {
+        if let Ok(rd) = std::fs::read_dir(&runtime_root) {
+            for entry in rd.flatten() {
+                let java = entry.path().join("bin").join("java.exe");
+                if java.exists() {
+                    push(java);
+                }
+            }
+        }
+    }
+
+    // 常见安装目录
+    for root in [
+        "C:\\Program Files\\Java",
+        "C:\\Program Files\\Eclipse Adoptium",
+        "C:\\Program Files\\Microsoft",
+        "C:\\Program Files\\Zulu",
+        "C:\\Program Files\\BellSoft",
+    ] {
+        if let Ok(rd) = std::fs::read_dir(root) {
+            for entry in rd.flatten() {
+                let java = entry.path().join("bin").join("java.exe");
+                if java.exists() {
+                    push(java);
+                }
+            }
+        }
+    }
+
+    // PATH 里的 java
+    if let Ok(out) = Command::new("where").arg("java").output() {
+        if out.status.success() {
+            for line in String::from_utf8_lossy(&out.stdout).lines() {
+                let line = line.trim();
+                if line.to_lowercase().ends_with("java.exe") {
+                    push(PathBuf::from(line));
+                }
+            }
+        }
+    }
+
+    let mut found: Vec<Json> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for path in candidates {
+        if !seen.insert(path.clone()) {
+            continue;
+        }
+        if let Some(info) = probe_java(&path) {
+            found.push(info);
+        }
+    }
+    found.sort_by(|a, b| {
+        b.get("major")
+            .and_then(|v| v.num())
+            .unwrap_or(0.0)
+            .partial_cmp(&a.get("major").and_then(|v| v.num()).unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    Ok(Json::Arr(found))
+}
+
+/* ------------------------------ 原生对话框 ------------------------------ */
+
+/// 用 PowerShell 的系统对话框顶替 Electron 的 dialog —— 网页版也要能选目录
+fn ps_run(script: &str) -> Result<String, String> {
+    let out = Command::new("powershell")
+        .args(["-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", script])
+        .output()
+        .map_err(|e| format!("调用 PowerShell 失败：{e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "对话框失败：{}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+fn ps_quote(text: &str) -> String {
+    text.replace('\'', "''")
+}
+
+fn dialog_run(kind: &str, title: &str, default_name: &str, filter: &str) -> Result<Json, String> {
+    // 测试模式：不弹窗，直接把属性读回来 —— 这样能验证 PowerShell 脚本本身是否合法
+    let test = std::env::var("MCSS_DIALOG_TEST").is_ok();
+
+    let mut parts: Vec<String> = vec!["Add-Type -AssemblyName System.Windows.Forms | Out-Null;".into()];
+    match kind {
+        "folder" => {
+            parts.push("$d = New-Object System.Windows.Forms.FolderBrowserDialog;".into());
+            parts.push(format!("$d.Description = '{}';", ps_quote(title)));
+            parts.push("$d.ShowNewFolderButton = $true;".into());
+            if test {
+                parts.push("$d.SelectedPath = 'C:\\Windows';".into());
+            }
+        }
+        "open" => {
+            parts.push("$d = New-Object System.Windows.Forms.OpenFileDialog;".into());
+            parts.push(format!("$d.Title = '{}';", ps_quote(title)));
+            parts.push(format!("$d.Filter = '{}';", ps_quote(filter)));
+        }
+        _ => {
+            parts.push("$d = New-Object System.Windows.Forms.SaveFileDialog;".into());
+            parts.push(format!("$d.Title = '{}';", ps_quote(title)));
+            parts.push(format!("$d.Filter = '{}';", ps_quote(filter)));
+            parts.push(format!("$d.FileName = '{}';", ps_quote(default_name)));
+        }
+    }
+    if !test {
+        parts.push("if ($d.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { exit 1 };".into());
+    }
+    parts.push(if kind == "folder" {
+        "Write-Output $d.SelectedPath".into()
+    } else {
+        "Write-Output $d.FileName".into()
+    });
+
+    let script = parts.join(" ");
+    let out = ps_run(&script)?;
+    Ok(if out.is_empty() { Json::Null } else { Json::s(&out) })
+}
+
+fn dialog_open_directory(title: &str) -> Result<Json, String> {
+    dialog_run("folder", title, "", "")
+}
+
+fn dialog_open_file(title: &str, filter: &str) -> Result<Json, String> {
+    dialog_run("open", title, "", filter)
+}
+
+fn dialog_save_file(title: &str, default_name: &str, filter: &str) -> Result<Json, String> {
+    dialog_run("save", title, default_name, filter)
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -1231,8 +1647,66 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                 ("node", Json::s("")),
             ]))
         }
-        "app:detect-launchers" => {
-            let home = std::env::var("USERPROFILE").unwrap_or_default();
+        "dialog:open-directory" => dialog_open_directory("选择文件夹"),
+        "dialog:open-file" => {
+            let opts = args.first().cloned().unwrap_or(Json::Null);
+            let title = opts.get("title").and_then(|v| v.str()).unwrap_or("选择文件");
+            let filter = opts
+                .get("filters")
+                .and_then(|v| v.arr())
+                .and_then(|a| a.first())
+                .and_then(|f| f.get("extensions"))
+                .and_then(|v| v.arr())
+                .map(|exts| {
+                    let list: Vec<String> = exts
+                        .iter()
+                        .filter_map(|e| e.str().map(|s| format!("*.{s}")))
+                        .collect();
+                    format!("文件|{}|所有文件|*.*", list.join(";"))
+                })
+                .unwrap_or_else(|| "所有文件|*.*".to_string());
+            dialog_open_file(title, &filter)
+        }
+        "dialog:save-file" => {
+            let opts = args.first().cloned().unwrap_or(Json::Null);
+            let title = opts.get("title").and_then(|v| v.str()).unwrap_or("保存");
+            let default_path = opts.get("defaultPath").and_then(|v| v.str()).unwrap_or("");
+            let name = Path::new(default_path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "保存文件".into());
+            let filter = opts
+                .get("filters")
+                .and_then(|v| v.arr())
+                .and_then(|a| a.first())
+                .and_then(|f| f.get("extensions"))
+                .and_then(|v| v.arr())
+                .map(|exts| {
+                    let list: Vec<String> = exts
+                        .iter()
+                        .filter_map(|e| e.str().map(|s| format!("*.{s}")))
+                        .collect();
+                    format!("文件|{}|所有文件|*.*", list.join(";"))
+                })
+                .unwrap_or_else(|| "所有文件|*.*".to_string());
+            dialog_save_file(title, &name, &filter)
+        }
+        "app:pick-java" => dialog_open_file("选择 java.exe", "Java|java.exe|所有文件|*.*"),
+        "app:open-path" => open_path(arg0),
+        "app:open-external" => open_path(arg0),
+        "app:detect-java" => detect_java(),
+        "app:ai-docs" => ai_docs_path(),
+        "ai:docs-path" => ai_docs_path(),
+        "config:reset" => config_reset(shared),
+        "fs:copy" => copy_path(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
+        "fs:remove" => remove_path(arg0),
+        "props:read" => props_read(arg0),
+        "props:write" => props_write(arg0, args.get(1).ok_or("缺少属性对象")?),
+        "mods:resolve-modrinth" => {
+            let list = args.first().and_then(|v| v.arr()).cloned().unwrap_or_default();
+            Ok(Json::Arr(resolve_modrinth(&list)))
+        }
+        "app:detect-launchers" => {            let home = std::env::var("USERPROFILE").unwrap_or_default();
             let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
             let roaming = std::env::var("APPDATA").unwrap_or_default();
             let candidates = [
