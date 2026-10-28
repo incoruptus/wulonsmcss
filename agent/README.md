@@ -19,10 +19,27 @@ MCSS_CONFIG=../config.json ./target/release/mcss-agent.exe
 | 变量 | 作用 | 默认 |
 |---|---|---|
 | `MCSS_PORT` | 监听端口 | `28471` |
-| `MCSS_TOKEN` | 配对令牌（空 = 仅本机、不校验） | 空 |
+| `MCSS_TOKEN` | 配对令牌（缺省时自动生成并存到 `%APPDATA%/wulons-mcss/agent.token`） | 自动生成 |
 | `MCSS_CONFIG` | 配置路径 | `./config.json` 或 `%APPDATA%/wulons-mcss/config.json` |
+| `MCSS_WEB_BASE` | 深链打开的网页地址 | `https://wulons.github.io/mcss` |
+| `MCSS_NO_OPEN` | 设置后只打印深链、不打开浏览器（测试用） | — |
 
-## 已实现的 channel
+## 配对与深链
+
+- 首次运行自动生成 32 位令牌，写入 `%APPDATA%/wulons-mcss/agent.token`
+- 同时注册 `mcss://` 协议（`HKCU\Software\Classes\mcss`，当前用户，无需管理员）
+- 被 `mcss://join/<房间码>` 唤起时，会拼出 `网页/#/join/<码>?t=<令牌>` 并打开浏览器
+
+```bash
+MCSS_NO_OPEN=1 ./mcss-agent.exe --join "mcss://join/w1z.abc.def"
+# 打开：https://wulons.github.io/mcss/#/join/w1z.abc.def?t=<token>
+```
+
+## 验证
+
+```bash
+node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未知通道/SSE
+```
 
 `app:info` · `app:lan-address` · `config:read|write` · `fs:read|write|exists|list|mkdir` ·
 `server:start|stop|command|status|pid|memory`

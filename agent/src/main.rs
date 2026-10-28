@@ -99,6 +99,102 @@ fn local_ip() -> String {
     "127.0.0.1".to_string()
 }
 
+/* --------------------------- 配对与深链 --------------------------- */
+
+fn token_path() -> PathBuf {
+    let base = std::env::var("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."));
+    base.join("wulons-mcss").join("agent.token")
+}
+
+fn gen_token() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let pid = std::process::id() as u128;
+    let mix = nanos.wrapping_mul(0x9E3779B97F4A7C15).wrapping_add(pid);
+    format!("{:016x}{:016x}", (mix >> 64) as u64, mix as u64)
+}
+
+fn load_or_create_token() -> String {
+    if let Ok(t) = std::env::var("MCSS_TOKEN") {
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    let path = token_path();
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        let t = text.trim().to_string();
+        if !t.is_empty() {
+            return t;
+        }
+    }
+    let token = gen_token();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&path, &token);
+    token
+}
+
+/// 注册 mcss:// 协议（HKCU，当前用户，不需要管理员）
+fn ensure_protocol() {
+    #[cfg(windows)]
+    {
+        let exe = std::env::current_exe()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default();
+        let _ = Command::new("reg")
+            .args(["add", r"HKCU\Software\Classes\mcss", "/ve", "/t", "REG_SZ", "/d", "URL:Wulon MCSS", "/f"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = Command::new("reg")
+            .args(["add", r"HKCU\Software\Classes\mcss", "/v", "URL Protocol", "/t", "REG_SZ", "/d", "", "/f"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = Command::new("reg")
+            .args([
+                "add",
+                r"HKCU\Software\Classes\mcss\shell\open\command",
+                "/ve",
+                "/t",
+                "REG_SZ",
+                "/d",
+                &format!("\"{exe}\" --join \"%1\""),
+                "/f",
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+/// 被 mcss:// 唤起时：把房间码转成网页链接并打开
+fn handle_join(arg: &str, token: &str) {
+    let code = arg
+        .split("/")
+        .last()
+        .unwrap_or("")
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    if code.is_empty() {
+        eprintln!("深链里没有房间码：{arg}");
+        return;
+    }
+    let base = std::env::var("MCSS_WEB_BASE").unwrap_or_else(|_| "https://wulons.github.io/mcss".into());
+    let url = format!("{base}/#/join/{code}?t={token}");
+    println!("打开：{url}");
+    if std::env::var("MCSS_NO_OPEN").is_err() {
+        #[cfg(windows)]
+        let _ = Command::new("cmd").args(["/c", "start", "", &url]).status();
+    }
+}
+
 /* ------------------------------ 事件广播 ------------------------------ */
 
 fn broadcast(state: &mut State, channel: &str, payload: Json) {
@@ -426,16 +522,24 @@ fn main() {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(28471);
-    let token = std::env::var("MCSS_TOKEN").unwrap_or_default();
+    let token = load_or_create_token();
     let path = config_path();
     let config = load_config(&path);
 
     println!("mcss-agent {} 启动", env!("CARGO_PKG_VERSION"));
     println!("  配置: {}", path.display());
     println!("  监听: http://127.0.0.1:{port}");
-    if token.is_empty() {
-        println!("  令牌: （未设置，仅本机可用）");
+
+    // 被 mcss:// 深链唤起：转成网页地址并打开，然后退出
+    let argv: Vec<String> = std::env::args().collect();
+    if let Some(pos) = argv.iter().position(|a| a == "--join") {
+        if let Some(link) = argv.get(pos + 1) {
+            handle_join(link, &token);
+            return;
+        }
     }
+
+    ensure_protocol();
 
     let shared: Shared = Arc::new(Mutex::new(State {
         config_path: path,
