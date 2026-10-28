@@ -42,12 +42,24 @@ node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未
 ```
 
 `app:info` · `app:lan-address` · `config:read|write` · `fs:read|write|exists|list|mkdir` ·
-`server:start|stop|command|status|pid|memory`
+`server:start|stop|command|status|pid|memory` ·
+`client:add-server` · `client:prepare` · `client:export-mrpack`
 
-事件：`server:output`（含时间戳/级别/正文）、`server:status`。
+事件：`server:output`（含时间戳/级别/正文）、`server:status`、`client:progress`。
+
+### 客户端通道（网页版也能「一键进服」）
+
+| channel | 说明 |
+|---|---|
+| `client:add-server` | 写 `servers.dat`（自写 NBT，**先读后写，不覆盖已有列表**） |
+| `client:prepare` | 按 Modrinth 版本 id 下载 Mod 到 `mods/` |
+| `client:export-mrpack` | 导出 `.mrpack`（含 `overrides/servers.dat`），任何启动器可导入 |
+
+下载走系统 `curl`、打包走 `bsdtar` —— 仍然零第三方依赖。
 
 ## 还没做
 
 - `versions:*` / `modrinth:*` / `worlds:*` / `mods:*` / `frp:*`（网页版暂时用不到）
+- `backup:*` / `ai:export-bundle`（服主侧，网页版后续再补）
 - 配对令牌的生成与 `mcss://` 协议注册（下一步）
 - Windows 防火墙提示与开机自启
