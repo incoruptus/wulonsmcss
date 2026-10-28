@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import type { LogEntry, ServerStatus } from "@/lib/api";
 import { isStackTraceLine, parseLogLine } from "@/lib/mclog";
+import { parseLag, type LagEvent } from "@/lib/lag";
 
 interface ServerState {
   status: ServerStatus;
   logs: LogEntry[];
   maxLogs: number;
   tps: number;
+  /** 最近的卡顿事件（新的在前） */
+  lagEvents: LagEvent[];
   players: string[];
   /** 玩家名 → 加入时间戳 */
   playersJoinedAt: Record<string, number>;
@@ -28,6 +31,7 @@ export const useServer = create<ServerState>((set, get) => ({
   logs: [],
   maxLogs: 2000,
   tps: 20,
+  lagEvents: [],
   players: [],
   playersJoinedAt: {},
   startedAt: null,
@@ -103,10 +107,21 @@ export const useServer = create<ServerState>((set, get) => ({
     // TPS（Paper/Spigot 的 tps 输出）
     const tps = msg.match(/(?:Overall )?TPS:?\s*([\d.]+)/i) ?? msg.match(/TPS from last [^:]+:\s*([\d.]+)/i);
     if (tps) set({ tps: parseFloat(tps[1]) });
+
+    // 卡顿告警（Fabric/原版唯一的原生信号）
+    const lag = parseLag(msg);
+    if (lag) {
+      // 同类告警短时间内会连刷，5 秒内只记一条，避免列表被淹没
+      const recent = get().lagEvents;
+      const last = recent[0];
+      if (!last || lag.at - last.at > 5000) {
+        set({ lagEvents: [lag, ...recent].slice(0, 30) });
+      }
+    }
   },
 
   clear() {
-    set({ logs: [] });
+    set({ logs: [], lagEvents: [] });
   },
 
   setMemory(used) {

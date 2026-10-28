@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  Activity,
   ArrowDownToLine,
   Copy,
   Download,
@@ -19,6 +20,7 @@ import { useServer } from "@/stores/server";
 import { suggestCommands } from "@/lib/commands";
 import { diagnose, type Diagnosis } from "@/lib/crash";
 import { buildAiPrompt } from "@/lib/ai-handoff";
+import { describeLag } from "@/lib/lag";
 import { copyText, cx } from "@/lib/utils";
 import type { Instance } from "@/lib/types";
 import type { LogEntry } from "@/lib/api";
@@ -54,6 +56,8 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   const [suggestIdx, setSuggestIdx] = useState(0);
   const [confirmStop, setConfirmStop] = useState(false);
   const [hideDiag, setHideDiag] = useState(false);
+  const [showLag, setShowLag] = useState(false);
+  const lagEvents = useServer((s) => s.lagEvents);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -197,10 +201,54 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
         <IconButton label="导出日志" size="sm" onClick={exportLogs}>
           <Download className="size-3.5" />
         </IconButton>
+        {lagEvents.length ? (
+          <button
+            className="mr-1 flex items-center gap-1 rounded-md bg-amber-700/12 px-2 py-1 t-label-12 text-amber-900 hover:bg-amber-700/20"
+            onClick={() => setShowLag(true)}
+            title="服务器 tick 落后时的告警"
+          >
+            <Activity className="size-3.5" />
+            卡顿 {lagEvents.length}
+            <span className="text-amber-900/70">· 最严重 {describeLag(Math.max(...lagEvents.map((e) => e.behindMs)))}</span>
+          </button>
+        ) : null}
         <IconButton label="清空" size="sm" onClick={clear}>
           <Eraser className="size-3.5" />
         </IconButton>
       </div>
+
+      {/* 卡顿记录 */}
+      <Dialog open={showLag} onOpenChange={setShowLag} widthClass="max-w-xl">
+        <DialogHeader
+          title="卡顿记录"
+          desc="服务器 tick 落后时打的 WARN。频繁出现说明 CPU 跟不上、内存吃紧，或某次世界生成卡住了。"
+        />
+        <DialogBody>
+          {lagEvents.length === 0 ? (
+            <p className="t-label-13 text-gray-700">目前没有卡顿记录。</p>
+          ) : (
+            <div className="max-h-[380px] divide-y divide-gray-300 overflow-y-auto scroll-thin">
+              {lagEvents.map((e, i) => (
+                <div key={`${e.at}-${i}`} className="py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="t-mono-12 text-gray-800">{new Date(e.at).toLocaleTimeString("zh-CN")}</span>
+                    <Badge variant={e.behindMs > 5000 ? "red" : e.behindMs > 2000 ? "amber" : "gray"} size="sm">
+                      落后 {describeLag(e.behindMs)}
+                    </Badge>
+                    {e.ticks ? <span className="t-label-12 text-gray-700">{e.ticks} ticks</span> : null}
+                  </div>
+                  <div className="t-mono-12 mt-0.5 break-all text-gray-700">{e.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => setShowLag(false)}>
+            知道了
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* 崩溃诊断 */}
       {diagnosis ? (
