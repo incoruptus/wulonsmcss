@@ -47,6 +47,9 @@ function send(channel, payload) {
 
 function createWindow() {
   const iconPath = path.join(__dirname, "..", "..", "resources", "app-icon.png");
+  // 联调网页版时加载外部 URL：此时故意不注入 preload，
+  // 让页面走 httpClient → agent 的真实链路（等价于普通浏览器）
+  const externalUrl = process.env.MCSS_URL;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -57,7 +60,7 @@ function createWindow() {
     backgroundColor: "#0a0a0a",
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
-      preload: path.join(__dirname, "..", "preload", "index.js"),
+      ...(externalUrl ? {} : { preload: path.join(__dirname, "..", "preload", "index.js") }),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
@@ -93,7 +96,8 @@ function createWindow() {
   const url = process.env.ELECTRON_RENDERER_URL;
   // 截图/联调时可从指定路由启动：MCSS_START_HASH="/instances/legacy?tab=console"
   const startHash = process.env.MCSS_START_HASH;
-  if (url) mainWindow.loadURL(startHash ? `${url}#${startHash}` : url);
+  if (externalUrl) mainWindow.loadURL(externalUrl);
+  else if (url) mainWindow.loadURL(startHash ? `${url}#${startHash}` : url);
   else mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"), startHash ? { hash: startHash } : undefined);
 
   mainWindow.on("closed", () => {
