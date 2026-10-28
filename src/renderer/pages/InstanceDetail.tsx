@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Play, Square, FolderOpen, ArrowLeft, Settings2 } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/button";
@@ -32,8 +32,18 @@ export default function InstanceDetail() {
   const instance = useConfig((s) => s.cfg.instances.find((i) => i.id === id));
   const setActive = useConfig((s) => s.setActiveInstance);
   const status = useServer((s) => s.status);
-  const [tab, setTab] = useState<TabId>("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
+
+  // Tab 记在 URL 上：刷新/返回不丢，也能直接分享到某个 Tab
+  const tabParam = searchParams.get("tab");
+  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
+  const setTab = (next: TabId) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "overview") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
 
   useEffect(() => {
     if (id) void setActive(id);

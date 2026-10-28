@@ -90,8 +90,10 @@ function createWindow() {
   });
 
   const url = process.env.ELECTRON_RENDERER_URL;
-  if (url) mainWindow.loadURL(url);
-  else mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+  // 截图/联调时可从指定路由启动：MCSS_START_HASH="/instances/legacy?tab=console"
+  const startHash = process.env.MCSS_START_HASH;
+  if (url) mainWindow.loadURL(startHash ? `${url}#${startHash}` : url);
+  else mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"), startHash ? { hash: startHash } : undefined);
 
   mainWindow.on("closed", () => {
     mainWindow = null;

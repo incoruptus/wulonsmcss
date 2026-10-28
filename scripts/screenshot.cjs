@@ -10,6 +10,8 @@ delete env.ELECTRON_RUN_AS_NODE;
 env.MCSS_SHOT = out;
 env.MCSS_SHOT_EXIT = "1";
 env.MCSS_SHOT_DELAY = process.argv[3] || "3500";
+// 可选：从指定路由启动，例如 "/instances/legacy?tab=console"
+if (process.argv[4]) env.MCSS_START_HASH = process.argv[4];
 
 const p = spawn(exe, ["."], { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
 p.stdout.on("data", (d) => process.stdout.write("[out] " + d));

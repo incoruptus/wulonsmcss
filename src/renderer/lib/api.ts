@@ -11,7 +11,8 @@ import type {
 
 export interface ServerOutput {
   timestamp: string;
-  level: "INFO" | "WARN" | "ERROR";
+  /** 主进程只发 INFO/ERROR；渲染层解析后可能出现 WARN/CHAT */
+  level: "INFO" | "WARN" | "ERROR" | "CHAT";
   message: string;
 }
 
@@ -20,6 +21,12 @@ export type ServerStatus = "stopped" | "starting" | "running" | "stopping";
 export interface LogEntry extends ServerOutput {
   id: number;
   stack?: string;
+  /** 服务端自己的时间戳 HH:mm:ss */
+  time?: string;
+  /** 线程名（Server thread / Async Chat Thread …） */
+  thread?: string;
+  /** 聊天发言人 */
+  chatFrom?: string;
   _expanded?: boolean;
 }
 
