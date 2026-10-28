@@ -53,7 +53,8 @@ function start(java, dir, jvmArgs) {
     emitStatus('stopped')
     return { ok: false, error: '未找到服务端 jar' }
   }
-  if (!existsSync(javaPath)) {
+  // 只有传进来的是具体路径时才检查存在性，避免把 PATH 里的 "java" 误判成缺失
+  if (/[\\/]/.test(javaPath) && !existsSync(javaPath)) {
     emitOutput('ERROR', `Java 路径不存在：${javaPath}（请在设置中重新指定）`)
     emitStatus('stopped')
     return { ok: false, error: 'Java 路径不存在' }
