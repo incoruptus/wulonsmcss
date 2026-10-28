@@ -171,7 +171,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Archive className="size-4 text-gray-800" />
-            <h3 className="t-h-14 text-gray-1000">世界备份</h3>
+            <h3 className="t-h-14 text-gray-1000">导出存档</h3>
             <Badge variant="gray" size="sm">{backups.length}</Badge>
           </div>
           <Button
@@ -192,12 +192,12 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             }}
           >
             <Archive className="size-3.5" />
-            立即备份
+            导出一份
           </Button>
         </div>
         {backups.length === 0 ? (
           <div className="t-label-12 py-3 text-gray-700">
-            还没有备份。备份会把整个 <span className="t-mono-12">world/</span> 打成 zip，服务器在跑时会先暂停写入。
+            还没有导出。整份打成 zip，适合发给别人或长期归档；平时回滚用下面的「时间机」更省空间。
           </div>
         ) : (
           <div className="max-h-[220px] divide-y divide-gray-300 overflow-y-auto scroll-thin">            {backups.map((b) => (
@@ -298,8 +298,8 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         </div>
 
         <p className="t-label-12 text-gray-700">
-          只存变化的部分：没动过的文件在多个快照之间共用一份，磁盘约等于「一份世界 + 改动」。
-          还原前会把当前存档留底。
+          日常回滚用这个：只存变化的部分，没动过的文件在多个快照之间共用一份，
+          磁盘约等于「一份世界 + 改动」。还原前会把当前存档留底。
         </p>
 
         {snaps.length === 0 ? (
