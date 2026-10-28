@@ -15,6 +15,7 @@ const frp = require(path.join(IPC_DIR, "frp.js"));
 const preflight = require(path.join(IPC_DIR, "preflight.js"));
 const client = require(path.join(IPC_DIR, "client.js"));
 const backup = require(path.join(IPC_DIR, "backup.js"));
+const serversdat = require(path.join(IPC_DIR, "serversdat.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -374,6 +375,14 @@ ipcMain.handle("backup:restore", (_e, serverDir, name) => backup.restore(serverD
 ipcMain.handle("backup:remove", (_e, serverDir, name) => backup.remove(serverDir, name));
 
 /* -------------------------------- 资源库 --------------------------------- */
+
+ipcMain.handle("client:add-server", (_e, opts) => {
+  try {
+    return serversdat.addServer(opts.mcDir, { name: opts.name, ip: opts.ip });
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 
 ipcMain.handle("client:prepare", async (_e, opts) => {
   try {

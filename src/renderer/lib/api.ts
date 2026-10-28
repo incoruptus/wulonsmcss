@@ -140,6 +140,7 @@ export interface McssApi {
       error?: string;
       results?: { ok: boolean; name: string; file?: string; skipped?: boolean; error?: string }[];
     }>;
+    addServer: (opts: { mcDir: string; name: string; ip: string }) => Promise<{ ok: boolean; file?: string; count?: number; error?: string }>;
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };
   frp: {

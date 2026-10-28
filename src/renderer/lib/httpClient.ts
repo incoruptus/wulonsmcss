@@ -180,6 +180,7 @@ export function createHttpClient(base: string, token: string): McssApi {
     client: {
       prepare: (opts) => invoke("client:prepare", opts),
       onProgress: (cb) => on("client:progress", (p) => cb(p as never)),
+      addServer: (opts) => invoke("client:add-server", opts),
     },
     frp: {
       start: (profile) => invoke("frp:start", profile),

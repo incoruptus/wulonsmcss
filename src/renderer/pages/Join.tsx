@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, CheckCircle2, Copy, Download, Gamepad2, Package, Server, Users } from "lucide-react";
@@ -8,12 +8,10 @@ import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
 import { copyText } from "@/lib/utils";
-import { useConfig } from "@/stores/config";
 
 export default function Join() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const instances = useConfig((s) => s.cfg.instances);
   const [input, setInput] = useState("");
   const [room, setRoom] = useState<RoomDescriptorV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,16 +47,6 @@ export default function Join() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
-
-  // 本地是否已经有匹配的实例
-  const localMatch = useMemo(() => {
-    if (!room) return null;
-    return (
-      instances.find(
-        (i) => i.mcVersion === room.mc && i.loader === room.loader && i.dir && i.port === Number(room.addr.split(":").pop()),
-      ) ?? null
-    );
-  }, [room, instances]);
 
   return (
     <>
@@ -130,7 +118,11 @@ export default function Join() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <Info icon={<Server className="size-3.5" />} label="版本" value={`${room.mc} · ${room.loader}`} />
                 <Info icon={<Package className="size-3.5" />} label="需要的 Mod" value={room.mods.length ? `${room.mods.length} 个` : "无需额外 Mod"} />
-                <Info icon={<Gamepad2 className="size-3.5" />} label="本机环境" value={localMatch ? "已有匹配实例" : "需要准备"} />
+                <Info
+                  icon={<Gamepad2 className="size-3.5" />}
+                  label="本机启动器"
+                  value={launchers.length ? launchers[0].name : "未检测到"}
+                />
               </div>
 
               <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
@@ -201,6 +193,19 @@ export default function Join() {
                   <Download className="size-4" />
                   一键准备客户端
                   <ArrowRight className="size-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    const dir = await window.mcss.dialog.openDirectory();
+                    if (!dir) return;
+                    const res = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: room.addr });
+                    if (res.ok) toast.success("已加入多人游戏列表", { description: `共 ${res.count} 个服务器` });
+                    else toast.error(res.error || "添加失败");
+                  }}
+                >
+                  <Server className="size-4" />
+                  加入服务器列表
                 </Button>
                 <Button variant="secondary" onClick={() => navigate("/library")}>
                   <Package className="size-4" />
