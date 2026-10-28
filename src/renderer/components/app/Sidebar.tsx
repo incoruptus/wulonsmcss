@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, Settings as SettingsIcon, Plus, Play } from "lucide-react";
+import { LayoutDashboard, Boxes, Settings as SettingsIcon, Plus, Play, PackageSearch, Link2 } from "lucide-react";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { cx } from "@/lib/utils";
@@ -10,6 +10,8 @@ import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog
 const NAV = [
   { to: "/", label: "概览", icon: LayoutDashboard, end: true },
   { to: "/instances", label: "实例", icon: Boxes, end: false },
+  { to: "/library", label: "资源库", icon: PackageSearch, end: false },
+  { to: "/network", label: "联机", icon: Link2, end: false },
   { to: "/settings", label: "设置", icon: SettingsIcon, end: false },
 ];
 

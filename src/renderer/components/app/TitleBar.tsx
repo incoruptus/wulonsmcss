@@ -9,6 +9,8 @@ import { cx } from "@/lib/utils";
 const TITLES: Record<string, string> = {
   "/": "概览",
   "/instances": "实例",
+  "/library": "资源库",
+  "/network": "联机",
   "/settings": "设置",
 };
 

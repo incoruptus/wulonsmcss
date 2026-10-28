@@ -1,5 +1,9 @@
 /** 应用级共享类型（渲染进程 ↔ 主进程的数据形状） */
 
+import type { RemoteCatalog, SyncConfig } from "./sync/types";
+
+export type { SyncConfig } from "./sync/types";
+
 export type Loader = "fabric" | "vanilla";
 
 export interface Instance {
@@ -23,6 +27,8 @@ export interface Instance {
   updatedAt: number;
   lastStartedAt?: number;
   icon?: string;
+  /** 从其他设备同步过来、尚未绑定本机目录 */
+  importedFrom?: string;
 }
 
 export interface QuickAction {
@@ -43,31 +49,22 @@ export type ConsoleViewMode = "code" | "bubble";
 export interface FrpProfile {
   id: string;
   name: string;
-  /** 服务端地址 host:port */
+  /** frpc = 通用 frp 客户端；sakura = 樱花穿透启动器 */
+  kind: "frpc" | "sakura";
+  /** SakuraFrp 启动器路径 */
+  exePath?: string;
+  /** 服务端地址 host */
   serverAddr: string;
   serverPort: number;
   token: string;
   /** 本地端口，默认与实例端口一致 */
   localPort: number;
-  /** 远端端口（frp tcp 类型） */
+  /** 远端端口（tcp 类型） */
   remotePort: number;
   /** tcp | udp | http | https */
   type: "tcp" | "udp" | "http" | "https";
   /** 自定义域名（http/https） */
   customDomain?: string;
-}
-
-export interface SyncConfig {
-  enabled: boolean;
-  token: string;
-  gistId: string | null;
-  pairCode: string;
-  lastPushHash?: string | null;
-  failStreak?: number;
-  backoffUntil?: number | null;
-  excludeGistIds?: string[];
-  autoSync?: boolean;
-  lastSyncAt?: number | null;
 }
 
 export interface AppConfig {
@@ -84,6 +81,8 @@ export interface AppConfig {
   quickActions: QuickAction[];
   frpProfiles: FrpProfile[];
   sync: SyncConfig | null;
+  /** 从云端拉下来的 Mod 清单（key = instanceId），供「与云端比对」 */
+  remoteCatalogs?: Record<string, RemoteCatalog>;
   /** 上次自动检测到的 Java 路径 */
   detectedJava?: string | null;
 }

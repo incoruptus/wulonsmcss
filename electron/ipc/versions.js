@@ -52,13 +52,19 @@ async function fabricInstallerVersion() {
   return list?.[0]?.version || "1.0.1";
 }
 
-/** 流式下载，onProgress(已下载字节, 总字节) */
-async function download(url, dest, onProgress) {
+/** 流式下载，onProgress(已下载字节, 总字节) —— 单次尝试；20 秒无数据视为卡死并中止 */
+async function downloadOnce(url, dest, onProgress, opts = {}) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10 * 60 * 1000);
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 10 * 60 * 1000);
+  const stallMs = opts.stallMs ?? 20_000;
+  let lastActivity = Date.now();
+  const watchdog = setInterval(() => {
+    if (Date.now() - lastActivity > stallMs) ctrl.abort();
+  }, 2000);
   const part = `${dest}.part`;
   try {
     const res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "WulonsMCSS/27" } });
+    lastActivity = Date.now();
     if (!res.ok) throw new Error(`下载失败 HTTP ${res.status}`);
     const total = Number(res.headers.get("content-length") || 0);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -69,6 +75,7 @@ async function download(url, dest, onProgress) {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        lastActivity = Date.now();
         received += value.byteLength;
         if (!out.write(Buffer.from(value))) {
           await new Promise((resolve) => out.once("drain", resolve));
@@ -85,10 +92,34 @@ async function download(url, dest, onProgress) {
     try {
       if (fs.existsSync(part)) fs.unlinkSync(part);
     } catch (err) {}
+    if (ctrl.signal.aborted) throw new Error("连接卡住（20 秒无数据），已中止");
     throw e;
   } finally {
     clearTimeout(timer);
+    clearInterval(watchdog);
   }
+}
+
+/** GitHub 直连在国内经常不通，按顺序回退到可用镜像 */
+const GITHUB_MIRRORS = ["", "https://gh-proxy.com/", "https://ghfast.top/", "https://ghproxy.net/"];
+
+/**
+ * 下载（支持镜像回退）：opts.mirrors 为前缀数组，"" 表示直连。
+ * 每个候选失败后自动换下一个，全部失败才抛错。
+ */
+async function download(url, dest, onProgress, opts = {}) {
+  const prefixes = opts.mirrors ?? [];
+  const candidates = prefixes.length ? prefixes.map((p) => (p ? `${p}${url}` : url)) : [url];
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return await downloadOnce(candidate, dest, (got, total) => onProgress?.(got, total));
+    } catch (e) {
+      lastError = e;
+      if (opts.onRetry) opts.onRetry(candidate, e.message);
+    }
+  }
+  throw lastError ?? new Error("下载失败");
 }
 
 /**
@@ -132,4 +163,4 @@ async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
   return { ok: true };
 }
 
-module.exports = { listMinecraft, fabricLoaders, installServer, download, getJson };
+module.exports = { listMinecraft, fabricLoaders, installServer, download, getJson, GITHUB_MIRRORS };

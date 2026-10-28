@@ -7,6 +7,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { SwitchRow } from "@/components/ui/field";
 import { Card, SegmentedControl } from "@/components/ui/misc";
+import { SyncCard } from "@/components/app/SyncCard";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { useConfig } from "@/stores/config";
 import type { ThemeMode } from "@/lib/types";
@@ -125,6 +126,8 @@ export default function Settings() {
             </Field>
           </div>
         </Card>
+
+        <SyncCard />
 
         <Card>
           <div className="mb-3 flex items-center gap-2">

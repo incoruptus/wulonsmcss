@@ -101,8 +101,8 @@ export interface McssApi {
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };
   modrinth: {
-    search: (q: string, opts?: { mcVersion?: string; loader?: string; limit?: number; offset?: number }) => Promise<{
-      hits: { id: string; slug: string; title: string; description: string; iconUrl?: string; downloads: number; author?: string }[];
+    search: (q: string, opts?: { mcVersion?: string; loader?: string; limit?: number; offset?: number; sort?: string }) => Promise<{
+      hits: { id: string; slug: string; title: string; description: string; iconUrl?: string; downloads: number; author?: string; categories: string[] }[];
       total: number;
     }>;
     versions: (projectId: string, opts?: { mcVersion?: string; loader?: string }) => Promise<{

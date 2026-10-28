@@ -113,10 +113,25 @@ node package-win.js   # 便携版打包 → ../wulons-mcss-b27.0.0/
 | 实例详情：概览 / 控制台 / 配置 / Mod / 世界 / 玩家 | ✅ |
 | Mod 扫描（ZIP 直读 `fabric.mod.json`）与**客户端 ↔ 服务端比对** | ✅ |
 | 多世界数据包（生成 / 删除 / 扫描） | ✅ |
-| GitHub Gist 跨端同步（配对码 + AES-GCM + 分片 + 中转站认领） | ⏳ 下一阶段 |
-| 资源库（Modrinth 搜索 / 一键装 Mod） | ⏳ |
-| FRP 隧道（通用 frpc + SakuraFrp） | ⏳ |
-| 零基础开服向导（版本 → Mod → 联机 → 开服） | ⏳ |
+| GitHub Gist 跨端同步（配对码 + AES-GCM + 分片 + 中转站认领） | ✅ 10 项单测 |
+| 资源库（Modrinth 搜索 / 一键装 Mod） | ✅ |
+| FRP 隧道（通用 frpc 自动下载 + 日志解析公网地址；SakuraFrp 启动器托管） | ✅ 本机 frps 端到端验证 |
+| 零基础开服向导（版本 → Mod → 联机 → 开服） | ⏳ 下一阶段 |
+
+### 验证方式
+
+```bash
+pnpm test              # 同步内核 10 项单测（加密/信封/合并）
+node scripts/frp-e2e.cjs   # 本机起 frps → frpc 连上 → 校验「start proxy success」与地址解析
+```
+
+同步设计要点：
+
+- **配对码**是唯一秘密（`XXXX-XXXX-XXXX-XXXX-XXXX`，≈100 bit），PBKDF2-SHA256 60 万次 → AES-GCM-256，载荷先 gzip；
+- 上传前一律加密，Gist 里只有密文；`secret gist` 不等于私密；
+- 单文件超 460KB 自动分片，避免 GitHub API 1MB 截断；
+- 首次同步会在账号下创建 Gist，其余设备靠**描述里的配对标识**认领同一个中转站（否则各端各建一个，永远同步不上）；
+- 合并按 `updatedAt` 取新，删除用墓碑；**目录 / Java 路径永远不上传**，跨设备导入的实例显示「待绑定目录」。
 
 ---
 
@@ -149,4 +164,6 @@ node package-win.js   # 便携版打包 → ../wulons-mcss-b27.0.0/
 
 - 同一时刻只运行一个服务器实例（进程管理是单例，UI 以「当前实例」为准）。
 - 「重置全部设置」会清空实例列表，但不会删除磁盘上的服务器文件。
-- FRP / 资源库 / 同步的 IPC 已预留通道，当前调用会返回「尚未接入」。
+- GitHub 直连在国内常不通：frpc / 版本下载内置了 `gh-proxy.com → ghfast.top → ghproxy.net` 镜像回退。
+- SakuraFrp 只做启动器托管，其隧道状态以启动器界面为准（客户端不暴露状态）。
+- 同步的「设置 / 快捷操作 / FRP」是整组 LWW（按远端 payload 时间戳），暂不做字段级合并。

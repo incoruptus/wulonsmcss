@@ -5,7 +5,8 @@ import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import type { Instance, ModMeta } from "@/lib/types";
-import { formatBytes } from "@/lib/utils";
+import { formatBytes, formatDateTime } from "@/lib/utils";
+import { useConfig } from "@/stores/config";
 
 interface DiffRow {
   key: string;
@@ -24,6 +25,7 @@ export function ModsTab({ instance }: { instance: Instance }) {
   const [clientDir, setClientDir] = useState("");
   const [diff, setDiff] = useState<DiffRow[] | null>(null);
   const [comparing, setComparing] = useState(false);
+  const catalog = useConfig((s) => s.cfg.remoteCatalogs?.[instance.id]);
 
   async function load() {
     setLoading(true);
@@ -52,7 +54,7 @@ export function ModsTab({ instance }: { instance: Instance }) {
     setDiff(null);
   }
 
-  async function compare() {
+  async function compare(source: "local" | "cloud") {
     if (!clientDir) {
       toast.error("先选客户端 .minecraft 目录");
       return;
@@ -60,12 +62,29 @@ export function ModsTab({ instance }: { instance: Instance }) {
     setComparing(true);
     try {
       const clientMods = await window.mcss.mods.scan(`${clientDir}\\mods`);
+      const serverList: ModMeta[] =
+        source === "local"
+          ? mods
+          : (catalog?.mods ?? []).map((m) => ({
+              file: m.file,
+              path: "",
+              id: m.id,
+              name: m.name,
+              version: m.version,
+              environment: m.environment,
+              size: 0,
+              mtime: 0,
+            }));
+      if (source === "cloud" && serverList.length === 0) {
+        toast.error("云端还没有这个实例的 Mod 清单，先在服务器那台机器同步一次");
+        return;
+      }
       const byId = (list: ModMeta[]) => {
         const map = new Map<string, ModMeta>();
         for (const m of list) map.set(m.id, m);
         return map;
       };
-      const s = byId(mods);
+      const s = byId(serverList);
       const c = byId(clientMods);
       const keys = new Set([...s.keys(), ...c.keys()]);
       const rows: DiffRow[] = [];
@@ -134,10 +153,30 @@ export function ModsTab({ instance }: { instance: Instance }) {
             <Button variant="secondary" size="sm" onClick={pickClient}>
               选择
             </Button>
-            <Button size="sm" onClick={compare} loading={comparing} disabled={!clientDir}>
-              开始比对
+            <Button size="sm" onClick={() => compare("local")} loading={comparing} disabled={!clientDir}>
+              用本机服务端比对
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => compare("cloud")}
+              disabled={!clientDir || !catalog}
+              title={catalog ? `云端清单更新于 ${formatDateTime(catalog.fetchedAt)}` : "还没有从云端拉到这个实例的清单"}
+            >
+              用云端清单比对
             </Button>
           </div>
+        </div>
+
+        <div className="mt-2 t-label-12 text-gray-700">
+          {catalog ? (
+            <>
+              云端清单：{catalog.mods.length} 个 Mod · 由另一台设备于 {formatDateTime(catalog.updatedAt)} 同步
+              （本机拉取于 {formatDateTime(catalog.fetchedAt)}）
+            </>
+          ) : (
+            "还没有云端清单。在服务器那台机器上打开「设置 → 跨端同步」，同步一次即可；之后这里可以直接拿云端清单和本机客户端对账。"
+          )}
         </div>
 
         {summary ? (

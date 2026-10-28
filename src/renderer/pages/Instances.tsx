@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Plus, Server, Trash2, FolderOpen, Play } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button, IconButton } from "@/components/ui/button";
@@ -13,6 +14,7 @@ export default function Instances() {
   const navigate = useNavigate();
   const instances = useConfig((s) => s.cfg.instances);
   const removeInstance = useConfig((s) => s.removeInstance);
+  const updateInstance = useConfig((s) => s.updateInstance);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
@@ -68,14 +70,31 @@ export default function Instances() {
                 </div>
 
                 <p className="t-mono-12 truncate text-gray-700" title={inst.dir}>
-                  {inst.dir}
+                  {inst.dir || "尚未绑定本机目录（从其他设备同步来的实例）"}
                 </p>
 
                 <div className="mt-auto flex items-center gap-1.5">
-                  <Button size="sm" onClick={() => navigate(`/instances/${inst.id}`)}>
-                    <Play className="size-3.5" />
-                    打开
-                  </Button>
+                  {inst.dir ? (
+                    <Button size="sm" onClick={() => navigate(`/instances/${inst.id}`)}>
+                      <Play className="size-3.5" />
+                      打开
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        const dir = await window.mcss.dialog.openDirectory();
+                        if (!dir) return;
+                        const javas = await window.mcss.app.detectJava().catch(() => []);
+                        const best = javas.find((j) => (j.major ?? 0) >= 21) ?? javas[0];
+                        await updateInstance(inst.id, { dir, javaPath: inst.javaPath || best?.path || "", importedFrom: undefined });
+                        toast.success("已绑定目录");
+                      }}
+                    >
+                      <FolderOpen className="size-3.5" />
+                      绑定目录
+                    </Button>
+                  )}
                   <IconButton label="打开目录" size="sm" onClick={() => window.mcss.app.openPath(inst.dir)}>
                     <FolderOpen className="size-3.5" />
                   </IconButton>

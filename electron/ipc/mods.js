@@ -54,7 +54,9 @@ function readZipEntry(filePath, entryName) {
       const commentLen = cd.readUInt16LE(p + 32);
       const localOffset = cd.readUInt32LE(p + 42);
       const name = cd.toString("utf8", p + 46, p + 46 + nameLen);
-      if (name.toLowerCase() === wanted) {
+      const lower = name.toLowerCase();
+      // 精确匹配，或匹配「任意目录下的同名条目」（frp 的压缩包就是 <根目录>/frpc.exe）
+      if (lower === wanted || lower.endsWith("/" + wanted)) {
         const lfh = readRange(fd, localOffset, 30);
         if (lfh.readUInt32LE(0) !== LFH_SIG) return null;
         const lNameLen = lfh.readUInt16LE(26);

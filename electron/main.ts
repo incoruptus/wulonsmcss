@@ -10,6 +10,8 @@ const mods = require(path.join(IPC_DIR, "mods.js"));
 const versions = require(path.join(IPC_DIR, "versions.js"));
 const javaIpc = require(path.join(IPC_DIR, "java.js"));
 const worlds = require(path.join(IPC_DIR, "worlds.js"));
+const modrinth = require(path.join(IPC_DIR, "modrinth.js"));
+const frp = require(path.join(IPC_DIR, "frp.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -253,18 +255,28 @@ server.onStatus((status) => send("server:status", status));
 ipcMain.handle("app:open-path", (_e, p) => shell.openPath(p));
 ipcMain.handle("app:open-external", (_e, url) => shell.openExternal(url));
 
-/* ---------------------------------- 占位 ---------------------------------- */
-// 后续版本接入：Modrinth 资源库 / FRP 隧道。先给出明确错误，避免调用方拿到 undefined。
-for (const ch of ["modrinth:search", "modrinth:versions", "modrinth:install"]) {
-  ipcMain.handle(ch, () => {
-    throw new Error("资源库功能尚未接入");
-  });
-}
-for (const ch of ["frp:start", "frp:stop", "frp:status"]) {
-  ipcMain.handle(ch, () => {
-    throw new Error("FRP 功能尚未接入");
-  });
-}
+/* -------------------------------- 资源库 --------------------------------- */
+
+ipcMain.handle("modrinth:search", (_e, q, opts) => modrinth.search(q, opts));
+ipcMain.handle("modrinth:versions", (_e, projectId, opts) => modrinth.versions(projectId, opts));
+ipcMain.handle("modrinth:install", async (_e, opts) => {
+  try {
+    return await modrinth.install(opts);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+/* --------------------------------- FRP ----------------------------------- */
+
+ipcMain.handle("frp:start", async (_e, profile) => {
+  if (profile?.kind === "sakura") return frp.startSakura(profile.exePath);
+  return frp.start(profile, (got, total) => send("frp:log", `下载 frpc ${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB`));
+});
+ipcMain.handle("frp:stop", () => frp.stop());
+ipcMain.handle("frp:status", () => frp.status());
+frp.onLog((line) => send("frp:log", line));
+frp.onStatus((state) => send("frp:status", state));
 
 /* ---------------------------------- 生命周期 ------------------------------ */
 
