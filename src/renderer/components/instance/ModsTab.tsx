@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, FolderOpen, GitCompare, RefreshCw, Search, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FolderOpen, GitCompare, Link2, RefreshCw, Search, XCircle } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import type { Instance, ModMeta } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
+import { BindModDialog } from "@/components/instance/BindModDialog";
 
 interface DiffRow {
   key: string;
@@ -15,6 +16,8 @@ interface DiffRow {
   client?: ModMeta;
   status: "same" | "version" | "server-only" | "client-only";
 }
+
+const EMPTY_INDEX: Record<string, { p: string; v: string; n?: string }> = {};
 
 export function ModsTab({ instance }: { instance: Instance }) {
   const modsDir = `${instance.dir}\\mods`;
@@ -26,6 +29,10 @@ export function ModsTab({ instance }: { instance: Instance }) {
   const [diff, setDiff] = useState<DiffRow[] | null>(null);
   const [comparing, setComparing] = useState(false);
   const catalog = useConfig((s) => s.cfg.remoteCatalogs?.[instance.id]);
+  // 注意：选择器里不能返回新对象（`?? {}`），否则每次渲染引用都变，Zustand 会无限重渲染
+  const modrinthIndex = useConfig((s) => s.cfg.modrinthIndex) ?? EMPTY_INDEX;
+  const [binding, setBinding] = useState<ModMeta | null>(null);
+  const [matching, setMatching] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -132,6 +139,37 @@ export function ModsTab({ instance }: { instance: Instance }) {
         <Button variant="secondary" size="sm" onClick={load} loading={loading}>
           <RefreshCw className="size-3.5" />
           刷新
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          loading={matching}
+          onClick={async () => {
+            const cfg = useConfig.getState().cfg;
+            const index = cfg.modrinthIndex ?? {};
+            const missing = mods
+              .filter((m) => !index[m.file])
+              .map((m) => ({ id: m.id, file: m.file, version: m.version, name: m.name }));
+            if (!missing.length) return toast.info("已经全部关联过了");
+            setMatching(true);
+            try {
+              const resolved = await window.mcss.mods.resolveModrinth(missing);
+              if (!resolved.length) return toast.warning("一个都没匹配上，可以手动点「绑定」");
+              const merged = { ...index };
+              for (const r of resolved) merged[r.file] = { p: r.p, v: r.v, n: r.n };
+              await useConfig.getState().patch({ modrinthIndex: merged });
+              toast.success(`已匹配 ${resolved.length} / ${missing.length} 个`, {
+                description: "匹配到的 Mod 会写进邀请码与进服包",
+              });
+            } catch (e) {
+              toast.error((e as Error).message);
+            } finally {
+              setMatching(false);
+            }
+          }}
+        >
+          <Link2 className="size-3.5" />
+          自动匹配
         </Button>
         <IconButton label="打开 mods 目录" size="sm" onClick={() => window.mcss.app.openPath(modsDir)}>
           <FolderOpen className="size-3.5" />
@@ -240,6 +278,7 @@ export function ModsTab({ instance }: { instance: Instance }) {
                   <th className="t-label-12 px-3 py-2 font-medium text-gray-700">名称</th>
                   <th className="t-label-12 px-3 py-2 font-medium text-gray-700">版本</th>
                   <th className="t-label-12 px-3 py-2 font-medium text-gray-700">环境</th>
+                  <th className="t-label-12 px-3 py-2 font-medium text-gray-700">分发</th>
                   <th className="t-label-12 px-3 py-2 font-medium text-gray-700">大小</th>
                 </tr>
               </thead>
@@ -256,6 +295,17 @@ export function ModsTab({ instance }: { instance: Instance }) {
                         {m.environment === "*" ? "双端" : m.environment}
                       </Badge>
                     </td>
+                    <td className="px-3 py-2">
+                      {modrinthIndex[m.file] ? (
+                        <Badge variant="green" size="sm" title={modrinthIndex[m.file].n}>
+                          可自动分发
+                        </Badge>
+                      ) : (
+                        <Button size="xs" variant="ghost" onClick={() => setBinding(m)}>
+                          绑定
+                        </Button>
+                      )}
+                    </td>
                     <td className="px-3 py-2 t-mono-12 text-gray-700">{formatBytes(m.size)}</td>
                   </tr>
                 ))}
@@ -264,6 +314,19 @@ export function ModsTab({ instance }: { instance: Instance }) {
           </div>
         </Card>
       )}
+      <p className="t-label-12 text-gray-700">
+        {Object.keys(modrinthIndex).length
+          ? `${filtered.filter((m) => modrinthIndex[m.file]).length} / ${filtered.length} 个已关联 Modrinth —— 关联过的 Mod 会写进邀请码与进服包，玩家可自动拉齐。`
+          : "还没有关联 Modrinth 的 Mod：从资源库装的会自动关联，手动放进来的可以点「绑定」。"}
+      </p>
+
+      <BindModDialog
+        open={Boolean(binding)}
+        onOpenChange={(v) => !v && setBinding(null)}
+        instance={instance}
+        mod={binding}
+        onBound={() => void load()}
+      />
     </div>
   );
 }
