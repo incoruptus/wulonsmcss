@@ -1896,7 +1896,9 @@ fn fabric_loaders(mc: &str) -> Result<Json, String> {
 }
 
 /// 下载到 dest：先写 .part，成功后再改名，避免半截文件被当成可用
-fn download_to(url: &str, dest: &Path, mirrors: bool) -> Result<u64, String> {
+/// 下载到 dest：断点续传（curl -C -）+ 多源回退 + 可选 sha1 校验
+/// 下完先落到 .part，校验通过才改名，半截文件永远不会被当成可用文件。
+fn download_to(url: &str, dest: &Path, mirrors: bool, expected_sha1: Option<&str>) -> Result<u64, String> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败：{e}"))?;
     }
@@ -1916,42 +1918,70 @@ fn download_to(url: &str, dest: &Path, mirrors: bool) -> Result<u64, String> {
 
     let mut last_error = String::from("下载失败");
     for candidate in candidates {
-        let result = curl(&[
-            "-L",
-            "--fail",
-            "--connect-timeout",
-            "10",
-            "--max-time",
-            "300",
-            "-H",
-            &format!("User-Agent: {UA}"),
-            "-o",
-            &part.to_string_lossy(),
-            &candidate,
-        ]);
-        match result {
-            Ok(_) => {
-                if dest.exists() {
-                    let _ = std::fs::remove_file(dest);
+        // 第一遍尝试续传；服务端不支持 Range（curl 退出码 33）就删掉重来
+        for resume in [true, false] {
+            if !resume {
+                let _ = std::fs::remove_file(&part);
+            }
+            let mut args: Vec<String> = vec![
+                "-L".into(),
+                "--fail".into(),
+                "--connect-timeout".into(),
+                "10".into(),
+                "--max-time".into(),
+                "300".into(),
+                "--retry".into(),
+                "2".into(),
+                "-H".into(),
+                format!("User-Agent: {UA}"),
+            ];
+            if resume && part.exists() && std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0) > 0 {
+                args.push("-C".into());
+                args.push("-".into());
+            }
+            args.push("-o".into());
+            args.push(part.to_string_lossy().to_string());
+            args.push(candidate.clone());
+
+            let borrowed: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            match curl(&borrowed) {
+                Ok(_) => {
+                    // 校验：对不上就丢掉，换下一个源
+                    if let Some(expected) = expected_sha1 {
+                        let actual = hash_file(&part).unwrap_or_default();
+                        if !actual.eq_ignore_ascii_case(expected) {
+                            let _ = std::fs::remove_file(&part);
+                            last_error = "校验不通过（文件可能被截断或源被篡改）".into();
+                            break;
+                        }
+                    }
+
+                    if dest.exists() {
+                        let _ = std::fs::remove_file(dest);
+                    }
+                    // 刚下完的文件可能被杀软扫一下，rename 会短暂失败：重试，再退化成复制
+                    let mut moved = false;
+                    for _ in 0..8 {
+                        if std::fs::rename(&part, dest).is_ok() {
+                            moved = true;
+                            break;
+                        }
+                        thread::sleep(Duration::from_millis(400));
+                    }
+                    if !moved {
+                        std::fs::copy(&part, dest).map_err(|e| format!("写入文件失败：{e}"))?;
+                        let _ = std::fs::remove_file(&part);
+                    }
+                    return Ok(std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0));
                 }
-                // 刚下完的文件可能被杀软扫一下，rename 会短暂失败：重试，再退化成复制
-                let mut moved = false;
-                for _ in 0..8 {
-                    if std::fs::rename(&part, dest).is_ok() {
-                        moved = true;
+                Err(e) => {
+                    last_error = e;
+                    // 33 = 服务端不支持 Range，删掉 part 再从头下
+                    if !resume {
+                        let _ = std::fs::remove_file(&part);
                         break;
                     }
-                    thread::sleep(Duration::from_millis(400));
                 }
-                if !moved {
-                    std::fs::copy(&part, dest).map_err(|e| format!("写入文件失败：{e}"))?;
-                    let _ = std::fs::remove_file(&part);
-                }
-                return Ok(std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0));
-            }
-            Err(e) => {
-                let _ = std::fs::remove_file(&part);
-                last_error = e;
             }
         }
     }
@@ -2009,7 +2039,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
             urlencode(&installer)
         );
         progress("下载 Fabric 服务端", 5, "");
-        let size = download_to(&url, &dir_path.join("fabric-server-launch.jar"), false)?;
+        let size = download_to(&url, &dir_path.join("fabric-server-launch.jar"), false, None)?;
         progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
         return Ok(Json::obj(vec![
             ("ok", Json::Bool(true)),
@@ -2035,8 +2065,15 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         .ok_or_else(|| format!("{mc} 没有服务端下载（可能是快照早期版本）"))?
         .to_string();
 
+    let server_sha1 = detail
+        .get("downloads")
+        .and_then(|d| d.get("server"))
+        .and_then(|s| s.get("sha1"))
+        .and_then(|v| v.str())
+        .map(String::from);
+
     progress("下载原版服务端", 6, "");
-    let size = download_to(&server_url, &dir_path.join("server.jar"), false)?;
+    let size = download_to(&server_url, &dir_path.join("server.jar"), false, server_sha1.as_deref())?;
     progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
 }
@@ -2162,7 +2199,7 @@ fn ensure_frpc(shared: &Shared) -> Result<PathBuf, String> {
     // 上次可能已经把包下好了，别重复下
     let need_download = !zip.exists() || std::fs::metadata(&zip).map(|m| m.len()).unwrap_or(0) < 1024 * 1024;
     if need_download {
-        download_to(&download_url, &zip, true)?;
+        download_to(&download_url, &zip, true, None)?;
     } else {
         let mut state = shared.lock().unwrap();
         frp_push_log(&mut state, "使用已下载的安装包");

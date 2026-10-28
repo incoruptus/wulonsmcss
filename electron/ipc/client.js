@@ -30,7 +30,7 @@ async function resolveFile(versionId) {
   const files = v.files || [];
   const file = files.find((f) => f.primary) || files[0];
   if (!file) throw new Error(`版本 ${versionId} 没有可下载文件`);
-  return { url: file.url, filename: file.filename, size: file.size, name: v.name || "" };
+  return { url: file.url, filename: file.filename, size: file.size, name: v.name || "", sha1: file.hashes?.sha1, sha512: file.hashes?.sha512 };
 }
 
 /**
@@ -56,7 +56,10 @@ async function prepare({ dir, mods = [], onProgress }) {
         results.push({ ok: true, name: label, file: file.filename, skipped: true });
         continue;
       }
-      await download(file.url, dest, undefined, { mirrors: ["", "https://gh-proxy.com/"] });
+      await download(file.url, dest, undefined, {
+        mirrors: ["", "https://gh-proxy.com/"],
+        hash: { sha1: file.sha1, sha512: file.sha512 },
+      });
       results.push({ ok: true, name: label, file: file.filename });
     } catch (e) {
       results.push({ ok: false, name: label, error: e.message });

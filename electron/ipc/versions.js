@@ -7,6 +7,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { download: robustDownload } = require("./download");
 
 const MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const FABRIC_META = "https://meta.fabricmc.net/v2";
@@ -104,22 +105,18 @@ async function downloadOnce(url, dest, onProgress, opts = {}) {
 const GITHUB_MIRRORS = ["", "https://gh-proxy.com/", "https://ghfast.top/", "https://ghproxy.net/"];
 
 /**
- * 下载（支持镜像回退）：opts.mirrors 为前缀数组，"" 表示直连。
- * 每个候选失败后自动换下一个，全部失败才抛错。
+ * 下载：内部换成更硬的下载器
+ * （断点续传 + 多源回退 + 哈希校验 + 缓存命中，见 ipc/download.js）
  */
 async function download(url, dest, onProgress, opts = {}) {
-  const prefixes = opts.mirrors ?? [];
-  const candidates = prefixes.length ? prefixes.map((p) => (p ? `${p}${url}` : url)) : [url];
-  let lastError = null;
-  for (const candidate of candidates) {
-    try {
-      return await downloadOnce(candidate, dest, (got, total) => onProgress?.(got, total));
-    } catch (e) {
-      lastError = e;
-      if (opts.onRetry) opts.onRetry(candidate, e.message);
-    }
-  }
-  throw lastError ?? new Error("下载失败");
+  return robustDownload({
+    url,
+    dest,
+    mirrors: opts.mirrors ?? [],
+    hash: opts.hash,
+    onProgress: (got, total) => onProgress?.(got, total),
+    onRetry: opts.onRetry,
+  });
 }
 
 /**
@@ -158,7 +155,7 @@ async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
   await download(serverUrl, path.join(dir, "server.jar"), (got, total) => {
     const pct = total ? 6 + Math.round((got / total) * 90) : 50;
     onProgress?.({ stage: "下载原版服务端", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
-  });
+  }, { hash: { sha1: detail?.downloads?.server?.sha1 } });
   onProgress?.({ stage: "完成", percent: 100 });
   return { ok: true };
 }
