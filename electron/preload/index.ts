@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld("mcss", {
   client: {
     prepare: (opts: any) => invoke("client:prepare", opts),
     addServer: (opts: any) => invoke("client:add-server", opts),
+    exportMrpack: (opts: any) => invoke("client:export-mrpack", opts),
     onProgress: (cb: (p: any) => void) => subscribe("client:progress", "clientProgress", cb)
   },
   frp: {

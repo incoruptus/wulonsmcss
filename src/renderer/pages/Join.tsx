@@ -197,6 +197,36 @@ export default function Join() {
                 <Button
                   variant="secondary"
                   onClick={async () => {
+                    const target = await window.mcss.dialog.saveFile({
+                      defaultPath: `${room.name || "mcss-room"}.mrpack`,
+                      filters: [{ name: "Modrinth 整合包", extensions: ["mrpack"] }],
+                    });
+                    if (!target) return;
+                    setPreparing(true);
+                    setProgress({ stage: "准备进服包", percent: 0 });
+                    const off = window.mcss.client.onProgress(setProgress);
+                    try {
+                      const res = await window.mcss.client.exportMrpack({ outFile: target, room });
+                      if (!res.ok) throw new Error(res.error || "导出失败");
+                      toast.success("进服包已导出", {
+                        description: `${res.mods} 个 Mod · ${res.size ? (res.size / 1024).toFixed(0) + " KB" : ""} · 在启动器里导入即可`,
+                      });
+                    } catch (e) {
+                      toast.error((e as Error).message);
+                    } finally {
+                      off();
+                      setPreparing(false);
+                      setProgress(null);
+                    }
+                  }}
+                  loading={preparing}
+                >
+                  <Package className="size-4" />
+                  导出进服包
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
                     const dir = await window.mcss.dialog.openDirectory();
                     if (!dir) return;
                     const res = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: room.addr });

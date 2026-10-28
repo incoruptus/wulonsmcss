@@ -30,6 +30,8 @@ export interface RoomDescriptorV1 {
   mc: string;
   /** 服务端核心 */
   loader: string;
+  /** 加载器版本（fabric 导出 mrpack 时需要） */
+  lv?: string;
   /** 需要的客户端 Mod（按 Modrinth 版本锁定） */
   mods: RoomModRef[];
   /** 过期时间（毫秒时间戳），0/缺省 = 不过期 */

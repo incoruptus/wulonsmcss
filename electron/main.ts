@@ -16,6 +16,7 @@ const preflight = require(path.join(IPC_DIR, "preflight.js"));
 const client = require(path.join(IPC_DIR, "client.js"));
 const backup = require(path.join(IPC_DIR, "backup.js"));
 const serversdat = require(path.join(IPC_DIR, "serversdat.js"));
+const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -375,6 +376,19 @@ ipcMain.handle("backup:restore", (_e, serverDir, name) => backup.restore(serverD
 ipcMain.handle("backup:remove", (_e, serverDir, name) => backup.remove(serverDir, name));
 
 /* -------------------------------- 资源库 --------------------------------- */
+
+ipcMain.handle("client:export-mrpack", async (_e, opts) => {
+  try {
+    const res = await mrpack.exportMrpack({
+      outFile: opts.outFile,
+      room: opts.room,
+      onProgress: (p) => send("client:progress", p),
+    });
+    return res;
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 
 ipcMain.handle("client:add-server", (_e, opts) => {
   try {

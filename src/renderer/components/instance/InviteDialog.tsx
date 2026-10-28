@@ -53,6 +53,7 @@ export function InviteDialog({
       addr,
       mc: instance.mcVersion,
       loader: instance.loader,
+      lv: instance.loaderVersion,
       // 通过资源库装的 Mod 会被带进房间码（客户端可按 id 自动拉齐）
       mods: modRefs,
     }),
