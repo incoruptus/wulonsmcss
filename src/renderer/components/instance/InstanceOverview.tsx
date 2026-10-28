@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu, Send } from "lucide-react";
+import { FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu, Send, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/misc";
 import { InviteDialog } from "@/components/instance/InviteDialog";
 import { useServer } from "@/stores/server";
-import type { Instance } from "@/lib/types";
+import { useConfig } from "@/stores/config";
+import type { Instance, InstanceSchedule } from "@/lib/types";
 import { formatDuration, timeAgo } from "@/lib/utils";
 
 export function InstanceOverview({ instance, onEdit }: { instance: Instance; onEdit: () => void }) {
@@ -16,6 +19,13 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
   const setMemory = useServer((s) => s.setMemory);
   const [now, setNow] = useState(Date.now());
   const [inviting, setInviting] = useState(false);
+  const [schedule, setSchedule] = useState<InstanceSchedule>(instance.schedule ?? {});
+  const updateInstance = useConfig((s) => s.updateInstance);
+
+  function saveSchedule(next: InstanceSchedule) {
+    setSchedule(next);
+    void updateInstance(instance.id, { schedule: next });
+  }
   const [counts, setCounts] = useState<{ mods: number; worlds: number }>({ mods: 0, worlds: 0 });
 
   const running = status === "running" || status === "starting";
@@ -132,6 +142,65 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
           </ul>
         </Card>
       </div>
+      <Card>
+        <div className="mb-3 flex items-center gap-2">
+          <Timer className="size-4 text-gray-800" />
+          <h3 className="t-h-14 text-gray-1000">自动化</h3>
+          <span className="t-label-12 text-gray-700">只在这个实例运行中生效</span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="每日重启" hint={schedule.restartAt ? `每天 ${schedule.restartAt} 自动重启` : "留空不重启"}>
+            <div className="flex gap-2">
+              <Input
+                type="time"
+                value={schedule.restartAt ?? ""}
+                onChange={(e) => saveSchedule({ ...schedule, restartAt: e.target.value })}
+              />
+              {schedule.restartAt ? (
+                <Button size="sm" variant="ghost" onClick={() => saveSchedule({ ...schedule, restartAt: "" })}>
+                  清除
+                </Button>
+              ) : null}
+            </div>
+          </Field>
+
+          <Field label="定时公告" hint={schedule.broadcastEvery ? `每 ${schedule.broadcastEvery} 分钟广播一次` : "关闭"}>
+            <div className="space-y-1.5">
+              <Select
+                value={String(schedule.broadcastEvery ?? 0)}
+                onChange={(e) => saveSchedule({ ...schedule, broadcastEvery: Number(e.target.value) })}
+                options={[
+                  { value: "0", label: "关闭" },
+                  { value: "30", label: "每 30 分钟" },
+                  { value: "60", label: "每 1 小时" },
+                  { value: "120", label: "每 2 小时" },
+                ]}
+              />
+              {schedule.broadcastEvery ? (
+                <Input
+                  value={schedule.broadcastText ?? ""}
+                  onChange={(e) => saveSchedule({ ...schedule, broadcastText: e.target.value })}
+                  placeholder="宣传语，例如：欢迎加入 QQ 群"
+                />
+              ) : null}
+            </div>
+          </Field>
+
+          <Field label="定时备份" hint={schedule.backupEvery ? `每 ${schedule.backupEvery} 分钟备份一次` : "关闭"}>
+            <Select
+              value={String(schedule.backupEvery ?? 0)}
+              onChange={(e) => saveSchedule({ ...schedule, backupEvery: Number(e.target.value) })}
+              options={[
+                { value: "0", label: "关闭" },
+                { value: "30", label: "每 30 分钟" },
+                { value: "60", label: "每 1 小时" },
+                { value: "180", label: "每 3 小时" },
+              ]}
+            />
+          </Field>
+        </div>
+      </Card>
       </div>
 
       <InviteDialog open={inviting} onOpenChange={setInviting} instance={instance} />

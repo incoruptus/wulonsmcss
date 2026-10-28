@@ -17,11 +17,16 @@ const client = require(path.join(IPC_DIR, "client.js"));
 const backup = require(path.join(IPC_DIR, "backup.js"));
 const serversdat = require(path.join(IPC_DIR, "serversdat.js"));
 const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
+const schedule = require(path.join(IPC_DIR, "schedule.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
 let configStore = null;
 let activeInstanceId = null;
+/** 定时重启：等服务器停稳后再拉起来 */
+let restartPending = null;
+/** 定时任务的内存态：上次执行时间（重启按天记） */
+const scheduleState = new Map();
 
 function getConfigPath() {
   if (app.isPackaged) return path.join(app.getPath("userData"), "config.json");
@@ -322,7 +327,9 @@ ipcMain.handle("server:preflight", async (_e, instanceId) => {
   return preflight.run(inst);
 });
 
-ipcMain.handle("server:start", async (_e, instanceId) => {  const inst = findInstance(instanceId);
+/** 启动某个实例（IPC 与定时任务共用） */
+function startInstance(instanceId) {
+  const inst = findInstance(instanceId);
   if (!inst) return { ok: false, error: "实例不存在" };
 
   activeInstanceId = instanceId;
@@ -334,11 +341,13 @@ ipcMain.handle("server:start", async (_e, instanceId) => {  const inst = findIns
   if (res?.ok) {
     const cfg = readConfig();
     configStore.write({
-      instances: cfg.instances.map((i) => (i.id === instanceId ? { ...i, lastStartedAt: Date.now(), updatedAt: Date.now() } : i))
+      instances: cfg.instances.map((i) => (i.id === instanceId ? { ...i, lastStartedAt: Date.now(), updatedAt: Date.now() } : i)),
     });
   }
   return res || { ok: true };
-});
+}
+
+ipcMain.handle("server:start", (_e, instanceId) => startInstance(instanceId));
 
 ipcMain.handle("server:stop", () => {
   server.stop();
@@ -367,6 +376,18 @@ server.onStatus((status) => {
         } catch (e) {}
       }
     }
+  }
+
+  // 定时重启：停服后自动再拉起来
+  if (status === "stopped" && restartPending) {
+    const id = restartPending;
+    restartPending = null;
+    const log = (msg) => send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: msg });
+    log("定时重启：3 秒后重新启动");
+    setTimeout(() => {
+      const res = startInstance(id);
+      log(res.ok ? "定时重启：已重新启动" : `定时重启失败：${res.error || "未知原因"}`);
+    }, 3000);
   }
 });
 
@@ -442,7 +463,45 @@ app.whenReady().then(() => {
   const cfg = readConfig();
   activeInstanceId = cfg.activeInstanceId;
   createWindow();
+  startScheduler();
 });
+
+/**
+ * 定时任务：每 30 秒看一眼当前实例的计划。
+ * 只对「正在运行」的实例生效——没跑就没必要重启/广播。
+ */
+function startScheduler() {
+  setInterval(() => {
+    try {
+      const cfg = readConfig();
+      const inst = cfg.instances.find((i) => i.id === cfg.activeInstanceId);
+      if (!inst?.schedule) return;
+
+      const running = server.getStatus() === "running";
+      const prev = scheduleState.get(inst.id) ?? {};
+      const { actions, state } = schedule.tick({ schedule: inst.schedule, state: prev, running, now: new Date() });
+      scheduleState.set(inst.id, state);
+
+      for (const action of actions) {
+        if (action.type === "restart") {
+          restartPending = inst.id;
+          send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: "定时重启：正在停服" });
+          server.stop();
+        } else if (action.type === "broadcast") {
+          server.sendCommand(`say ${action.text}`);
+        } else if (action.type === "backup") {
+          const res = backup.create(inst.dir, server);
+          if (res.ok) {
+            backup.prune(inst.dir, cfg.backupKeep ?? 5);
+            send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `定时备份完成：${res.name}` });
+          }
+        }
+      }
+    } catch (e) {
+      /* 定时任务出错不能影响主进程 */
+    }
+  }, 30_000);
+}
 
 app.on("window-all-closed", () => {
   server.stop();

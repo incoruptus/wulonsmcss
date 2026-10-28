@@ -6,6 +6,16 @@ export type { SyncConfig } from "./sync/types";
 
 export type Loader = "fabric" | "vanilla";
 
+export interface InstanceSchedule {
+  /** 每日重启时间 HH:MM（空 = 不重启） */
+  restartAt?: string;
+  /** 定时公告间隔（分钟） */
+  broadcastEvery?: number;
+  broadcastText?: string;
+  /** 定时备份间隔（分钟） */
+  backupEvery?: number;
+}
+
 export interface Instance {
   id: string;
   /** 显示名 */
@@ -29,6 +39,8 @@ export interface Instance {
   icon?: string;
   /** 从其他设备同步过来、尚未绑定本机目录 */
   importedFrom?: string;
+  /** 定时任务 */
+  schedule?: InstanceSchedule;
 }
 
 export interface QuickAction {

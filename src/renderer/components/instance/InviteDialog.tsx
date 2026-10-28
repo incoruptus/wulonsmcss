@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Copy, Link2, QrCode, RefreshCw, Send } from "lucide-react";
+import { AlertTriangle, Check, Copy, Link2, Package, QrCode, RefreshCw, Send } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
@@ -206,6 +206,32 @@ export function InviteDialog({
               <Button size="sm" onClick={() => copy(roomShareText(room, code), "邀请文案")}>
                 <Send className="size-3.5" />
                 复制邀请文案
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  const target = await window.mcss.dialog.saveFile({
+                    defaultPath: `${room.name || "mcss-room"}.mrpack`,
+                    filters: [{ name: "Modrinth 整合包", extensions: ["mrpack"] }],
+                  });
+                  if (!target) return;
+                  setBusy(true);
+                  try {
+                    const res = await window.mcss.client.exportMrpack({ outFile: target, room });
+                    if (!res.ok) throw new Error(res.error || "导出失败");
+                    toast.success("进服包已导出", {
+                      description: `${res.mods ?? 0} 个 Mod · 直接发群里，朋友在启动器导入即可`,
+                    });
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Package className="size-3.5" />
+                导出进服包
               </Button>
               <Button size="sm" variant="secondary" onClick={() => copy(roomDeepLink(code), "深链")}>
                 <Link2 className="size-3.5" />
