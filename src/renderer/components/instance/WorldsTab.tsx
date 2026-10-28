@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Globe2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Globe2, Plus, RefreshCw, Trash2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -67,6 +67,21 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           <Button variant="secondary" size="sm" onClick={load} loading={loading}>
             <RefreshCw className="size-3.5" />
             重新扫描
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              const res = await window.mcss.worlds.repair(instance.dir);
+              if (!res.success) return toast.error(res.error || "修复失败");
+              toast.success(`已修复 ${res.fixed?.length ?? 0} 处`, {
+                description: "旧版生成器产出的维度格式会让服务器起不来，已升级到 26.1 格式",
+              });
+              await load();
+            }}
+          >
+            <Wrench className="size-3.5" />
+            修复数据包
           </Button>
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="size-3.5" />

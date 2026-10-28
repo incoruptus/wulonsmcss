@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld("mcss", {
     scan: (serverDir: string) => invoke("worlds:scan", serverDir),
     create: (serverDir: string, cfg: any) => invoke("worlds:create", serverDir, cfg),
     remove: (serverDir: string, packName: string) => invoke("worlds:remove", serverDir, packName),
+    repair: (serverDir: string) => invoke("worlds:repair", serverDir),
     reload: () => invoke("worlds:reload")
   },
   versions: {

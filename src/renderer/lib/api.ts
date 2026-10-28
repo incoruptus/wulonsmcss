@@ -99,6 +99,7 @@ export interface McssApi {
     scan: (serverDir: string) => Promise<WorldPack[]>;
     create: (serverDir: string, cfg: { name: string; label?: string; type: string; description?: string; namespace?: string }) => Promise<{ success: boolean; error?: string }>;
     remove: (serverDir: string, packName: string) => Promise<{ success: boolean; error?: string }>;
+    repair: (serverDir: string) => Promise<{ success: boolean; error?: string; fixed?: string[] }>;
     reload: () => Promise<{ success: boolean }>;
   };
   versions: {

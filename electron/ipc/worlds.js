@@ -103,4 +103,81 @@ function remove(serverDir, packName) {
   }
 }
 
-module.exports = { scan, create, remove };
+/**
+ * 修复旧版本生成的数据包：
+ * - 26.1 的 dimension_type 换了 schema（attributes / has_ender_dragon_fight），
+ *   旧包会让「注册表加载失败」直接导致服务器起不来
+ * - 同时把 pack_format 升到 101
+ * 返回修了哪些文件，方便 UI 展示。
+ */
+async function repair(serverDir, mwmDir) {
+  const templatePath = path.join(mwmDir || path.join(__dirname, "..", "..", "wulons-mcss-mwm"), "src", "templates", "dimension_types.js");
+  let mod;
+  let gen;
+  try {
+    const { pathToFileURL } = require("url");
+    const base = mwmDir || path.join(__dirname, "..", "..", "wulons-mcss-mwm");
+    mod = await import(pathToFileURL(path.join(base, "src", "templates", "dimension_types.js")).href);
+    gen = await import(pathToFileURL(path.join(base, "src", "generate.js")).href);
+  } catch (e) {
+    return { success: false, error: `模板加载失败：${e.message}` };
+  }
+
+  const { TYPE_MAP, inferTypeFromDimension } = mod;
+  const root = datapacksDir(serverDir);
+  let entries = [];
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch (e) {
+    return { success: false, error: "没有找到 world/datapacks" };
+  }
+
+  const fixed = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith("mwm-")) continue;
+    const packDir = path.join(root, entry.name);
+
+    // pack.mcmeta
+    const metaPath = path.join(packDir, "pack.mcmeta");
+    try {
+      const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8").replace(/^\uFEFF/, ""));
+      meta.pack = { ...meta.pack, pack_format: 101, min_format: [101, 1], max_format: 101 };
+      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+      fixed.push(`${entry.name}/pack.mcmeta`);
+    } catch (e) {}
+
+    // 逐个维度重写 dimension_type
+    const dataDir = path.join(packDir, "data");
+    let namespaces = [];
+    try {
+      namespaces = fs.readdirSync(dataDir);
+    } catch (e) {
+      continue;
+    }
+    for (const ns of namespaces) {
+      const dimDir = path.join(dataDir, ns, "dimension");
+      if (!fs.existsSync(dimDir)) continue;
+      for (const file of fs.readdirSync(dimDir)) {
+        if (!file.endsWith(".json")) continue;
+        try {
+          const raw = JSON.parse(fs.readFileSync(path.join(dimDir, file), "utf-8").replace(/^\uFEFF/, ""));
+          const dim = gen.normalizeDimension(raw);
+          if (JSON.stringify(dim) !== JSON.stringify(raw)) {
+            fs.writeFileSync(path.join(dimDir, file), JSON.stringify(dim, null, 2));
+            fixed.push(`${entry.name}/${ns}/${file} → biome_source 改为显式数组`);
+          }
+          const kind = inferTypeFromDimension(dim);
+          const template = TYPE_MAP[kind] ?? TYPE_MAP.overworld;
+          const typePath = path.join(dataDir, ns, "dimension_type", file);
+          fs.mkdirSync(path.dirname(typePath), { recursive: true });
+          fs.writeFileSync(typePath, JSON.stringify(template.type, null, 2));
+          fixed.push(`${entry.name}/${ns}/${file} → ${kind}`);
+        } catch (e) {}
+      }
+    }
+  }
+
+  return { success: true, fixed };
+}
+
+module.exports = { scan, create, remove, repair };

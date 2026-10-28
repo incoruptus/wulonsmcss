@@ -193,6 +193,7 @@ ipcMain.handle("mods:meta", (_e, jarPath) => mods.readModMeta(jarPath));
 ipcMain.handle("worlds:scan", (_e, serverDir) => worlds.scan(serverDir));
 ipcMain.handle("worlds:create", (_e, serverDir, cfg) => worlds.create(serverDir, cfg, getMwmDir()));
 ipcMain.handle("worlds:remove", (_e, serverDir, pack) => worlds.remove(serverDir, pack));
+ipcMain.handle("worlds:repair", async (_e, serverDir) => worlds.repair(serverDir, getMwmDir()));
 ipcMain.handle("worlds:reload", () => {
   server.sendCommand("reload");
   return { success: true };

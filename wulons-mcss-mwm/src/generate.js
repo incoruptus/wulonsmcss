@@ -3,6 +3,42 @@
 
 import { TYPE_MAP } from "./templates/dimension_types.js"
 
+/**
+ * 26.1 的 multi_noise 不再接受 preset 名字（注册表里查不到就报
+ * "Failed to get element ... multi_noise_biome_source_parameter_list"），
+ * 必须给出显式的 biomes 数组。这里按预设给一份「够用就好」的群系表。
+ */
+const PRESET_BIOMES = {
+  "minecraft:overworld": [
+    "minecraft:plains",
+    "minecraft:forest",
+    "minecraft:taiga",
+    "minecraft:desert",
+    "minecraft:savanna",
+    "minecraft:swamp",
+    "minecraft:jungle",
+    "minecraft:snowy_plains"
+  ],
+  "minecraft:nether": [
+    "minecraft:nether_wastes",
+    "minecraft:crimson_forest",
+    "minecraft:warped_forest",
+    "minecraft:soul_sand_valley",
+    "minecraft:basalt_deltas"
+  ],
+  "minecraft:end": [
+    "minecraft:the_end",
+    "minecraft:end_highlands",
+    "minecraft:end_midlands",
+    "minecraft:small_end_islands",
+    "minecraft:end_barrens"
+  ]
+}
+
+export function presetBiomes(preset) {
+  return PRESET_BIOMES[preset] ?? PRESET_BIOMES["minecraft:overworld"]
+}
+
 export function buildDimension(world) {
   const type = world.type || "overworld"
   const template = TYPE_MAP[type]
@@ -55,10 +91,11 @@ function buildBiomeSource(world, template) {
     }
   }
 
-  // 默认：使用 preset（仅原版群系）
+  // 默认：把预设展开成显式群系表（26.1 不接受 preset 字符串）
+  const preset = world.biome_preset || template.preset
   return {
     type: "minecraft:multi_noise",
-    preset: world.biome_preset || template.preset
+    biomes: distributeBiomes(presetBiomes(preset))
   }
 }
 
@@ -98,4 +135,19 @@ function buildFlatLayers(world) {
     { block: "minecraft:dirt", height: 3 },
     { block: "minecraft:grass_block", height: 1 }
   ]
+}
+
+/** 修复旧的 dimension JSON：把 preset / 字符串 biomes 形式换成显式数组 */
+export function normalizeDimension(dimension) {
+  const dim = JSON.parse(JSON.stringify(dimension))
+  const bs = dim?.generator?.biome_source
+  if (!bs) return dim
+  const preset = bs.preset ?? (typeof bs.biomes === "string" ? bs.biomes : null)
+  if ((bs.type === "minecraft:multi_noise" || !bs.type) && preset && !Array.isArray(bs.biomes)) {
+    dim.generator.biome_source = {
+      type: "minecraft:multi_noise",
+      biomes: distributeBiomes(presetBiomes(preset))
+    }
+  }
+  return dim
 }

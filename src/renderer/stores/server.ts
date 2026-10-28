@@ -8,6 +8,8 @@ interface ServerState {
   maxLogs: number;
   tps: number;
   players: string[];
+  /** 玩家名 → 加入时间戳 */
+  playersJoinedAt: Record<string, number>;
   startedAt: number | null;
   memoryUsed: number;
   memoryMax: number;
@@ -27,6 +29,7 @@ export const useServer = create<ServerState>((set, get) => ({
   maxLogs: 2000,
   tps: 20,
   players: [],
+  playersJoinedAt: {},
   startedAt: null,
   memoryUsed: 0,
   memoryMax: 4 * 1024 * 1024 * 1024,
@@ -82,14 +85,20 @@ export const useServer = create<ServerState>((set, get) => ({
 
     // 玩家列表兜底：聊天行 / 加入离开
     const msg = parsed.message;
-    const players = get().players;
-    if (parsed.chatFrom && !players.includes(parsed.chatFrom)) {
-      set({ players: [...players, parsed.chatFrom] });
+    const joinedAt = get().playersJoinedAt;
+    if (parsed.chatFrom && !get().players.includes(parsed.chatFrom)) {
+      set({ players: [...get().players, parsed.chatFrom], playersJoinedAt: { ...joinedAt, [parsed.chatFrom]: Date.now() } });
     }
     const join = msg.match(/(\w{1,32}) joined the game/);
-    if (join && !get().players.includes(join[1])) set({ players: [...get().players, join[1]] });
+    if (join && !get().players.includes(join[1])) {
+      set({ players: [...get().players, join[1]], playersJoinedAt: { ...joinedAt, [join[1]]: Date.now() } });
+    }
     const left = msg.match(/(\w{1,32}) left the game/);
-    if (left) set({ players: get().players.filter((p) => p !== left[1]) });
+    if (left) {
+      const nextJoinedAt = { ...joinedAt };
+      delete nextJoinedAt[left[1]];
+      set({ players: get().players.filter((p) => p !== left[1]), playersJoinedAt: nextJoinedAt });
+    }
 
     // TPS（Paper/Spigot 的 tps 输出）
     const tps = msg.match(/(?:Overall )?TPS:?\s*([\d.]+)/i) ?? msg.match(/TPS from last [^:]+:\s*([\d.]+)/i);
