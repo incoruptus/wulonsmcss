@@ -84,12 +84,18 @@ function createWindow() {
       mainWindow?.webContents.openDevTools({ mode: "detach" });
     }
     // 截图自检：MCSS_SHOT=<png 路径>，配合 MCSS_SHOT_EXIT=1 截图后自动退出
-    if (process.env.MCSS_SHOT) {
+    if (process.env.MCSS_SHOT || process.env.MCSS_DUMP) {
       setTimeout(async () => {
         try {
-          const image = await mainWindow?.webContents.capturePage();
-          if (image) fs.writeFileSync(process.env.MCSS_SHOT!, image.toPNG());
-          console.log("screenshot saved:", process.env.MCSS_SHOT);
+          if (process.env.MCSS_DUMP) {
+            const text = await mainWindow?.webContents.executeJavaScript("document.body.innerText");
+            console.log("DUMP>>>" + String(text ?? "").slice(0, 20000));
+          }
+          if (process.env.MCSS_SHOT) {
+            const image = await mainWindow?.webContents.capturePage();
+            if (image) fs.writeFileSync(process.env.MCSS_SHOT!, image.toPNG());
+            console.log("screenshot saved:", process.env.MCSS_SHOT);
+          }
         } catch (err) {
           console.error("screenshot failed:", err);
         }

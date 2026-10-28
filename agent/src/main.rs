@@ -1324,7 +1324,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             })
         }
         "server:memory" => Ok(Json::n(0.0)),
-        other => Err(format!("agent 还没有实现 {other}")),
+        other => Err(format!("UNSUPPORTED:{other}")),
     }
 }
 

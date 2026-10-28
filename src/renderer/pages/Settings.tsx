@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, FolderOpen, Info, Palette, RotateCcw, Settings2 } from "lucide-react";
+import { Check, ExternalLink, FolderOpen, Globe, Info, Minus, Palette, RotateCcw, Settings2 } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { SwitchRow } from "@/components/ui/field";
-import { Card, SegmentedControl } from "@/components/ui/misc";
+import { Card, SegmentedControl, Badge } from "@/components/ui/misc";
+import { detectShell } from "@/lib/shell";
 import { SyncCard } from "@/components/app/SyncCard";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { useConfig } from "@/stores/config";
@@ -28,6 +29,7 @@ export default function Settings() {
   const patch = useConfig((s) => s.patch);
   const [info, setInfo] = useState<{ version: string; electron: string; node: string; appData: string } | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const isWeb = detectShell() === "web";
 
   useEffect(() => {
     window.mcss.app.info().then(setInfo).catch(() => {});
@@ -128,6 +130,43 @@ export default function Settings() {
         </Card>
 
         <SyncCard />
+
+        {isWeb ? (
+          <Card>
+            <div className="mb-3 flex items-center gap-2">
+              <Globe className="size-4 text-gray-800" />
+              <h3 className="t-h-14 text-gray-1000">网页版能力</h3>
+              <Badge variant="blue" size="sm">桌面版更全</Badge>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className="t-label-12 mb-1 text-gray-700">已支持</div>
+                <ul className="space-y-1 t-label-13 text-gray-1000">
+                  {["开服 / 停服 / 控制台 / 命令", "加入房间、准备客户端、进服包", "世界备份与恢复", "Mod 扫描 / 禁用 / 资源库安装", "AI 现场包导出"].map((t) => (
+                    <li key={t} className="flex items-center gap-1.5">
+                      <Check className="size-3.5 text-green-900" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="t-label-12 mb-1 text-gray-700">需要桌面版</div>
+                <ul className="space-y-1 t-label-13 text-gray-700">
+                  {["新建实例 / 下载服务端", "内网穿透（FRP）", "多世界数据包生成", "Java 运行时探测"].map((t) => (
+                    <li key={t} className="flex items-center gap-1.5">
+                      <Minus className="size-3.5" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <p className="t-label-12 mt-3 text-gray-700">
+              网页版靠本机助手干活（只监听 127.0.0.1，令牌配对）。需要上面那些功能时装桌面版即可。
+            </p>
+          </Card>
+        ) : null}
 
         <Card>
           <div className="mb-3 flex items-center gap-2">

@@ -41,8 +41,26 @@ export function createHttpClient(base: string, token: string): McssApi {
     } catch {
       throw new Error(`助手返回了无法解析的内容：${text.slice(0, 120)}`);
     }
-    if (!res.ok || data.error) throw new Error(data.error || `助手返回 ${res.status}`);
+    if (!res.ok || data.error) throw new Error(friendlyAgentError(data.error, res.status));
     return data.result as T;
+  }
+
+  /** 把「助手没有这个能力」翻译成人话，而不是把内部 channel 名甩给用户 */
+  function friendlyAgentError(error: string | undefined, status: number): string {
+    if (error?.startsWith("UNSUPPORTED:")) {
+      const channel = error.slice("UNSUPPORTED:".length);
+      const name: Record<string, string> = {
+        versions: "下载服务端 / 新建实例",
+        frp: "内网穿透",
+        worlds: "多世界生成",
+        sync: "跨设备同步",
+        "app:detect-java": "Java 探测",
+      };
+      const group = channel.split(":")[0];
+      const label = name[group] ?? name[channel] ?? channel;
+      return `${label}需要桌面版，网页版暂不支持。装一个 Wulon's MCSS 桌面版就能用。`;
+    }
+    return error || `助手返回 ${status}`;
   }
 
   /* ---------------- 事件（SSE 单连接，按 channel 分发） ---------------- */
