@@ -69,13 +69,6 @@ contextBridge.exposeInMainWorld("mcss", {
     enable: (jarPath: string) => invoke("mods:enable", jarPath),
     resolveModrinth: (list: any[]) => invoke("mods:resolve-modrinth", list)
   },
-  worlds: {
-    scan: (serverDir: string) => invoke("worlds:scan", serverDir),
-    create: (serverDir: string, cfg: any) => invoke("worlds:create", serverDir, cfg),
-    remove: (serverDir: string, packName: string) => invoke("worlds:remove", serverDir, packName),
-    repair: (serverDir: string) => invoke("worlds:repair", serverDir),
-    reload: () => invoke("worlds:reload")
-  },
   backup: {
     list: (serverDir: string) => invoke("backup:list", serverDir),
     create: (serverDir: string) => invoke("backup:create", serverDir),

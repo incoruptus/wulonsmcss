@@ -21,6 +21,7 @@ import { suggestCommands } from "@/lib/commands";
 import { diagnose, type Diagnosis } from "@/lib/crash";
 import { buildAiPrompt } from "@/lib/ai-handoff";
 import { describeLag } from "@/lib/lag";
+import * as worldsApi from "@/lib/worlds";
 import { copyText, cx } from "@/lib/utils";
 import type { Instance } from "@/lib/types";
 import type { LogEntry } from "@/lib/api";
@@ -521,7 +522,7 @@ function DiagnosisCard({
         toast.success(`已禁用 ${target.name}，再启动试试`);
         onDismiss();
       } else if (action.kind === "repair-datapacks") {
-        const res = await window.mcss.worlds.repair(instance.dir);
+        const res = await worldsApi.repair(instance.dir);
         if (!res.success) throw new Error(res.error || "修复失败");
         toast.success(`已修复 ${res.fixed?.length ?? 0} 处，再启动试试`);
         onDismiss();

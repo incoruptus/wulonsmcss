@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/misc";
 import { InviteDialog } from "@/components/instance/InviteDialog";
 import { useServer } from "@/stores/server";
 import { useConfig } from "@/stores/config";
+import * as worldsApi from "@/lib/worlds";
 import type { Instance, InstanceSchedule } from "@/lib/types";
 import { formatDuration, timeAgo } from "@/lib/utils";
 
@@ -55,7 +56,7 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
     (async () => {
       const [mods, worlds] = await Promise.all([
         window.mcss.mods.scan(`${instance.dir}\\mods`).catch(() => []),
-        window.mcss.worlds.scan(instance.dir).catch(() => []),
+        worldsApi.scan(instance.dir).catch(() => []),
       ]);
       if (alive) setCounts({ mods: mods.length, worlds: worlds.reduce((n, p) => n + p.worlds.length, 0) });
     })();

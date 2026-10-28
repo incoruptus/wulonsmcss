@@ -176,13 +176,6 @@ export function createHttpClient(base: string, token: string): McssApi {
       enable: (jarPath) => invoke("mods:enable", jarPath),
       resolveModrinth: (list) => invoke("mods:resolve-modrinth", list),
     },
-    worlds: {
-      scan: (serverDir) => invoke("worlds:scan", serverDir),
-      create: (serverDir, cfg) => invoke("worlds:create", serverDir, cfg),
-      remove: (serverDir, pack) => invoke("worlds:remove", serverDir, pack),
-      repair: (serverDir) => invoke("worlds:repair", serverDir),
-      reload: () => invoke("worlds:reload"),
-    },
     backup: {
       list: (serverDir) => invoke("backup:list", serverDir),
       create: (serverDir) => invoke("backup:create", serverDir),

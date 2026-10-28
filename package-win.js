@@ -99,13 +99,7 @@ execSync(`"${asarBin}" pack "${TMP}" "${path.join(RESOURCES_DIR, 'app.asar')}"`,
 
 fs.rmSync(TMP, { recursive: true, force: true })
 
-// 多世界生成器：放在 asar 外的 resources/mwm，主进程用 Electron 自带 Node 调它
-const mwmDir = path.join(APP_DIR, 'wulons-mcss-mwm')
-if (fs.existsSync(path.join(mwmDir, 'src'))) {
-  console.log('Copying MWM generator...')
-  execSync(`xcopy "${path.join(mwmDir, 'src')}" "${path.join(RESOURCES_DIR, 'mwm', 'src')}\\" /E /I /Q /Y >nul 2>nul`, { shell: true })
-  fs.cpSync(path.join(mwmDir, 'package.json'), path.join(RESOURCES_DIR, 'mwm', 'package.json'))
-}
+// 多世界生成器已打包进渲染层（见 src/renderer/lib/mwm.ts），不再需要 resources/mwm
 
 // AI 排错知识库：放到 asar 外的 resources/ai，提示词里会给用户这个路径
 const aiDocs = path.join(APP_DIR, 'docs', 'ai')

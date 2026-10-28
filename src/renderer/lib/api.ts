@@ -115,13 +115,6 @@ export interface McssApi {
       { file: string; p: string; v: string; n?: string; matched?: string }[]
     >;
   };
-  worlds: {
-    scan: (serverDir: string) => Promise<WorldPack[]>;
-    create: (serverDir: string, cfg: { name: string; label?: string; type: string; description?: string; namespace?: string }) => Promise<{ success: boolean; error?: string }>;
-    remove: (serverDir: string, packName: string) => Promise<{ success: boolean; error?: string }>;
-    repair: (serverDir: string) => Promise<{ success: boolean; error?: string; fixed?: string[] }>;
-    reload: () => Promise<{ success: boolean }>;
-  };
   backup: {
     list: (serverDir: string) => Promise<{ name: string; path: string; size: number; mtime: number }[]>;
     create: (serverDir: string) => Promise<{ ok: boolean; name?: string; size?: number; error?: string }>;

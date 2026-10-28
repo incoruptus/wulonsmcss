@@ -10,6 +10,7 @@ import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import type { Instance, WorldPack } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
+import * as worldsApi from "@/lib/worlds";
 
 const TYPES = [
   { value: "overworld", label: "主世界风格" },
@@ -38,7 +39,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   async function load() {
     setLoading(true);
     try {
-      setPacks(await window.mcss.worlds.scan(instance.dir));
+      setPacks(await worldsApi.scan(instance.dir));
     } finally {
       setLoading(false);
     }
@@ -57,7 +58,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
     }
     setBusy(true);
     try {
-      const res = await window.mcss.worlds.create(instance.dir, { ...draft, namespace: "wulons" });
+      const res = await worldsApi.create(instance.dir, { ...draft, namespace: "wulons" });
       if (!res.success) throw new Error(res.error || "创建失败");
       toast.success("世界数据包已生成", { description: "服务器运行中会自动 reload 生效" });
       setCreating(false);
@@ -85,7 +86,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             variant="secondary"
             size="sm"
             onClick={async () => {
-              const res = await window.mcss.worlds.repair(instance.dir);
+              const res = await worldsApi.repair(instance.dir);
               if (!res.success) return toast.error(res.error || "修复失败");
               toast.success(`已修复 ${res.fixed?.length ?? 0} 处`, {
                 description: "旧版生成器产出的维度格式会让服务器起不来，已升级到 26.1 格式",
@@ -133,7 +134,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
                   variant="ghost"
                   size="sm"
                   onClick={async () => {
-                    const res = await window.mcss.worlds.remove(instance.dir, pack.name);
+                    const res = await worldsApi.remove(instance.dir, pack.name);
                     if (res.success) {
                       toast.success("已删除数据包（存档不会删）");
                       await load();

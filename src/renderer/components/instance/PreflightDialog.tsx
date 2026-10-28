@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import type { Instance, PreflightIssue, PreflightResult } from "@/lib/types";
+import * as worldsApi from "@/lib/worlds";
 
 /**
  * 开服前预检弹窗：把「点启动 → 闪退」变成「启动前说清楚 + 一键修」。
@@ -70,7 +71,7 @@ export function PreflightDialog({
     try {
       switch (issue.fix) {
         case "repair-datapacks": {
-          const res = await window.mcss.worlds.repair(instance.dir);
+          const res = await worldsApi.repair(instance.dir);
           if (!res.success) throw new Error(res.error || "修复失败");
           toast.success(`已修复 ${res.fixed?.length ?? 0} 处维度定义`);
           break;

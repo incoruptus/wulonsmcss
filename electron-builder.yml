@@ -15,12 +15,6 @@ files:
 # 多世界数据包生成器（CLI）以 asar 外的真实文件形式提供，
 # 主进程用 Electron 自带的 Node 以子进程方式调用它
 extraResources:
-  - from: wulons-mcss-mwm/src
-    to: mwm/src
-    filter:
-      - "**/*"
-  - from: wulons-mcss-mwm/package.json
-    to: mwm/package.json
   - from: docs/ai
     to: ai
     filter:

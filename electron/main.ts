@@ -9,7 +9,7 @@ const files = require(path.join(IPC_DIR, "files.js"));
 const mods = require(path.join(IPC_DIR, "mods.js"));
 const versions = require(path.join(IPC_DIR, "versions.js"));
 const javaIpc = require(path.join(IPC_DIR, "java.js"));
-const worlds = require(path.join(IPC_DIR, "worlds.js"));
+// 多世界逻辑已移到渲染层（src/renderer/lib/worlds.ts）
 const modrinth = require(path.join(IPC_DIR, "modrinth.js"));
 const frp = require(path.join(IPC_DIR, "frp.js"));
 const preflight = require(path.join(IPC_DIR, "preflight.js"));
@@ -32,12 +32,6 @@ const scheduleState = new Map();
 function getConfigPath() {
   if (app.isPackaged) return path.join(app.getPath("userData"), "config.json");
   return path.join(__dirname, "..", "..", "config.json");
-}
-
-function getMwmDir() {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, "mwm")
-    : path.join(__dirname, "..", "..", "wulons-mcss-mwm");
 }
 
 function readConfig() {
@@ -232,14 +226,8 @@ ipcMain.handle("mods:enable", (_e, jarPath) => {
 
 /* -------------------------------- 多世界 ---------------------------------- */
 
-ipcMain.handle("worlds:scan", (_e, serverDir) => worlds.scan(serverDir));
-ipcMain.handle("worlds:create", (_e, serverDir, cfg) => worlds.create(serverDir, cfg, getMwmDir()));
-ipcMain.handle("worlds:remove", (_e, serverDir, pack) => worlds.remove(serverDir, pack));
-ipcMain.handle("worlds:repair", async (_e, serverDir) => worlds.repair(serverDir, getMwmDir()));
-ipcMain.handle("worlds:reload", () => {
-  server.sendCommand("reload");
-  return { success: true };
-});
+// 多世界生成逻辑放在渲染层（src/renderer/lib/worlds.ts），
+// 与 CLI 共用 wulons-mcss-mwm 的生成器，桌面版/网页版跑同一份代码，不再单独开通道。
 
 /* -------------------------------- 版本/下载 ------------------------------- */
 
