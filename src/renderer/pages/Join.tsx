@@ -43,6 +43,29 @@ export default function Join() {
   const [preparedDir, setPreparedDir] = useState<string | null>(null);
   const [clientDir, setClientDir] = useState<string>("");
   const [checkup, setCheckup] = useState<CheckupResult | null>(null);
+  const [lan, setLan] = useState<{ ok: boolean; ms: number } | null>(null);
+
+  // 房间带了内网地址就探一下：能连上说明和服主在同一个网络，走内网快得多
+  useEffect(() => {
+    if (!room?.lan) {
+      setLan(null);
+      return;
+    }
+    let alive = true;
+    const [host, port] = room.lan.split(":");
+    void (async () => {
+      const res = await window.mcss.net
+        .probe({ host, port: Number(port) || 25565, timeoutMs: 800 })
+        .catch(() => null);
+      if (alive) setLan(res);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [room?.lan]);
+
+  const effectiveAddr = lan?.ok && room?.lan ? room.lan : (room?.addr ?? "");
+  const usingLan = Boolean(lan?.ok && room?.lan);
 
   // 房间一确定就体检：读本地 .minecraft，回答「能不能直接进」
   useEffect(() => {
@@ -107,7 +130,7 @@ export default function Join() {
   async function prepareAndPlay() {
     if (!room) return;
     if (!room.mods.length) {
-      (await copyText(room.addr)) ? toast.success("地址已复制") : toast.error("复制失败");
+      (await copyText(effectiveAddr)) ? toast.success("地址已复制") : toast.error("复制失败");
       if (launchers[0]) window.mcss.app.openPath(launchers[0].path);
       return;
     }
@@ -118,7 +141,7 @@ export default function Join() {
       const info = await window.mcss.app.info();
       const dir = `${info.documents}\\MCSS\\进服包`;
       const file = `${dir}\\${safeName(room.name)}.mrpack`;
-      const res = await window.mcss.client.exportMrpack({ outFile: file, room });
+      const res = await window.mcss.client.exportMrpack({ outFile: file, room: { ...room, addr: effectiveAddr } });
       if (!res.ok) throw new Error(res.error || "导出失败");
       setExported({ file: res.file ?? file, size: res.size ?? 0, mods: res.mods ?? 0 });
       void window.mcss.app.openPath(dir);
@@ -147,7 +170,7 @@ export default function Join() {
         if (!res.ok) throw new Error(res.error || res.results?.find((r) => !r.ok)?.error || "准备失败");
         setPreparedDir(res.modsDir ?? dir);
       }
-      const added = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: room.addr });
+      const added = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: effectiveAddr });
       if (!added.ok) throw new Error(added.error || "写入服务器列表失败");
       toast.success("客户端已备好", {
         description: room.mods.length ? `${room.mods.length} 个 Mod + 服务器列表` : "服务器列表已写入",
@@ -209,12 +232,21 @@ export default function Join() {
                   <span className="t-label-12 text-gray-700">{room.mc} · {room.loader}</span>
                 </div>
                 <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
-                <p className="t-mono-12 mt-0.5 text-gray-700">{room.addr}</p>
+                <p className="t-mono-12 mt-0.5 text-gray-700">
+                  {effectiveAddr}
+                  {usingLan ? (
+                    <span className="ml-2 rounded bg-green-800/12 px-1.5 py-0.5 t-label-12 text-green-900">
+                      同 WiFi 直连 · {lan?.ms ?? 0}ms
+                    </span>
+                  ) : room.lan ? (
+                    <span className="ml-2 t-label-12 text-gray-700">（内网地址连不上，走公网）</span>
+                  ) : null}
+                </p>
               </div>
               <Button
                 variant="secondary"
                 onClick={async () => {
-                  (await copyText(room.addr)) ? toast.success("地址已复制") : toast.error("复制失败");
+                  (await copyText(effectiveAddr)) ? toast.success("地址已复制") : toast.error("复制失败");
                 }}
               >
                 <Copy className="size-4" />
@@ -317,7 +349,7 @@ export default function Join() {
                   </div>
                   <ol className="mt-1 space-y-0.5 t-label-12 text-gray-800">
                     <li>1. 在启动器里点「导入整合包」，选刚生成的文件</li>
-                    <li>2. 启动游戏，服务器已经在多人列表：<span className="t-mono-12">{room.addr}</span></li>
+                    <li>2. 启动游戏，服务器已经在多人列表：<span className="t-mono-12">{effectiveAddr}</span></li>
                   </ol>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(exported.file.replace(/[\\/][^\\/]+$/, ""))}>

@@ -290,6 +290,34 @@ ipcMain.handle("ai:export-bundle", async (_e, opts) => {
 
 ipcMain.handle("ai:docs-path", () => (app.isPackaged ? path.join(process.resourcesPath, "ai") : path.join(__dirname, "..", "..", "docs", "ai")));
 
+/** 探测某个地址能不能连上（用于判断是否同一局域网） */
+ipcMain.handle("net:probe", (_e, opts) => {
+  const net = require("net");
+  const host = opts?.host || "127.0.0.1";
+  const port = Number(opts?.port) || 25565;
+  const timeoutMs = Number(opts?.timeoutMs) || 800;
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const start = Date.now();
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({ ok, ms: Date.now() - start });
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => done(true));
+    socket.once("timeout", () => done(false));
+    socket.once("error", () => done(false));
+    try {
+      socket.connect(port, host);
+    } catch (e) {
+      done(false);
+    }
+  });
+});
+
 /** AI 知识库目录（开发在仓库 docs/ai，打包后在 resources/ai） */
 ipcMain.handle("app:ai-docs", () => {
   if (app.isPackaged) return path.join(process.resourcesPath, "ai");

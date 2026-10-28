@@ -75,6 +75,8 @@ export function InviteDialog({
       v: 1,
       name: roomName || instance.name,
       addr,
+      // 顺带带上内网地址：同 WiFi 的朋友会优先直连，延迟低一个数量级
+      lan: lanIp ? `${lanIp}:${instance.port}` : undefined,
       mc: instance.mcVersion,
       loader: instance.loader,
       lv: instance.loaderVersion,

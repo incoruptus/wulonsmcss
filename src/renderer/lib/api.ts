@@ -43,6 +43,9 @@ export interface McssApi {
     userName: string;
     platform: string;
   };
+  net: {
+    probe: (opts: { host: string; port: number; timeoutMs?: number }) => Promise<{ ok: boolean; ms: number }>;
+  };
   ai: {
     exportBundle: (opts: {
       outFile: string;

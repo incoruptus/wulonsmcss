@@ -26,6 +26,8 @@ export interface RoomDescriptorV1 {
   name: string;
   /** 连接地址 host:port */
   addr: string;
+  /** 房主的内网地址（同一 WiFi 时优先用，快很多）；可选 */
+  lan?: string;
   /** Minecraft 版本 */
   mc: string;
   /** 服务端核心 */

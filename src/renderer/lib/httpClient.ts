@@ -118,7 +118,10 @@ export function createHttpClient(base: string, token: string): McssApi {
       userName: "",
       platform: "web",
     },
-    ai: {
+    net: {
+    probe: (opts) => invoke("net:probe", opts),
+  },
+  ai: {
     exportBundle: (opts) => invoke("ai:export-bundle", opts),
     docsPath: () => invoke("ai:docs-path"),
   },

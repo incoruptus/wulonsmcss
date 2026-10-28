@@ -9,6 +9,10 @@ const path = require("path");
 
 const ROOT = "D:/Games/Minecraft/MCServer/wulons-mcss";
 const HASH = process.argv[2] || "/settings";
+// --listen 28501：先在本机开一个端口，用来验证「同 WiFi 直连」的探测
+const listenIdx = process.argv.indexOf("--listen");
+const LISTEN_PORT = listenIdx > 0 ? Number(process.argv[listenIdx + 1]) : 0;
+const net = require("net");
 const AGENT_PORT = 28488;
 const WEB_PORT = 5188;
 const TOKEN = "dump-token";
@@ -38,6 +42,9 @@ async function waitHealth(ms = 8000) {
 }
 
 (async () => {
+  const listener = LISTEN_PORT ? net.createServer(() => {}).listen(LISTEN_PORT, "127.0.0.1") : null;
+  if (LISTEN_PORT) await new Promise((r) => listener.once("listening", r));
+
   const agent = spawn(path.join(ROOT, "agent", "target", "release", "mcss-agent.exe"), [], {
     env: { ...process.env, MCSS_CONFIG: path.join(ROOT, "config.json"), MCSS_PORT: String(AGENT_PORT), MCSS_TOKEN: TOKEN, MCSS_NO_OPEN: "1" },
     stdio: ["ignore", "pipe", "pipe"],
@@ -56,6 +63,7 @@ async function waitHealth(ms = 8000) {
   child.on("exit", () => {
     agent.kill();
     server.close();
+    listener?.close();
     const idx = out.indexOf("DUMP>>>");
     console.log(idx >= 0 ? out.slice(idx + "DUMP>>>".length) : "(no dump)");
     process.exit(0);
@@ -64,6 +72,7 @@ async function waitHealth(ms = 8000) {
     child.kill();
     agent.kill();
     server.close();
+    listener?.close();
     process.exit(1);
   }, 30000);
 })();

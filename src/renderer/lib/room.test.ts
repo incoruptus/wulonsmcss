@@ -14,6 +14,18 @@ const ROOM: RoomDescriptorV1 = {
 };
 
 describe("房间描述符", () => {
+  it("内网地址随房间码一起带走", async () => {
+    const code = await encodeRoom({ ...ROOM, lan: "192.168.1.9:25565" });
+    const back = await decodeRoom(code);
+    expect(back.lan).toBe("192.168.1.9:25565");
+    expect(back.addr).toBe(ROOM.addr);
+  });
+
+  it("没有内网地址时也能正常解码（旧码兼容）", async () => {
+    const code = await encodeRoom(ROOM);
+    expect((await decodeRoom(code)).lan).toBeUndefined();
+  });
+
   it("编码 → 解码能还原", async () => {
     const code = await encodeRoom(ROOM);
     const back = await decodeRoom(code);

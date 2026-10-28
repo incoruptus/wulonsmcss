@@ -2541,6 +2541,27 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "net:probe" => {
+            use std::net::ToSocketAddrs;
+            let opts = args.first().ok_or("缺少参数")?;
+            let host = opts.get("host").and_then(|v| v.str()).unwrap_or("127.0.0.1");
+            let port = opts.get("port").and_then(|v| v.num()).unwrap_or(25565.0) as u16;
+            let timeout = opts.get("timeoutMs").and_then(|v| v.num()).unwrap_or(800.0) as u64;
+            let start = std::time::Instant::now();
+            let target = format!("{host}:{port}");
+            let ok = target
+                .to_socket_addrs()
+                .ok()
+                .and_then(|mut addrs| addrs.next())
+                .map(|addr| {
+                    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(timeout)).is_ok()
+                })
+                .unwrap_or(false);
+            Ok(Json::obj(vec![
+                ("ok", Json::Bool(ok)),
+                ("ms", Json::n(start.elapsed().as_millis() as f64)),
+            ]))
+        }
         "frp:start" => frp_start(shared, args.first().ok_or("缺少隧道配置")?),
         "frp:stop" => Ok(frp_stop(shared)),
         "frp:status" => Ok(frp_status_live(shared)),

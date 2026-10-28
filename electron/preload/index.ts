@@ -99,6 +99,9 @@ contextBridge.exposeInMainWorld("mcss", {
     onLog: (cb: (line: string) => void) => subscribe("frp:log", "frpLog", cb),
     onStatus: (cb: (s: any) => void) => subscribe("frp:status", "frpStatus", cb)
   },
+  net: {
+    probe: (opts: { host: string; port: number; timeoutMs?: number }) => invoke("net:probe", opts)
+  },
   ai: {
     exportBundle: (opts: any) => invoke("ai:export-bundle", opts),
     docsPath: () => invoke("ai:docs-path")
