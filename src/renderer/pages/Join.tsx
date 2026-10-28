@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowRight, Copy, Download, Gamepad2, Package, Server, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Copy, Download, Gamepad2, Package, Server, Users } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -18,6 +18,9 @@ export default function Join() {
   const [room, setRoom] = useState<RoomDescriptorV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
+  const [preparedDir, setPreparedDir] = useState<string | null>(null);
 
   async function load(raw: string) {
     if (!raw.trim()) return;
@@ -129,7 +132,7 @@ export default function Join() {
                 <div className="t-label-13 font-medium text-gray-1000">接下来要做的</div>
                 <ol className="mt-1.5 space-y-1 t-label-12 text-gray-800">
                   <li>1. 确认客户端是 {room.mc} + {room.loader}（版本不对会连不上）。</li>
-                  <li>2. 把服务端同款 Mod 放进客户端 <span className="t-mono-12">mods</span> 目录。</li>
+                  <li>2. 点「一键准备客户端」，按房间码把 Mod 拉进你指定的客户端目录。</li>
                   <li>3. 进游戏 → 多人游戏 → 添加服务器 → 填 <span className="t-mono-12">{room.addr}</span>。</li>
                 </ol>
               </div>
@@ -165,26 +168,66 @@ export default function Join() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <Button
-                  onClick={() => {
-                    if (localMatch) {
-                      navigate(`/instances/${localMatch.id}`);
-                    } else {
-                      toast.info("「准备客户端」下一步接：会调用你已有的启动器建一个匹配实例");
+                  onClick={async () => {
+                    if (!room.mods.length) {
+                      toast.info("这个房间不需要额外 Mod，直接进游戏加地址就行");
+                      return;
+                    }
+                    const dir = await window.mcss.dialog.openDirectory();
+                    if (!dir) return;
+                    setPreparing(true);
+                    setProgress({ stage: "准备中", percent: 0 });
+                    const off = window.mcss.client.onProgress(setProgress);
+                    try {
+                      const res = await window.mcss.client.prepare({ dir, mods: room.mods });
+                      if (!res.ok) throw new Error(res.error || res.results?.find((r) => !r.ok)?.error || "准备失败");
+                      setPreparedDir(res.modsDir ?? dir);
+                      toast.success(`客户端已备好：${res.results?.length ?? 0} 个 Mod`);
+                    } catch (e) {
+                      toast.error((e as Error).message);
+                    } finally {
+                      off();
+                      setPreparing(false);
+                      setProgress(null);
                     }
                   }}
+                  loading={preparing}
                 >
                   <Download className="size-4" />
-                  准备客户端
+                  一键准备客户端
                   <ArrowRight className="size-4" />
                 </Button>
                 <Button variant="secondary" onClick={() => navigate("/library")}>
                   <Package className="size-4" />
-                  去资源库装 Mod
+                  去资源库看看
                 </Button>
                 <Button variant="ghost" onClick={() => { setRoom(null); setInput(""); }}>
                   换一个房间码
                 </Button>
               </div>
+
+              {progress ? (
+                <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
+                  <div className="mb-1.5 flex items-center justify-between t-label-12 text-gray-800">
+                    <span>{progress.stage}</span>
+                    <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
+                    <div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${Math.max(2, progress.percent)}%` }} />
+                  </div>
+                </div>
+              ) : null}
+
+              {preparedDir ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-green-800/10 p-3">
+                  <CheckCircle2 className="size-4 text-green-900" />
+                  <span className="t-label-12 text-green-900">Mod 已放进</span>
+                  <span className="t-mono-12 truncate text-gray-900">{preparedDir}</span>
+                  <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(preparedDir)}>
+                    打开目录
+                  </Button>
+                </div>
+              ) : null}
             </Card>
 
             {room.note ? (

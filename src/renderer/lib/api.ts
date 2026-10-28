@@ -124,6 +124,16 @@ export interface McssApi {
     }[]>;
     install: (opts: { dir: string; fileUrl: string; fileName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
   };
+  client: {
+    prepare: (opts: { dir: string; mods: { p: string; v: string; n?: string }[] }) => Promise<{
+      ok: boolean;
+      dir?: string;
+      modsDir?: string;
+      error?: string;
+      results?: { ok: boolean; name: string; file?: string; skipped?: boolean; error?: string }[];
+    }>;
+    onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
+  };
   frp: {
     start: (profile: FrpProfile) => Promise<{ ok: boolean; error?: string }>;
     stop: () => Promise<void>;

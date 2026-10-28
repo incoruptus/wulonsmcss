@@ -169,6 +169,10 @@ export function createHttpClient(base: string, token: string): McssApi {
       versions: (projectId, opts) => invoke("modrinth:versions", projectId, opts),
       install: (opts) => invoke("modrinth:install", opts),
     },
+    client: {
+      prepare: (opts) => invoke("client:prepare", opts),
+      onProgress: (cb) => on("client:progress", (p) => cb(p as never)),
+    },
     frp: {
       start: (profile) => invoke("frp:start", profile),
       stop: () => invoke("frp:stop"),

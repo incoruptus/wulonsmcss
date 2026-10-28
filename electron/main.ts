@@ -13,6 +13,7 @@ const worlds = require(path.join(IPC_DIR, "worlds.js"));
 const modrinth = require(path.join(IPC_DIR, "modrinth.js"));
 const frp = require(path.join(IPC_DIR, "frp.js"));
 const preflight = require(path.join(IPC_DIR, "preflight.js"));
+const client = require(path.join(IPC_DIR, "client.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -314,6 +315,15 @@ ipcMain.handle("app:open-path", (_e, p) => shell.openPath(p));
 ipcMain.handle("app:open-external", (_e, url) => shell.openExternal(url));
 
 /* -------------------------------- 资源库 --------------------------------- */
+
+ipcMain.handle("client:prepare", async (_e, opts) => {
+  try {
+    const res = await client.prepare({ ...opts, onProgress: (p) => send("client:progress", p) });
+    return res;
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 
 ipcMain.handle("modrinth:search", (_e, q, opts) => modrinth.search(q, opts));
 ipcMain.handle("modrinth:versions", (_e, projectId, opts) => modrinth.versions(projectId, opts));

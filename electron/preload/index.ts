@@ -86,6 +86,10 @@ contextBridge.exposeInMainWorld("mcss", {
     versions: (projectId: string, opts?: any) => invoke("modrinth:versions", projectId, opts),
     install: (opts: any) => invoke("modrinth:install", opts)
   },
+  client: {
+    prepare: (opts: any) => invoke("client:prepare", opts),
+    onProgress: (cb: (p: any) => void) => subscribe("client:progress", "clientProgress", cb)
+  },
   frp: {
     start: (profile: any) => invoke("frp:start", profile),
     stop: () => invoke("frp:stop"),
