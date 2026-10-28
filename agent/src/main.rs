@@ -953,6 +953,29 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                 ("node", Json::s("")),
             ]))
         }
+        "app:detect-launchers" => {
+            let home = std::env::var("USERPROFILE").unwrap_or_default();
+            let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+            let roaming = std::env::var("APPDATA").unwrap_or_default();
+            let candidates = [
+                ("Plain Craft Launcher 2", format!("{home}\\Desktop\\Plain Craft Launcher 2.exe")),
+                ("Plain Craft Launcher 2", "D:\\Games\\Minecraft\\Plain Craft Launcher 2.exe".to_string()),
+                ("Minecraft Launcher", "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe".to_string()),
+                ("Minecraft Launcher", "C:\\Program Files\\Minecraft Launcher\\MinecraftLauncher.exe".to_string()),
+                ("Modrinth App", format!("{local}\\Programs\\Modrinth App\\Modrinth App.exe")),
+                ("Prism Launcher", format!("{roaming}\\PrismLauncher\\prismlauncher.exe")),
+                ("HMCL", format!("{home}\\Desktop\\HMCL.exe")),
+                ("HMCL", format!("{home}\\Desktop\\HMCL.jar")),
+            ];
+            let mut out = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            for (name, path) in candidates {
+                if Path::new(&path).exists() && seen.insert(path.clone()) {
+                    out.push(Json::obj(vec![("name", Json::s(name)), ("path", Json::s(&path))]));
+                }
+            }
+            Ok(Json::Arr(out))
+        }
         "app:lan-address" => Ok(Json::obj(vec![("ip", Json::s(&local_ip()))])),
         "config:read" => {
             let state = shared.lock().unwrap();
