@@ -2370,6 +2370,163 @@ fn frp_status_live(shared: &Shared) -> Json {
     frp_status(&state)
 }
 
+/* ---------------------------- Minecraft 状态 ---------------------------- */
+
+fn put_varint(out: &mut Vec<u8>, mut value: i32) {
+    loop {
+        let mut byte = (value & 0x7f) as u8;
+        value >>= 7;
+        if value != 0 {
+            byte |= 0x80;
+        }
+        out.push(byte);
+        if value == 0 {
+            break;
+        }
+    }
+}
+
+fn read_varint(stream: &mut std::net::TcpStream) -> std::io::Result<i32> {
+    use std::io::Read;
+    let mut result: i32 = 0;
+    let mut shift = 0;
+    loop {
+        let mut byte = [0u8; 1];
+        stream.read_exact(&mut byte)?;
+        result |= ((byte[0] & 0x7f) as i32) << shift;
+        if byte[0] & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+        if shift > 35 {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "varint 过长"));
+        }
+    }
+    Ok(result)
+}
+
+fn put_string(out: &mut Vec<u8>, text: &str) {
+    put_varint(out, text.len() as i32);
+    out.extend_from_slice(text.as_bytes());
+}
+
+/// 把 SLP 的 description 字段变成纯文本
+fn motd_text(value: &Json) -> String {
+    match value {
+        Json::Str(s) => s.clone(),
+        Json::Obj(items) => {
+            let mut out = String::new();
+            for (k, v) in items {
+                match k.as_str() {
+                    "text" => out.push_str(v.str().unwrap_or("")),
+                    "extra" => {
+                        if let Json::Arr(list) = v {
+                            for part in list {
+                                out.push_str(&motd_text(part));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            out
+        }
+        _ => String::new(),
+    }
+}
+
+/** Minecraft Server List Ping：不装插件也能拿到在线人数、版本、MOTD */
+fn ping_server(host: &str, port: u16, timeout_ms: u64) -> Result<Json, String> {
+    use std::io::{Read, Write};
+    use std::net::{TcpStream, ToSocketAddrs};
+
+    let addr = format!("{host}:{port}")
+        .to_socket_addrs()
+        .map_err(|e| format!("地址解析失败：{e}"))?
+        .next()
+        .ok_or("地址解析为空")?;
+
+    let start = std::time::Instant::now();
+    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(timeout_ms))
+        .map_err(|e| format!("连不上：{e}"))?;
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(timeout_ms)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(timeout_ms)));
+
+    // handshake
+    let mut payload = Vec::new();
+    put_varint(&mut payload, 0x00); // packet id
+    put_varint(&mut payload, 47); // protocol version（-1 也行，47 更稳）
+    put_string(&mut payload, host);
+    payload.extend_from_slice(&port.to_be_bytes());
+    put_varint(&mut payload, 1); // next state = status
+
+    let mut frame = Vec::new();
+    put_varint(&mut frame, payload.len() as i32);
+    frame.extend_from_slice(&payload);
+    stream.write_all(&frame).map_err(|e| format!("发送握手失败：{e}"))?;
+
+    // status request
+    stream.write_all(&[0x01, 0x00]).map_err(|e| format!("发送请求失败：{e}"))?;
+
+    let len = read_varint(&mut stream).map_err(|e| format!("读取响应长度失败：{e}"))?;
+    if len <= 0 || len > 2 * 1024 * 1024 {
+        return Err("响应长度异常".into());
+    }
+    let mut body = vec![0u8; len as usize];
+    stream.read_exact(&mut body).map_err(|e| format!("读取响应失败：{e}"))?;
+
+    let latency = start.elapsed().as_millis() as f64;
+
+    // body: varint packetId(0) + string(json)
+    let mut cursor = 0usize;
+    let mut shift = 0;
+    let mut _packet_id = 0i32;
+    loop {
+        let byte = *body.get(cursor).ok_or("响应被截断")?;
+        cursor += 1;
+        _packet_id |= ((byte & 0x7f) as i32) << shift;
+        if byte & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+    }
+    let mut json_len = 0i32;
+    let mut shift = 0;
+    loop {
+        let byte = *body.get(cursor).ok_or("响应被截断")?;
+        cursor += 1;
+        json_len |= ((byte & 0x7f) as i32) << shift;
+        if byte & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+    }
+    if json_len <= 0 {
+        return Err("状态 JSON 为空".into());
+    }
+    let end = cursor.saturating_add(json_len as usize).min(body.len());
+    let text = String::from_utf8_lossy(&body[cursor..end]).to_string();
+    let json = Json::parse(&text).map_err(|e| format!("状态 JSON 解析失败：{e}"))?;
+
+    let players = json.get("players");
+    let version = json.get("version");
+
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("online", Json::Bool(true)),
+        ("ms", Json::n(latency)),
+        (
+            "players",
+            Json::obj(vec![
+                ("online", Json::n(players.and_then(|p| p.get("online")).and_then(|v| v.num()).unwrap_or(0.0))),
+                ("max", Json::n(players.and_then(|p| p.get("max")).and_then(|v| v.num()).unwrap_or(0.0))),
+            ]),
+        ),
+        ("version", Json::s(version.and_then(|v| v.get("name")).and_then(|v| v.str()).unwrap_or(""))),
+        ("motd", Json::s(&motd_text(json.get("description").unwrap_or(&Json::Null)))),
+    ]))
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -2541,6 +2698,20 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "net:ping" => {
+            let opts = args.first().ok_or("缺少参数")?;
+            let host = opts.get("host").and_then(|v| v.str()).unwrap_or("127.0.0.1");
+            let port = opts.get("port").and_then(|v| v.num()).unwrap_or(25565.0) as u16;
+            let timeout = opts.get("timeoutMs").and_then(|v| v.num()).unwrap_or(1500.0) as u64;
+            match ping_server(host, port, timeout) {
+                Ok(v) => Ok(v),
+                Err(e) => Ok(Json::obj(vec![
+                    ("ok", Json::Bool(false)),
+                    ("online", Json::Bool(false)),
+                    ("error", Json::s(&e)),
+                ])),
+            }
+        }
         "net:probe" => {
             use std::net::ToSocketAddrs;
             let opts = args.first().ok_or("缺少参数")?;

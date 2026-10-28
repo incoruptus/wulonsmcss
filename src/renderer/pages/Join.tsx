@@ -44,25 +44,50 @@ export default function Join() {
   const [clientDir, setClientDir] = useState<string>("");
   const [checkup, setCheckup] = useState<CheckupResult | null>(null);
   const [lan, setLan] = useState<{ ok: boolean; ms: number } | null>(null);
+  const [status, setStatus] = useState<{
+    ok: boolean;
+    online: boolean;
+    ms?: number;
+    players?: { online: number; max: number };
+    motd?: string;
+    error?: string;
+  } | null>(null);
+  const [pingTick, setPingTick] = useState(0);
 
-  // 房间带了内网地址就探一下：能连上说明和服主在同一个网络，走内网快得多
+  // 先用 Minecraft 状态协议问一下服务器本人：顺带判断是不是同一局域网
   useEffect(() => {
-    if (!room?.lan) {
+    if (!room) {
+      setStatus(null);
       setLan(null);
       return;
     }
     let alive = true;
-    const [host, port] = room.lan.split(":");
-    void (async () => {
-      const res = await window.mcss.net
-        .probe({ host, port: Number(port) || 25565, timeoutMs: 800 })
+    const ping = (addr: string) => {
+      const [host, port] = addr.split(":");
+      return window.mcss.net
+        .ping({ host, port: Number(port) || 25565, timeoutMs: 1200 })
         .catch(() => null);
-      if (alive) setLan(res);
+    };
+    void (async () => {
+      setStatus(null);
+      if (room.lan) {
+        const local = await ping(room.lan);
+        if (!alive) return;
+        if (local?.ok) {
+          setLan({ ok: true, ms: local.ms ?? 0 });
+          setStatus(local);
+          return;
+        }
+      }
+      const remote = await ping(room.addr);
+      if (!alive) return;
+      setLan({ ok: false, ms: 0 });
+      setStatus(remote);
     })();
     return () => {
       alive = false;
     };
-  }, [room?.lan]);
+  }, [room, pingTick]);
 
   const effectiveAddr = lan?.ok && room?.lan ? room.lan : (room?.addr ?? "");
   const usingLan = Boolean(lan?.ok && room?.lan);
@@ -242,6 +267,32 @@ export default function Join() {
                     <span className="ml-2 t-label-12 text-gray-700">（内网地址连不上，走公网）</span>
                   ) : null}
                 </p>
+
+                {/* 活的房间状态：直接问服务器本人 */}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {status ? (
+                    status.ok ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-green-800/12 px-2 py-0.5 t-label-12 text-green-900">
+                        <span className="size-1.5 rounded-full bg-green-900" />
+                        在线 {status.players?.online ?? 0}/{status.players?.max ?? 0} 人
+                        <span className="text-green-900/70">· {status.ms ?? 0}ms</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-gray-300/40 px-2 py-0.5 t-label-12 text-gray-700">
+                        <span className="size-1.5 rounded-full bg-gray-700" />
+                        现在没连上（服务器可能没开）
+                      </span>
+                    )
+                  ) : (
+                    <span className="t-label-12 text-gray-700">正在查询服务器状态…</span>
+                  )}
+                  <Button size="xs" variant="ghost" onClick={() => setPingTick((n) => n + 1)}>
+                    刷新
+                  </Button>
+                </div>
+                {status?.ok && status.motd ? (
+                  <p className="t-label-12 mt-1 line-clamp-2 text-gray-800">{status.motd}</p>
+                ) : null}
               </div>
               <Button
                 variant="secondary"

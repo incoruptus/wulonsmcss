@@ -120,6 +120,7 @@ export function createHttpClient(base: string, token: string): McssApi {
     },
     net: {
     probe: (opts) => invoke("net:probe", opts),
+    ping: (opts) => invoke("net:ping", opts),
   },
   ai: {
     exportBundle: (opts) => invoke("ai:export-bundle", opts),

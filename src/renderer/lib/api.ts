@@ -45,6 +45,15 @@ export interface McssApi {
   };
   net: {
     probe: (opts: { host: string; port: number; timeoutMs?: number }) => Promise<{ ok: boolean; ms: number }>;
+    ping: (opts: { host: string; port: number; timeoutMs?: number }) => Promise<{
+      ok: boolean;
+      online: boolean;
+      ms?: number;
+      players?: { online: number; max: number };
+      version?: string;
+      motd?: string;
+      error?: string;
+    }>;
   };
   ai: {
     exportBundle: (opts: {

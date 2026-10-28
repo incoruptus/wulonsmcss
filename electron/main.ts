@@ -19,6 +19,7 @@ const serversdat = require(path.join(IPC_DIR, "serversdat.js"));
 const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
 const schedule = require(path.join(IPC_DIR, "schedule.js"));
 const aidiag = require(path.join(IPC_DIR, "aidiag.js"));
+const slp = require(path.join(IPC_DIR, "slp.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -289,6 +290,9 @@ ipcMain.handle("ai:export-bundle", async (_e, opts) => {
 });
 
 ipcMain.handle("ai:docs-path", () => (app.isPackaged ? path.join(process.resourcesPath, "ai") : path.join(__dirname, "..", "..", "docs", "ai")));
+
+/** Minecraft 服务器列表协议：在线人数 / 版本 / MOTD（实现见 ipc/slp.js） */
+ipcMain.handle("net:ping", (_e, opts) => slp.ping(opts?.host, opts?.port, opts?.timeoutMs));
 
 /** 探测某个地址能不能连上（用于判断是否同一局域网） */
 ipcMain.handle("net:probe", (_e, opts) => {

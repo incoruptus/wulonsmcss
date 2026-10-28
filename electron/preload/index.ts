@@ -100,7 +100,8 @@ contextBridge.exposeInMainWorld("mcss", {
     onStatus: (cb: (s: any) => void) => subscribe("frp:status", "frpStatus", cb)
   },
   net: {
-    probe: (opts: { host: string; port: number; timeoutMs?: number }) => invoke("net:probe", opts)
+    probe: (opts: { host: string; port: number; timeoutMs?: number }) => invoke("net:probe", opts),
+    ping: (opts: { host: string; port: number; timeoutMs?: number }) => invoke("net:ping", opts)
   },
   ai: {
     exportBundle: (opts: any) => invoke("ai:export-bundle", opts),
