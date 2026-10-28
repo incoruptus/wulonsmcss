@@ -106,6 +106,10 @@ contextBridge.exposeInMainWorld("mcss", {
     onLog: (cb: (line: string) => void) => subscribe("frp:log", "frpLog", cb),
     onStatus: (cb: (s: any) => void) => subscribe("frp:status", "frpStatus", cb)
   },
+  ai: {
+    exportBundle: (opts: any) => invoke("ai:export-bundle", opts),
+    docsPath: () => invoke("ai:docs-path")
+  },
   app: {
     info: () => invoke("app:info"),
     openPath: (path: string) => invoke("app:open-path", path),

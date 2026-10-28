@@ -100,7 +100,11 @@ export function createHttpClient(base: string, token: string): McssApi {
       userName: "",
       platform: "web",
     },
-    app: {
+    ai: {
+    exportBundle: (opts) => invoke("ai:export-bundle", opts),
+    docsPath: () => invoke("ai:docs-path"),
+  },
+  app: {
       info: () => invoke("app:info"),
       openPath: (p: string) => invoke("app:open-path", p),
       openExternal: async (url: string) => {

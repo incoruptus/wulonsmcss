@@ -567,6 +567,30 @@ function DiagnosisCard({
             >
               让 AI 看看
             </Button>
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={async () => {
+                const info = await window.mcss.app.info();
+                const dir = `${info.documents}\\MCSS\\现场包`;
+                const file = `${dir}\\${instance.name}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.zip`;
+                try {
+                  const res = await window.mcss.ai.exportBundle({
+                    outFile: file,
+                    instanceId: instance.id,
+                    logs: useServer.getState().logs.map((l) => `[${l.timestamp}] [${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`),
+                    symptom: { title: diagnosis.title, detail: diagnosis.detail },
+                  });
+                  if (!res.ok) throw new Error(res.error || "导出失败");
+                  void window.mcss.app.openPath(dir);
+                  toast.success("现场包已导出", { description: "拖给任意 AI 就能让它接手排查" });
+                } catch (e) {
+                  toast.error((e as Error).message);
+                }
+              }}
+            >
+              导出现场包
+            </Button>
             <Button size="xs" variant="ghost" onClick={onDismiss}>
               知道了
             </Button>

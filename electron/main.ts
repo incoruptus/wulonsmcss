@@ -18,6 +18,7 @@ const backup = require(path.join(IPC_DIR, "backup.js"));
 const serversdat = require(path.join(IPC_DIR, "serversdat.js"));
 const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
 const schedule = require(path.join(IPC_DIR, "schedule.js"));
+const aidiag = require(path.join(IPC_DIR, "aidiag.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -269,6 +270,32 @@ ipcMain.handle("app:install-java", async () => {
 
 ipcMain.handle("app:detect-java", () => javaIpc.detectJava());
 
+ipcMain.handle("ai:export-bundle", async (_e, opts) => {
+  try {
+    const inst = findInstance(opts?.instanceId);
+    if (!inst) return { ok: false, error: "实例不存在" };
+    const docsDir = app.isPackaged ? path.join(process.resourcesPath, "ai") : path.join(__dirname, "..", "..", "docs", "ai");
+    let preflightResult = null;
+    try {
+      preflightResult = (await preflight.run(inst))?.issues ?? null;
+    } catch (e) {}
+    return aidiag.exportBundle({
+      outFile: opts.outFile,
+      instance: inst,
+      logs: Array.isArray(opts.logs) ? opts.logs : [],
+      symptom: opts.symptom,
+      preflight: preflightResult,
+      config: readConfig(),
+      docsDir,
+      appVersion: app.getVersion(),
+    });
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle("ai:docs-path", () => (app.isPackaged ? path.join(process.resourcesPath, "ai") : path.join(__dirname, "..", "..", "docs", "ai")));
+
 /** AI 知识库目录（开发在仓库 docs/ai，打包后在 resources/ai） */
 ipcMain.handle("app:ai-docs", () => {
   if (app.isPackaged) return path.join(process.resourcesPath, "ai");
@@ -465,6 +492,15 @@ app.whenReady().then(() => {
   activeInstanceId = cfg.activeInstanceId;
   createWindow();
   startScheduler();
+
+  // 联调钩子：启动后自动拉起某个实例（截图验证崩溃/诊断用）
+  if (process.env.MCSS_AUTOSTART) {
+    setTimeout(() => {
+      try {
+        startInstance(process.env.MCSS_AUTOSTART);
+      } catch (e) {}
+    }, 1500);
+  }
 });
 
 /**

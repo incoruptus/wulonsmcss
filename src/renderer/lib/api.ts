@@ -43,6 +43,15 @@ export interface McssApi {
     userName: string;
     platform: string;
   };
+  ai: {
+    exportBundle: (opts: {
+      outFile: string;
+      instanceId: string;
+      logs: string[];
+      symptom?: { title: string; detail: string };
+    }) => Promise<{ ok: boolean; file?: string; size?: number; logs?: number; error?: string }>;
+    docsPath: () => Promise<string>;
+  };
   app: {
     info: () => Promise<{
       version: string;

@@ -15,7 +15,8 @@
       "jvmArgs": "-javaagent:authlib-injector.jar=littleskin.cn",
       "port": 25565,
       "createdAt": 1793186332792,
-      "updatedAt": 1793186332792
+      "updatedAt": 1793193675102,
+      "lastStartedAt": 1793193675102
     }
   ],
   "activeInstanceId": "legacy",

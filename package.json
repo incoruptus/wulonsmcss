@@ -8,7 +8,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && node --test electron/ipc/schedule.test.js",
+    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js",
     "dist": "electron-builder --config electron-builder.yml",
     "build:web": "vite build --config vite.web.config.mts",
     "dev:web": "vite --config vite.web.config.mts",
