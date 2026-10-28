@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, RefreshCw, Save } from "lucide-react";
+import { AlertCircle, RefreshCw, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Switch } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import type { Instance } from "@/lib/types";
+import { AiConfigDialog } from "@/components/instance/AiConfigDialog";
 
 type Props = Record<string, string>;
 
@@ -47,6 +48,7 @@ export function ConfigTab({ instance }: { instance: Instance }) {
   const [mode, setMode] = useState<"form" | "raw">("form");
   const [raw, setRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -137,6 +139,10 @@ export function ConfigTab({ instance }: { instance: Instance }) {
           ]}
         />
         <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setAiOpen(true)}>
+            <Sparkles className="size-3.5" />
+            AI 助手
+          </Button>
           <Button variant="secondary" size="sm" onClick={load}>
             <RefreshCw className="size-3.5" />
             重新载入
@@ -206,6 +212,17 @@ export function ConfigTab({ instance }: { instance: Instance }) {
           </div>
         </div>
       )}
+
+      <AiConfigDialog
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        instance={instance}
+        props={props}
+        onApply={(next) => {
+          setDraft(next);
+          if (mode === "raw") setRaw(Object.entries(next).map(([k, v]) => `${k}=${v}`).join("\n"));
+        }}
+      />
     </div>
   );
 }
