@@ -131,6 +131,7 @@ export function createHttpClient(base: string, token: string): McssApi {
       copy: (src, dest) => invoke("fs:copy", src, dest),
     },
     server: {
+      preflight: (instanceId) => invoke("server:preflight", instanceId),
       start: (instanceId) => invoke("server:start", instanceId),
       stop: () => invoke("server:stop"),
       command: (cmd) => invoke("server:command", cmd),

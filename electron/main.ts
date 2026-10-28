@@ -12,6 +12,7 @@ const javaIpc = require(path.join(IPC_DIR, "java.js"));
 const worlds = require(path.join(IPC_DIR, "worlds.js"));
 const modrinth = require(path.join(IPC_DIR, "modrinth.js"));
 const frp = require(path.join(IPC_DIR, "frp.js"));
+const preflight = require(path.join(IPC_DIR, "preflight.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -255,8 +256,13 @@ ipcMain.handle("app:lan-address", () => {
 
 /* --------------------------------- 服务器 --------------------------------- */
 
-ipcMain.handle("server:start", async (_e, instanceId) => {
+ipcMain.handle("server:preflight", async (_e, instanceId) => {
   const inst = findInstance(instanceId);
+  if (!inst) return { ok: false, issues: [{ id: "no-instance", level: "error", title: "实例不存在", detail: "" }] };
+  return preflight.run(inst);
+});
+
+ipcMain.handle("server:start", async (_e, instanceId) => {  const inst = findInstance(instanceId);
   if (!inst) return { ok: false, error: "实例不存在" };
 
   activeInstanceId = instanceId;

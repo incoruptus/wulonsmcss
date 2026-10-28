@@ -14,6 +14,8 @@ import { ModsTab } from "@/components/instance/ModsTab";
 import { WorldsTab } from "@/components/instance/WorldsTab";
 import { PlayersTab } from "@/components/instance/PlayersTab";
 import { InstanceSettingsDialog } from "@/components/instance/InstanceSettingsDialog";
+import { PreflightDialog } from "@/components/instance/PreflightDialog";
+import { InviteDialog } from "@/components/instance/InviteDialog";
 
 const TABS = [
   { id: "overview", label: "概览" },
@@ -34,6 +36,8 @@ export default function InstanceDetail() {
   const status = useServer((s) => s.status);
   const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   // Tab 记在 URL 上：刷新/返回不丢，也能直接分享到某个 Tab
   const tabParam = searchParams.get("tab");
@@ -68,8 +72,7 @@ export default function InstanceDetail() {
       await window.mcss.server.stop();
       return;
     }
-    const res = await window.mcss.server.start(instance!.id);
-    if (!res.ok) toast.error(res.error || "启动失败");
+    setPreflightOpen(true);
   }
 
   return (
@@ -133,6 +136,18 @@ export default function InstanceDetail() {
       </div>
 
       <InstanceSettingsDialog open={editing} onOpenChange={setEditing} instance={instance} />
+      <PreflightDialog
+        open={preflightOpen}
+        onOpenChange={setPreflightOpen}
+        instance={instance}
+        onStarted={() =>
+          toast.success("服务器已启动", {
+            description: "把邀请链接发给朋友，他们点开就能知道怎么进。",
+            action: { label: "生成邀请", onClick: () => setInviteOpen(true) },
+          })
+        }
+      />
+      <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} instance={instance} />
     </>
   );
 }

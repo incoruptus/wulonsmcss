@@ -6,6 +6,7 @@ import type {
   Instance,
   McVersion,
   ModMeta,
+  PreflightResult,
   WorldPack,
 } from "./types";
 
@@ -79,6 +80,7 @@ export interface McssApi {
     copy: (src: string, dest: string) => Promise<string>;
   };
   server: {
+    preflight: (instanceId: string) => Promise<PreflightResult>;
     start: (instanceId: string) => Promise<{ ok: boolean; error?: string }>;
     stop: () => Promise<void>;
     command: (cmd: string) => Promise<boolean>;

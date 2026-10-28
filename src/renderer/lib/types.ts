@@ -125,6 +125,22 @@ export interface JavaInfo {
   major?: number;
 }
 
+export interface PreflightIssue {
+  id: string;
+  level: "error" | "warn";
+  title: string;
+  detail: string;
+  /** 可执行的修复动作 */
+  fix?: string | null;
+  samples?: string[];
+}
+
+export interface PreflightResult {
+  ok: boolean;
+  issues: PreflightIssue[];
+  checkedAt?: number;
+}
+
 export interface McVersion {
   id: string;
   type: "release" | "snapshot" | "old_beta" | "old_alpha";

@@ -9,6 +9,8 @@ import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { formatDuration } from "@/lib/utils";
 import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog";
+import { PreflightDialog } from "@/components/instance/PreflightDialog";
+import { InviteDialog } from "@/components/instance/InviteDialog";
 
 export default function Overview() {
   const navigate = useNavigate();
@@ -23,6 +25,8 @@ export default function Overview() {
   const setMemory = useServer((s) => s.setMemory);
 
   const [creating, setCreating] = useState(false);
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   const active = useMemo(() => instances.find((i) => i.id === activeId) ?? instances[0], [instances, activeId]);
@@ -48,8 +52,7 @@ export default function Overview() {
       await window.mcss.server.stop();
       return;
     }
-    const res = await window.mcss.server.start(active.id);
-    if (!res.ok) toast.error(res.error || "启动失败");
+    setPreflightOpen(true);
   }
 
   const uptime = running && startedAt ? Math.floor((now - startedAt) / 1000) : 0;
@@ -196,6 +199,22 @@ export default function Overview() {
       </PageBody>
 
       <CreateInstanceDialog open={creating} onOpenChange={setCreating} />
+      {active ? (
+        <>
+          <PreflightDialog
+            open={preflightOpen}
+            onOpenChange={setPreflightOpen}
+            instance={active}
+            onStarted={() =>
+              toast.success("服务器已启动", {
+                description: "把邀请链接发给朋友，他们点开就知道怎么进。",
+                action: { label: "生成邀请", onClick: () => setInviteOpen(true) },
+              })
+            }
+          />
+          <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} instance={active} />
+        </>
+      ) : null}
     </>
   );
 }

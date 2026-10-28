@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld("mcss", {
     copy: (src: string, dest: string) => invoke("fs:copy", src, dest)
   },
   server: {
+    preflight: (instanceId: string) => invoke("server:preflight", instanceId),
     start: (instanceId: string) => invoke("server:start", instanceId),
     stop: () => invoke("server:stop"),
     command: (cmd: string) => invoke("server:command", cmd),
