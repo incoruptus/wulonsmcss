@@ -27,6 +27,7 @@ interface ElectronAPI {
   readModMeta: (jarPath: string) => Promise<any>
   generateManifest: (serverDir: string) => Promise<any>
   copyWallpaper: (src: string) => Promise<{ path: string; dataUrl: string; brightness: number }>
+  copyFile: (src: string, dest: string) => Promise<string>
   analyzeWallpaper: (filePath: string) => Promise<{ brightness: number }>
   readWallpaper: (filePath: string) => Promise<string | null>
   copyServerIcon: (src: string, serverDir: string) => Promise<void>
@@ -52,3 +53,6 @@ declare global {
     electronAPI: ElectronAPI
   }
 }
+
+// 让本文件成为模块，declare global 才会生效
+export {}

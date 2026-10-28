@@ -15,8 +15,5 @@
       "@/*": ["./src/renderer/*"]
     }
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/renderer/**/*.d.ts"],
-  "references": [
-    { "path": "./tsconfig.node.json" }
-  ]
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/renderer/**/*.d.ts"]
 }

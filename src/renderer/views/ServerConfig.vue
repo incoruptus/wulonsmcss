@@ -534,7 +534,7 @@ async function loadConfig() {
     const raw = await window.electronAPI.readFile(path)
     rawContent.value = raw
   } catch(e) {
-    console.warn('ServerConfig load failed:', e.message)
+    console.warn('ServerConfig load failed:', (e as Error).message)
   }
 }
 

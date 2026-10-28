@@ -191,9 +191,15 @@ function analyzeBrightness(filePath) {
   } catch(e) { return 0.5 }
 }
 
+// 用户上传的壁纸一律落到 userData/wallpapers：
+// 打包后 app.asar 只读，写 resources/ 会静默失败；开发时也不会覆盖内置壁纸
+function getWallpaperDir() {
+  return path.join(app.getPath('userData'), 'wallpapers')
+}
+
 ipcMain.handle('file:copyWallpaper', (_, src) => {
-  const ext = path.extname(src) || '.png'
-  const dest = path.resolve(__dirname, '..', '..', 'resources', 'wallpaper' + ext)
+  const ext = path.extname(src).toLowerCase() || '.png'
+  const dest = path.join(getWallpaperDir(), 'wallpaper' + ext)
   files.copyFile(src, dest)
   const mimeTypes = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.bmp': 'image/bmp' }
   const mime = mimeTypes[ext] || 'image/png'
@@ -229,16 +235,17 @@ ipcMain.handle('file:readWallpaper', (_, filePath) => {
 ipcMain.handle('file:clearCache', () => {
   const configPath = getConfigPath()
   files.clearCache(configPath)
-  // Remove cached wallpaper files (only in dev, asar is read-only)
-  if (!app.isPackaged) {
-    const wallpaperDir = path.join(__dirname, '..', '..', 'resources')
-    try {
-      const cachedFiles = require('fs').readdirSync(wallpaperDir)
-      cachedFiles.filter(f => f.startsWith('wallpaper.')).forEach(f => {
-        require('fs').unlinkSync(path.join(wallpaperDir, f))
-      })
-    } catch(e) {}
-  }
+  // 清掉用户上传并缓存的壁纸（内置壁纸在 resources/，不动）
+  try {
+    const dir = getWallpaperDir()
+    if (require('fs').existsSync(dir)) {
+      require('fs').readdirSync(dir)
+        .filter((f: string) => f.startsWith('wallpaper.'))
+        .forEach((f: string) => {
+          try { require('fs').unlinkSync(path.join(dir, f)) } catch(e) {}
+        })
+    }
+  } catch(e) {}
 })
 
 // Copy a file (used for mod installation)

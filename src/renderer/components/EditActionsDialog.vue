@@ -36,8 +36,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-
-interface QAction { id: string; name: string; icon: string; isDefault?: boolean }
+import type { QuickAction as QAction } from '@/types'
 
 const defaults: QAction[] = [
   { id: 'def_mods', name: 'Mod 目录', icon: 'extension', isDefault: true },

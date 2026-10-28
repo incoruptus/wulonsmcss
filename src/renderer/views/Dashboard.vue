@@ -138,10 +138,7 @@ import { useServerStore } from '@/stores/server'
 import { useAnimationStore } from '@/stores/animation'
 import AddActionDialog from '@/components/AddActionDialog.vue'
 import EditActionsDialog from '@/components/EditActionsDialog.vue'
-
-interface QuickAction {
-  id: string; name: string; icon: string; type: string; path?: string; section?: string; page?: string
-}
+import type { QuickAction } from '@/types'
 
 const appStore = useAppStore()
 const serverStore = useServerStore()
@@ -289,7 +286,7 @@ function openDir(type: string) {
   if (p) window.electronAPI.openPath(p)
 }
 
-async function onAddAction(action: { name: string; type: string; path?: string; section?: string; icon: string }) {
+async function onAddAction(action: Omit<QuickAction, 'id'>) {
   const id = 'qa_' + Date.now()
   customActions.value.push({ id, ...action })
   await saveQuickActions()

@@ -9,6 +9,8 @@ export interface Notification {
   details?: string
   timestamp: Date
   dismissed: boolean
+  /** UI 折叠状态（仅前端使用） */
+  _expanded?: boolean
 }
 
 export const useNotificationStore = defineStore('notifications', () => {

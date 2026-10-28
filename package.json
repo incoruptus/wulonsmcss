@@ -8,6 +8,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "lint": "eslint . --ext .vue,.ts,.tsx --fix",
+    "typecheck": "vue-tsc --noEmit",
+    "typecheck:main": "tsc -p tsconfig.node.json --noEmit",
     "dist": "electron-builder --config electron-builder.yml"
   },
   "dependencies": {

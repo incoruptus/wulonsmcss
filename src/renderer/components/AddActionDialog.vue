@@ -58,10 +58,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type { QuickAction } from '@/types'
 
 const visible = ref(false)
 const name = ref('')
-const actionType = ref('path')
+const actionType = ref<'path' | 'section'>('path')
 const targetPath = ref('')
 const sectionPage = ref('')
 const sectionSub = ref('')
@@ -121,7 +122,7 @@ watch(sectionSub, (val) => {
 })
 
 const emit = defineEmits<{
-  add: [action: { name: string; type: string; path?: string; section?: string; page?: string; icon: string }]
+  add: [action: Omit<QuickAction, 'id'>]
 }>()
 
 function show() { visible.value = true }
