@@ -33,7 +33,7 @@ function agentChannels() {
   // match 分支：行首一串空白 + "channel" => ...
   for (const m of text.matchAll(/^\s*"([a-z0-9-]+:[a-z0-9:-]+)"\s*=>/gm)) channels.add(m[1]);
   // 事件通道不一定出现在 match 里，只要作为字符串被广播过就算已实现
-  for (const m of text.matchAll(/"(server:output|client:progress|server:status|versions:progress)"/g)) channels.add(m[1]);
+  for (const m of text.matchAll(/"(server:output|client:progress|server:status|versions:progress|frp:log|frp:status)"/g)) channels.add(m[1]);
   return channels;
 }
 

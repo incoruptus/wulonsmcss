@@ -27,6 +27,12 @@ struct State {
     status: String,
     subscribers: Vec<TcpStream>,
     token: String,
+    /// frpc 隧道
+    frp: Option<Child>,
+    frp_logs: Vec<String>,
+    frp_address: String,
+    frp_error: String,
+    frp_pending: bool,
 }
 
 type Shared = Arc<Mutex<State>>;
@@ -1910,8 +1916,10 @@ fn download_to(url: &str, dest: &Path, mirrors: bool) -> Result<u64, String> {
         let result = curl(&[
             "-L",
             "--fail",
+            "--connect-timeout",
+            "10",
             "--max-time",
-            "900",
+            "300",
             "-H",
             &format!("User-Agent: {UA}"),
             "-o",
@@ -1923,7 +1931,19 @@ fn download_to(url: &str, dest: &Path, mirrors: bool) -> Result<u64, String> {
                 if dest.exists() {
                     let _ = std::fs::remove_file(dest);
                 }
-                std::fs::rename(&part, dest).map_err(|e| format!("重命名失败：{e}"))?;
+                // 刚下完的文件可能被杀软扫一下，rename 会短暂失败：重试，再退化成复制
+                let mut moved = false;
+                for _ in 0..8 {
+                    if std::fs::rename(&part, dest).is_ok() {
+                        moved = true;
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(400));
+                }
+                if !moved {
+                    std::fs::copy(&part, dest).map_err(|e| format!("写入文件失败：{e}"))?;
+                    let _ = std::fs::remove_file(&part);
+                }
                 return Ok(std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0));
             }
             Err(e) => {
@@ -2016,6 +2036,338 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
     let size = download_to(&server_url, &dir_path.join("server.jar"), false)?;
     progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
+/* -------------------------------- FRP -------------------------------- */
+
+fn frp_dir() -> PathBuf {
+    let home = std::env::var("USERPROFILE").unwrap_or_default();
+    PathBuf::from(home).join(".wulons-mcss").join("frp")
+}
+
+fn strip_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            // 跳过 ESC [ ... m 这类控制序列
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for next in chars.by_ref() {
+                    if next.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn frp_push_log(state: &mut State, line: &str) {
+    let text = strip_ansi(line).trim().to_string();
+    if text.is_empty() {
+        return;
+    }
+    state.frp_logs.push(text.clone());
+    if state.frp_logs.len() > 500 {
+        state.frp_logs.remove(0);
+    }
+    broadcast(state, "frp:log", Json::s(&text));
+}
+
+fn frp_status(state: &State) -> Json {
+    Json::obj(vec![
+        ("running", Json::Bool(state.frp.is_some())),
+        ("pending", Json::Bool(state.frp_pending)),
+        ("address", Json::s(&state.frp_address)),
+        ("error", Json::s(&state.frp_error)),
+    ])
+}
+
+fn frp_emit_status(state: &mut State) {
+    let status = frp_status(state);
+    broadcast(state, "frp:status", status);
+}
+
+/// 找 frpc.exe（可能在解压出来的子目录里）
+fn find_frpc(dir: &Path) -> Option<PathBuf> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(found) = find_frpc(&path) {
+                    return Some(found);
+                }
+            } else if path.file_name().and_then(|n| n.to_str()) == Some("frpc.exe") {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+/// 确保 frpc.exe 就位：从 GitHub Release 拉，解压出 exe
+fn ensure_frpc(shared: &Shared) -> Result<PathBuf, String> {
+    let dir = frp_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建 FRP 目录失败：{e}"))?;
+    let exe = dir.join("frpc.exe");
+    if exe.exists() && std::fs::metadata(&exe).map(|m| m.len()).unwrap_or(0) > 1024 {
+        return Ok(exe);
+    }
+
+    {
+        let mut state = shared.lock().unwrap();
+        frp_push_log(&mut state, "正在获取 frp 版本信息");
+    }
+    let release = get_json("https://api.github.com/repos/fatedier/frp/releases/latest")
+        .map_err(|e| format!("获取 frp 版本失败：{e}"))?;
+    let asset = release
+        .get("assets")
+        .and_then(|v| v.arr())
+        .and_then(|list| {
+            list.iter().find(|a| {
+                a.get("name")
+                    .and_then(|n| n.str())
+                    .map(|n| n.ends_with("windows_amd64.zip"))
+                    .unwrap_or(false)
+            })
+        })
+        .ok_or("没有找到 Windows 版 frp 安装包")?;
+    let url = asset
+        .get("browser_download_url")
+        .and_then(|v| v.str())
+        .ok_or("缺少下载地址")?;
+    let name = asset.get("name").and_then(|v| v.str()).unwrap_or("frp.zip");
+    // GitHub 的 asset 直链（objects.githubusercontent.com）很难走代理，
+    // 用 tag + 文件名拼出 releases 地址，镜像前缀才对它有效
+    let tag = release.get("tag_name").and_then(|v| v.str()).unwrap_or("");
+    let download_url = if tag.is_empty() {
+        url.to_string()
+    } else {
+        format!("https://github.com/fatedier/frp/releases/download/{tag}/{name}")
+    };
+
+    {
+        let mut state = shared.lock().unwrap();
+        frp_push_log(&mut state, &format!("正在下载 {name}"));
+    }
+
+    let zip = dir.join("frp.zip");
+    // 上次可能已经把包下好了，别重复下
+    let need_download = !zip.exists() || std::fs::metadata(&zip).map(|m| m.len()).unwrap_or(0) < 1024 * 1024;
+    if need_download {
+        download_to(&download_url, &zip, true)?;
+    } else {
+        let mut state = shared.lock().unwrap();
+        frp_push_log(&mut state, "使用已下载的安装包");
+    }
+
+    let extract = dir.join("unpack");
+    let _ = std::fs::remove_dir_all(&extract);
+    std::fs::create_dir_all(&extract).map_err(|e| format!("创建解压目录失败：{e}"))?;
+    let status = Command::new("tar")
+        .args(["-xf"])
+        .arg(&zip)
+        .arg("-C")
+        .arg(&extract)
+        .status()
+        .map_err(|e| format!("解压失败：{e}"))?;
+    if !status.success() {
+        return Err("解压 frp 安装包失败".into());
+    }
+
+    let found = find_frpc(&extract).ok_or("安装包里没有 frpc.exe")?;
+    // 刚解压出来的 exe 常被杀软短暂占用：复制 + 重试，比 rename 稳
+    let mut last_error = String::new();
+    let mut copied = false;
+    for _ in 0..6 {
+        match std::fs::copy(&found, &exe) {
+            Ok(_) => {
+                copied = true;
+                break;
+            }
+            Err(e) => {
+                last_error = e.to_string();
+                thread::sleep(Duration::from_millis(500));
+            }
+        }
+    }
+    if !copied {
+        return Err(format!("写入 frpc.exe 失败：{last_error}"));
+    }
+    let _ = std::fs::remove_dir_all(&extract);
+    let _ = std::fs::remove_file(&zip);
+
+    let mut state = shared.lock().unwrap();
+    frp_push_log(&mut state, "frpc.exe 已就绪");
+    Ok(exe)
+}
+
+fn build_frpc_toml(profile: &Json) -> String {
+    let s = |k: &str, d: &str| {
+        profile
+            .get(k)
+            .and_then(|v| v.str())
+            .unwrap_or(d)
+            .to_string()
+    };
+    let n = |k: &str, d: f64| profile.get(k).and_then(|v| v.num()).unwrap_or(d);
+
+    let mut lines = vec![
+        format!("serverAddr = \"{}\"", s("serverAddr", "")),
+        format!("serverPort = {}", n("serverPort", 7000.0) as i64),
+        format!("auth.token = \"{}\"", s("token", "")),
+        String::new(),
+        "[[proxies]]".to_string(),
+        format!("name = \"{}\"", s("name", "minecraft")),
+        format!("type = \"{}\"", s("type", "tcp")),
+        "localIP = \"127.0.0.1\"".to_string(),
+        format!("localPort = {}", n("localPort", 25565.0) as i64),
+        format!("remotePort = {}", n("remotePort", 25565.0) as i64),
+    ];
+    if s("type", "tcp") == "http" || s("type", "tcp") == "https" {
+        let domain = s("customDomain", "");
+        if !domain.is_empty() {
+            lines.push(format!("customDomains = [\"{domain}\"]"));
+        }
+    }
+    format!("{}\n", lines.join("\n"))
+}
+
+fn frp_start(shared: &Shared, profile: &Json) -> Result<Json, String> {
+    {
+        let mut state = shared.lock().unwrap();
+        if state.frp.is_some() || state.frp_pending {
+            return Err("隧道已在运行或正在启动".into());
+        }
+        state.frp_error.clear();
+        state.frp_address.clear();
+        state.frp_pending = true;
+        frp_push_log(&mut state, "开始启动隧道");
+    }
+
+    // 下载 frpc 可能要几十秒，不能卡住这一次请求：交给后台线程，进度走 frp:log
+    let shared_clone = Arc::clone(shared);
+    let profile = profile.clone();
+    thread::spawn(move || {
+        match ensure_frpc(&shared_clone) {
+            Ok(exe) => {
+                let dir = frp_dir();
+                let cfg = dir.join("frpc.toml");
+                if let Err(e) = std::fs::write(&cfg, build_frpc_toml(&profile)) {
+                    let mut state = shared_clone.lock().unwrap();
+                    state.frp_pending = false;
+                    state.frp_error = format!("写入配置失败：{e}");
+                    frp_emit_status(&mut state);
+                    return;
+                }
+
+                let spawned = Command::new(&exe)
+                    .arg("-c")
+                    .arg(&cfg)
+                    .current_dir(&dir)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn();
+
+                match spawned {
+                    Ok(mut child) => {
+                        let server_addr = profile
+                            .get("serverAddr")
+                            .and_then(|v| v.str())
+                            .unwrap_or("")
+                            .to_string();
+                        let remote_port =
+                            profile.get("remotePort").and_then(|v| v.num()).unwrap_or(25565.0) as i64;
+
+                        let mut streams: Vec<Box<dyn std::io::Read + Send>> = Vec::new();
+                        if let Some(out) = child.stdout.take() {
+                            streams.push(Box::new(out));
+                        }
+                        if let Some(err) = child.stderr.take() {
+                            streams.push(Box::new(err));
+                        }
+                        for stream in streams {
+                            let inner = Arc::clone(&shared_clone);
+                            let addr = server_addr.clone();
+                            thread::spawn(move || {
+                                use std::io::{BufRead, BufReader};
+                                for line in BufReader::new(stream).lines().flatten() {
+                                    let mut state = inner.lock().unwrap();
+                                    frp_push_log(&mut state, &line);
+                                    let lower = line.to_lowercase();
+                                    if lower.contains("start proxy success") {
+                                        state.frp_address = format!("{addr}:{remote_port}");
+                                        frp_emit_status(&mut state);
+                                    }
+                                    if lower.contains("login to server failed")
+                                        || lower.contains("connect to server error")
+                                        || lower.contains("authorization failed")
+                                    {
+                                        state.frp_error = strip_ansi(&line).trim().to_string();
+                                        frp_emit_status(&mut state);
+                                    }
+                                }
+                            });
+                        }
+
+                        let mut state = shared_clone.lock().unwrap();
+                        state.frp = Some(child);
+                        state.frp_pending = false;
+                        frp_push_log(&mut state, "frpc 已启动");
+                        frp_emit_status(&mut state);
+                    }
+                    Err(e) => {
+                        let mut state = shared_clone.lock().unwrap();
+                        state.frp_pending = false;
+                        state.frp_error = format!("启动 frpc 失败：{e}");
+                        let message = state.frp_error.clone();
+                        frp_push_log(&mut state, &message);
+                        frp_emit_status(&mut state);
+                    }
+                }
+            }
+            Err(e) => {
+                let mut state = shared_clone.lock().unwrap();
+                state.frp_pending = false;
+                state.frp_error = e.clone();
+                frp_push_log(&mut state, &e);
+                frp_emit_status(&mut state);
+            }
+        }
+    });
+
+    Ok(Json::obj(vec![("ok", Json::Bool(true)), ("pending", Json::Bool(true))]))
+}
+
+fn frp_stop(shared: &Shared) -> Json {
+    let mut state = shared.lock().unwrap();
+    if let Some(mut child) = state.frp.take() {
+        let _ = child.kill();
+        state.frp_address.clear();
+        frp_push_log(&mut state, "frpc 已停止");
+    }
+    frp_emit_status(&mut state);
+    Json::obj(vec![("ok", Json::Bool(true))])
+}
+
+fn frp_status_live(shared: &Shared) -> Json {
+    let mut state = shared.lock().unwrap();
+    // 进程自己退了（比如配置错）要能反映出来
+    if let Some(child) = state.frp.as_mut() {
+        if let Ok(Some(code)) = child.try_wait() {
+            state.frp = None;
+            state.frp_address.clear();
+            let msg = format!("frpc 退出（代码 {code}）");
+            frp_push_log(&mut state, &msg);
+            frp_emit_status(&mut state);
+        }
+    }
+    frp_status(&state)
 }
 
 /* ------------------------------- 文件 ------------------------------- */
@@ -2174,6 +2526,9 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "frp:start" => frp_start(shared, args.first().ok_or("缺少隧道配置")?),
+        "frp:stop" => Ok(frp_stop(shared)),
+        "frp:status" => Ok(frp_status_live(shared)),
         "versions:minecraft" => versions_minecraft(),
         "versions:fabric-loaders" => fabric_loaders(arg0),
         "versions:install" => install_server(shared, args.first().ok_or("缺少参数")?),
@@ -2337,6 +2692,11 @@ fn main() {
         status: "stopped".into(),
         subscribers: Vec::new(),
         token,
+        frp: None,
+        frp_logs: Vec::new(),
+        frp_address: String::new(),
+        frp_error: String::new(),
+        frp_pending: false,
     }));
 
     let listener = match TcpListener::bind(("127.0.0.1", port)) {
