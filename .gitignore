@@ -7,6 +7,7 @@ dist-web/
 _asar_tmp/
 .gradle/
 build/
+agent/target/
 
 # 打包产物与历史备份（体积大，不入库）
 *.tgz

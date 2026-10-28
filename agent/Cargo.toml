@@ -1,0 +1,16 @@
+[package]
+name = "mcss-agent"
+version = "0.1.0"
+edition = "2021"
+description = "Wulon's MCSS 本地助手：把 Electron 主进程的能力用最小体积重新实现"
+
+[[bin]]
+name = "mcss-agent"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

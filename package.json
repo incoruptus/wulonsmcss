@@ -11,7 +11,9 @@
     "test": "vitest run",
     "dist": "electron-builder --config electron-builder.yml",
     "build:web": "vite build --config vite.web.config.mts",
-    "dev:web": "vite --config vite.web.config.mts"
+    "dev:web": "vite --config vite.web.config.mts",
+    "build:agent": "cargo build --release --manifest-path agent/Cargo.toml",
+    "agent": "agent/target/release/mcss-agent.exe"
   },
   "dependencies": {
     "@fontsource/sora": "^5.0.0",
