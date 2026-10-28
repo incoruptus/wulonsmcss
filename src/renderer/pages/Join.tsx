@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
-import { copyText, safeName } from "@/lib/utils";
+import { checkClient, defaultClientDir, type CheckupResult } from "@/lib/checkup";
+import { copyText, cx, safeName } from "@/lib/utils";
 
 interface Exported {
   file: string;
@@ -40,6 +41,39 @@ export default function Join() {
   const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
   const [exported, setExported] = useState<Exported | null>(null);
   const [preparedDir, setPreparedDir] = useState<string | null>(null);
+  const [clientDir, setClientDir] = useState<string>("");
+  const [checkup, setCheckup] = useState<CheckupResult | null>(null);
+
+  // 房间一确定就体检：读本地 .minecraft，回答「能不能直接进」
+  useEffect(() => {
+    if (!room) {
+      setCheckup(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const info = await window.mcss.app.info().catch(() => null);
+      if (!info) return;
+      const dir = clientDir || defaultClientDir(info.appData);
+      if (!clientDir) {
+        setClientDir(dir);
+        return;
+      }
+      const result = await checkClient(dir, room).catch(() => null);
+      if (alive) setCheckup(result);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [room, clientDir]);
+
+  async function pickClientDir() {
+    const picked = await window.mcss.dialog.openDirectory();
+    if (picked) {
+      setCheckup(null);
+      setClientDir(picked);
+    }
+  }
 
   useEffect(() => {
     window.mcss.app.detectLaunchers?.().then(setLaunchers).catch(() => {});
@@ -202,6 +236,50 @@ export default function Join() {
                 value={launchers.length ? launchers[0].name : "未检测到"}
               />
             </div>
+
+            {/* 客户端体检 */}
+            {checkup ? (
+              <div
+                className={cx(
+                  "rounded-lg p-3",
+                  checkup.verdict === "ready" ? "bg-green-800/10" : "bg-background-100 shadow-geist-border",
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  {checkup.verdict === "ready" ? (
+                    <CheckCircle2 className="size-4 shrink-0 text-green-900" />
+                  ) : (
+                    <AlertTriangle className="size-4 shrink-0 text-amber-900" />
+                  )}
+                  <span className={cx("t-label-13 font-medium", checkup.verdict === "ready" ? "text-green-900" : "text-gray-1000")}>
+                    {checkup.verdict === "ready"
+                      ? "你的客户端可以直接进"
+                      : checkup.verdict === "need-mods"
+                        ? `版本对了，但本地没找到 ${checkup.mods.missing.length} 个 Mod`
+                        : checkup.verdict === "need-version"
+                          ? `没有 ${room.mc} · ${room.loader} 的实例`
+                          : checkup.verdict === "no-version"
+                            ? "这个 .minecraft 里还没装过游戏"
+                            : "没找到 .minecraft"}
+                  </span>
+                  <Button size="xs" variant="ghost" className="ml-auto" onClick={pickClientDir}>
+                    换个目录
+                  </Button>
+                </div>
+
+                <p className="t-label-12 mt-1 text-gray-800">
+                  {checkup.verdict === "ready"
+                    ? `已找到 ${checkup.match}，房间需要的 Mod 都在（${checkup.mods.present}/${checkup.mods.total}）。用启动器选这个实例就能进。`
+                    : checkup.verdict === "need-mods"
+                      ? `缺：${checkup.mods.missing.map((m) => m.n).slice(0, 6).join("、")}${checkup.mods.missing.length > 6 ? " 等" : ""}。用下面的进服包最省事，不会动你现有的客户端。`
+                      : checkup.verdict === "need-version"
+                        ? `现有：${checkup.candidates.map((c) => c.id).slice(0, 5).join("、") || "（无）"}。用进服包会在启动器里新建一个对应实例。`
+                        : checkup.verdict === "no-version"
+                          ? "看起来还没用启动器装过游戏。用进服包最省事，导入后就是一个现成实例。"
+                          : "选一下你的 .minecraft 目录，我看看版本和 Mod 齐不齐。"}
+                </p>
+              </div>
+            ) : null}
 
             {/* 主路径 */}
             <div className="rounded-xl bg-background-100 p-3 shadow-geist-border">
