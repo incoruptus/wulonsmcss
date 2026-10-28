@@ -8,6 +8,7 @@
 
 mod http;
 mod json;
+mod nbt;
 
 use json::Json;
 use std::io::{BufRead, BufReader, Write};
@@ -345,6 +346,273 @@ fn send_command(shared: &Shared, line: &str) -> Result<Json, String> {
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
 }
 
+/* ------------------------------- 客户端 ------------------------------- */
+
+const UA: &str = "WulonsMCSS/27.0 (github.com/wulons)";
+
+/// 调系统 curl（Windows 10+ 自带）。用 curl 而不是手写 TLS：更稳、更省事。
+fn curl(args: &[&str]) -> Result<Vec<u8>, String> {
+    let out = Command::new("curl")
+        .args(args)
+        .output()
+        .map_err(|e| format!("调用 curl 失败：{e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "下载失败（curl {}）：{}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(out.stdout)
+}
+
+fn emit_progress(shared: &Shared, stage: &str, percent: i32, detail: &str) {
+    let mut state = shared.lock().unwrap();
+    broadcast(
+        &mut state,
+        "client:progress",
+        Json::obj(vec![
+            ("stage", Json::s(stage)),
+            ("percent", Json::n(percent as f64)),
+            ("detail", Json::s(detail)),
+        ]),
+    );
+}
+
+fn add_server(opts: &Json) -> Result<Json, String> {
+    let mc_dir = opts.get("mcDir").and_then(|v| v.str()).unwrap_or("");
+    let name = opts.get("name").and_then(|v| v.str()).unwrap_or("");
+    let ip = opts.get("ip").and_then(|v| v.str()).unwrap_or("");
+    if mc_dir.is_empty() || ip.is_empty() {
+        return Err("缺少客户端目录或服务器地址".into());
+    }
+
+    let dir = Path::new(mc_dir);
+    let file = dir.join("servers.dat");
+    // 先读后写：绝不能覆盖玩家已有的服务器列表
+    let mut servers = std::fs::read(&file).map(|b| nbt::parse(&b)).unwrap_or_default();
+    nbt::upsert(&mut servers, name, ip);
+    std::fs::create_dir_all(dir).map_err(|e| format!("创建目录失败：{e}"))?;
+    std::fs::write(&file, nbt::serialize(&servers)).map_err(|e| format!("写入失败：{e}"))?;
+
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("file", Json::s(&file.to_string_lossy())),
+        ("count", Json::n(servers.len() as f64)),
+    ]))
+}
+
+/* ------------------------------- 依赖解析 ------------------------------- */
+
+/// 取某个 Modrinth 版本的首选文件信息
+fn resolve_version_file(version_id: &str) -> Result<Json, String> {
+    let api = format!("https://api.modrinth.com/v2/version/{version_id}");
+    let body = curl(&["-s", "--max-time", "20", "-H", &format!("User-Agent: {UA}"), &api])?;
+    let text = String::from_utf8_lossy(&body).to_string();
+    let json = Json::parse(&text).map_err(|e| format!("解析版本信息失败：{e}"))?;
+    let files = json.get("files").and_then(|v| v.arr()).ok_or("这个版本没有文件")?;
+    let file = files
+        .iter()
+        .find(|f| f.get("primary").and_then(|v| v.bool()) == Some(true))
+        .or_else(|| files.first())
+        .ok_or("这个版本没有文件")?
+        .clone();
+    Ok(file)
+}
+
+/// 导出 .mrpack（PCL2 / HMCL / Prism / Modrinth App 都能导入）
+fn export_mrpack(shared: &Shared, opts: &Json) -> Result<Json, String> {
+    let out_file = opts.get("outFile").and_then(|v| v.str()).unwrap_or("").to_string();
+    if out_file.is_empty() {
+        return Err("缺少导出路径".into());
+    }
+    let room = opts.get("room").ok_or("缺少房间信息")?;
+    let mc = room.get("mc").and_then(|v| v.str()).unwrap_or("").to_string();
+    if mc.is_empty() {
+        return Err("房间信息不完整".into());
+    }
+    let loader = room.get("loader").and_then(|v| v.str()).unwrap_or("vanilla").to_string();
+    let lv = room.get("lv").and_then(|v| v.str()).unwrap_or("").to_string();
+    let addr = room.get("addr").and_then(|v| v.str()).unwrap_or("").to_string();
+    let name = room
+        .get("name")
+        .and_then(|v| v.str())
+        .unwrap_or("Wulon's MCSS 房间")
+        .to_string();
+    let mods = room.get("mods").and_then(|v| v.arr()).cloned().unwrap_or_default();
+
+    let stage = std::env::temp_dir().join(format!("mcss-mrpack-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&stage);
+    std::fs::create_dir_all(&stage).map_err(|e| format!("创建临时目录失败：{e}"))?;
+
+    let cleanup = |stage: &Path| {
+        let _ = std::fs::remove_dir_all(stage);
+    };
+
+    let mut files = Vec::new();
+    for (i, m) in mods.iter().enumerate() {
+        let version_id = m.get("v").and_then(|v| v.str()).unwrap_or("");
+        emit_progress(shared, "解析 Mod", ((i * 70) / mods.len().max(1)) as i32, &format!("{}/{}", i + 1, mods.len()));
+        match resolve_version_file(version_id) {
+            Ok(file) => {
+                let filename = file.get("filename").and_then(|v| v.str()).unwrap_or("mod.jar");
+                let url = file.get("url").and_then(|v| v.str()).unwrap_or("");
+                let hashes = file.get("hashes");
+                files.push(Json::obj(vec![
+                    ("path", Json::s(&format!("mods/{filename}"))),
+                    (
+                        "hashes",
+                        Json::obj(vec![
+                            ("sha1", Json::s(hashes.and_then(|h| h.get("sha1")).and_then(|v| v.str()).unwrap_or(""))),
+                            ("sha512", Json::s(hashes.and_then(|h| h.get("sha512")).and_then(|v| v.str()).unwrap_or(""))),
+                        ]),
+                    ),
+                    ("downloads", Json::Arr(vec![Json::s(url)])),
+                    ("fileSize", Json::n(file.get("size").and_then(|v| v.num()).unwrap_or(0.0))),
+                ]));
+            }
+            Err(e) => {
+                cleanup(&stage);
+                return Err(format!("解析 Mod 失败：{e}"));
+            }
+        }
+    }
+
+    let mut deps = vec![("minecraft", Json::s(&mc))];
+    if loader == "fabric" && !lv.is_empty() {
+        deps.push(("fabric-loader", Json::s(&lv)));
+    }
+
+    let index = Json::obj(vec![
+        ("formatVersion", Json::n(1.0)),
+        ("game", Json::s("minecraft")),
+        ("versionId", Json::s(&format!("mcss-{}", std::process::id()))),
+        ("name", Json::s(&name)),
+        ("summary", Json::s(&format!("{mc} · {loader}"))),
+        ("files", Json::Arr(files)),
+        ("dependencies", Json::Obj(deps.into_iter().map(|(k, v)| (k.to_string(), v)).collect())),
+    ]);
+
+    std::fs::write(stage.join("modrinth.index.json"), index.to_string()).map_err(|e| format!("写入清单失败：{e}"))?;
+
+    let mut entries = vec!["modrinth.index.json".to_string()];
+    if !addr.is_empty() {
+        let overrides = stage.join("overrides");
+        std::fs::create_dir_all(&overrides).map_err(|e| format!("创建 overrides 失败：{e}"))?;
+        let servers = vec![nbt::Server {
+            name: name.clone(),
+            ip: addr.clone(),
+        }];
+        std::fs::write(overrides.join("servers.dat"), nbt::serialize(&servers)).map_err(|e| format!("写入服务器列表失败：{e}"))?;
+        entries.push("overrides".to_string());
+    }
+
+    if let Some(parent) = Path::new(&out_file).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let mut args: Vec<String> = vec!["-a".into(), "-c".into(), "-f".into(), out_file.clone()];
+    args.extend(entries);
+    let status = Command::new("tar")
+        .args(&args)
+        .current_dir(&stage)
+        .status()
+        .map_err(|e| format!("打包失败：{e}"))?;
+    cleanup(&stage);
+    if !status.success() {
+        return Err("打包失败（tar 退出码非 0）".into());
+    }
+
+    let size = std::fs::metadata(&out_file).map(|m| m.len()).unwrap_or(0);
+    emit_progress(shared, "完成", 100, "");
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("file", Json::s(&out_file)),
+        ("size", Json::n(size as f64)),
+        ("mods", Json::n(mods.len() as f64)),
+    ]))
+}
+
+fn prepare_client(shared: &Shared, opts: &Json) -> Result<Json, String> {    let dir = opts.get("dir").and_then(|v| v.str()).unwrap_or("").to_string();
+    if dir.is_empty() {
+        return Err("缺少目标目录".into());
+    }
+    let mods = opts
+        .get("mods")
+        .and_then(|v| v.arr())
+        .cloned()
+        .unwrap_or_default();
+    let mods_dir = Path::new(&dir).join("mods");
+    std::fs::create_dir_all(&mods_dir).map_err(|e| format!("创建 mods 目录失败：{e}"))?;
+
+    let total = mods.len();
+    let mut results = Vec::new();
+
+    for (i, m) in mods.iter().enumerate() {
+        let version_id = m.get("v").and_then(|v| v.str()).unwrap_or("").to_string();
+        let label = m
+            .get("n")
+            .and_then(|v| v.str())
+            .or_else(|| m.get("p").and_then(|v| v.str()))
+            .unwrap_or(&version_id)
+            .to_string();
+
+        emit_progress(shared, &format!("准备 {label}"), ((i * 100) / total.max(1)) as i32, &format!("{}/{}", i + 1, total));
+
+        let result = (|| -> Result<Json, String> {
+            let file = resolve_version_file(&version_id)?;
+            let filename = file.get("filename").and_then(|v| v.str()).unwrap_or("mod.jar").to_string();
+            let url = file.get("url").and_then(|v| v.str()).ok_or("缺少下载地址")?;
+            let dest = mods_dir.join(&filename);
+
+            if let Ok(meta) = std::fs::metadata(&dest) {
+                let expected = file.get("size").and_then(|v| v.num()).unwrap_or(-1.0);
+                if expected >= 0.0 && meta.len() as f64 == expected {
+                    return Ok(Json::obj(vec![
+                        ("ok", Json::Bool(true)),
+                        ("name", Json::s(&label)),
+                        ("file", Json::s(&filename)),
+                        ("skipped", Json::Bool(true)),
+                    ]));
+                }
+            }
+
+            curl(&[
+                "-L",
+                "--fail",
+                "--max-time",
+                "600",
+                "-H",
+                &format!("User-Agent: {UA}"),
+                "-o",
+                &dest.to_string_lossy(),
+                url,
+            ])?;
+
+            Ok(Json::obj(vec![
+                ("ok", Json::Bool(true)),
+                ("name", Json::s(&label)),
+                ("file", Json::s(&filename)),
+            ]))
+        })();
+
+        results.push(match result {
+            Ok(v) => v,
+            Err(e) => Json::obj(vec![("ok", Json::Bool(false)), ("name", Json::s(&label)), ("error", Json::s(&e))]),
+        });
+    }
+
+    emit_progress(shared, "完成", 100, &format!("{total} 个 Mod"));
+
+    let ok = results.iter().all(|r| r.get("ok").and_then(|v| v.bool()) == Some(true));
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(ok)),
+        ("dir", Json::s(&dir)),
+        ("modsDir", Json::s(&mods_dir.to_string_lossy())),
+        ("results", Json::Arr(results)),
+    ]))
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -368,15 +636,20 @@ fn fs_list(dir: &str) -> Result<Json, String> {
 fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String> {
     let arg0 = args.first().and_then(|v| v.str()).unwrap_or("");
     match channel {
-        "app:info" => Ok(Json::obj(vec![
-            ("version", Json::s(env!("CARGO_PKG_VERSION"))),
-            ("isPackaged", Json::Bool(false)),
-            ("appData", Json::s(&std::env::var("APPDATA").unwrap_or_default())),
-            ("userName", Json::s(&std::env::var("USERNAME").unwrap_or_default())),
-            ("platform", Json::s("agent")),
-            ("electron", Json::s("")),
-            ("node", Json::s("")),
-        ])),
+        "app:info" => {
+            let profile = std::env::var("USERPROFILE").unwrap_or_default();
+            let appdata = std::env::var("APPDATA").unwrap_or_default();
+            Ok(Json::obj(vec![
+                ("version", Json::s(env!("CARGO_PKG_VERSION"))),
+                ("isPackaged", Json::Bool(true)),
+                ("appData", Json::s(&appdata)),
+                ("documents", Json::s(&Path::new(&profile).join("Documents").to_string_lossy())),
+                ("userName", Json::s(&std::env::var("USERNAME").unwrap_or_default())),
+                ("platform", Json::s("agent")),
+                ("electron", Json::s("")),
+                ("node", Json::s("")),
+            ]))
+        }
         "app:lan-address" => Ok(Json::obj(vec![("ip", Json::s(&local_ip()))])),
         "config:read" => {
             let state = shared.lock().unwrap();
@@ -407,6 +680,9 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "fs:mkdir" => std::fs::create_dir_all(arg0)
             .map(|_| Json::Null)
             .map_err(|e| format!("创建目录失败：{e}")),
+        "client:add-server" => add_server(args.first().ok_or("缺少参数")?),
+        "client:prepare" => prepare_client(shared, args.first().ok_or("缺少参数")?),
+        "client:export-mrpack" => export_mrpack(shared, args.first().ok_or("缺少参数")?),
         "server:start" => start_server(shared, arg0),
         "server:stop" => Ok(stop_server(shared)),
         "server:command" => send_command(shared, arg0),
