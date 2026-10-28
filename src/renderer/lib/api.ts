@@ -48,6 +48,7 @@ export interface McssApi {
       version: string;
       isPackaged: boolean;
       appData: string;
+      documents: string;
       userName: string;
       platform: string;
       electron: string;

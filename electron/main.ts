@@ -155,6 +155,7 @@ ipcMain.handle("app:info", () => ({
   version: app.getVersion(),
   isPackaged: app.isPackaged,
   appData: app.getPath("userData"),
+  documents: app.getPath("documents"),
   userName: process.env.USERNAME || "",
   platform: process.platform,
   electron: process.versions.electron,

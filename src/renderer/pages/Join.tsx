@@ -1,26 +1,45 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowRight, CheckCircle2, Copy, Download, Gamepad2, Package, Server, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Copy,
+  Download,
+  Gamepad2,
+  Package,
+  Play,
+  Server,
+  Users,
+} from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
-import { copyText } from "@/lib/utils";
+import { copyText, safeName } from "@/lib/utils";
+
+interface Exported {
+  file: string;
+  size: number;
+  mods: number;
+}
 
 export default function Join() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+
   const [input, setInput] = useState("");
   const [room, setRoom] = useState<RoomDescriptorV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [preparing, setPreparing] = useState(false);
-  const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
-  const [preparedDir, setPreparedDir] = useState<string | null>(null);
-  const [exported, setExported] = useState<{ file: string; size: number; mods: number } | null>(null);
+
   const [launchers, setLaunchers] = useState<{ name: string; path: string }[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
+  const [exported, setExported] = useState<Exported | null>(null);
+  const [preparedDir, setPreparedDir] = useState<string | null>(null);
 
   useEffect(() => {
     window.mcss.app.detectLaunchers?.().then(setLaunchers).catch(() => {});
@@ -31,8 +50,9 @@ export default function Join() {
     setLoading(true);
     setError(null);
     try {
-      const parsed = await decodeRoom(raw);
-      setRoom(parsed);
+      setRoom(await decodeRoom(raw));
+      setExported(null);
+      setPreparedDir(null);
     } catch (e) {
       setRoom(null);
       setError((e as Error).message);
@@ -49,18 +69,70 @@ export default function Join() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
+  /** 主路径：生成进服包 → 打开文件夹 → 打开启动器 */
+  async function prepareAndPlay() {
+    if (!room) return;
+    if (!room.mods.length) {
+      (await copyText(room.addr)) ? toast.success("地址已复制") : toast.error("复制失败");
+      if (launchers[0]) window.mcss.app.openPath(launchers[0].path);
+      return;
+    }
+    setBusy(true);
+    setProgress({ stage: "打包进服包", percent: 0 });
+    const off = window.mcss.client.onProgress(setProgress);
+    try {
+      const info = await window.mcss.app.info();
+      const dir = `${info.documents}\\MCSS\\进服包`;
+      const file = `${dir}\\${safeName(room.name)}.mrpack`;
+      const res = await window.mcss.client.exportMrpack({ outFile: file, room });
+      if (!res.ok) throw new Error(res.error || "导出失败");
+      setExported({ file: res.file ?? file, size: res.size ?? 0, mods: res.mods ?? 0 });
+      void window.mcss.app.openPath(dir);
+      if (launchers[0]) window.mcss.app.openPath(launchers[0].path);
+      toast.success("进服包已生成", { description: "在启动器里导入它，就能直接进服" });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      off();
+      setBusy(false);
+      setProgress(null);
+    }
+  }
+
+  /** 旁路：把 Mod 直接装进现有客户端，并把服务器写进多人列表 */
+  async function installIntoClient() {
+    if (!room) return;
+    const dir = await window.mcss.dialog.openDirectory();
+    if (!dir) return;
+    setBusy(true);
+    setProgress({ stage: "准备中", percent: 0 });
+    const off = window.mcss.client.onProgress(setProgress);
+    try {
+      if (room.mods.length) {
+        const res = await window.mcss.client.prepare({ dir, mods: room.mods });
+        if (!res.ok) throw new Error(res.error || res.results?.find((r) => !r.ok)?.error || "准备失败");
+        setPreparedDir(res.modsDir ?? dir);
+      }
+      const added = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: room.addr });
+      if (!added.ok) throw new Error(added.error || "写入服务器列表失败");
+      toast.success("客户端已备好", {
+        description: room.mods.length ? `${room.mods.length} 个 Mod + 服务器列表` : "服务器列表已写入",
+      });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      off();
+      setBusy(false);
+      setProgress(null);
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="加入房间"
         desc="朋友发来的链接或房间码，粘进来就能看到要准备什么。"
-        actions={
-          room ? (
-            <Button variant="secondary" onClick={() => navigate("/")}>
-              回到概览
-            </Button>
-          ) : undefined
-        }
+        actions={room ? <Button variant="secondary" onClick={() => navigate("/")}>回到概览</Button> : undefined}
       />
       <PageBody className="max-w-3xl space-y-4">
         {!room ? (
@@ -94,162 +166,60 @@ export default function Join() {
             </div>
           </Card>
         ) : (
-          <>
-            <Card className="space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="green" size="sm">邀请有效</Badge>
-                    <span className="t-label-12 text-gray-700">{room.mc} · {room.loader}</span>
-                  </div>
-                  <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
-                  <p className="t-mono-12 mt-0.5 text-gray-700">{room.addr}</p>
+          <Card className="space-y-4">
+            {/* 房间头 */}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Badge variant="green" size="sm">邀请有效</Badge>
+                  <span className="t-label-12 text-gray-700">{room.mc} · {room.loader}</span>
                 </div>
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    (await copyText(room.addr)) ? toast.success("地址已复制") : toast.error("复制失败");
-                  }}
-                >
-                  <Copy className="size-4" />
-                  复制地址
-                </Button>
+                <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
+                <p className="t-mono-12 mt-0.5 text-gray-700">{room.addr}</p>
               </div>
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  (await copyText(room.addr)) ? toast.success("地址已复制") : toast.error("复制失败");
+                }}
+              >
+                <Copy className="size-4" />
+                复制地址
+              </Button>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Info icon={<Server className="size-3.5" />} label="版本" value={`${room.mc} · ${room.loader}`} />
-                <Info icon={<Package className="size-3.5" />} label="需要的 Mod" value={room.mods.length ? `${room.mods.length} 个` : "无需额外 Mod"} />
-                <Info
-                  icon={<Gamepad2 className="size-3.5" />}
-                  label="本机启动器"
-                  value={launchers.length ? launchers[0].name : "未检测到"}
-                />
-              </div>
+            {/* 三个事实 */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Info icon={<Server className="size-3.5" />} label="版本" value={`${room.mc} · ${room.loader}`} />
+              <Info
+                icon={<Package className="size-3.5" />}
+                label="需要的 Mod"
+                value={room.mods.length ? `${room.mods.length} 个` : "无需额外 Mod"}
+              />
+              <Info
+                icon={<Gamepad2 className="size-3.5" />}
+                label="本机启动器"
+                value={launchers.length ? launchers[0].name : "未检测到"}
+              />
+            </div>
 
-              <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
-                <div className="t-label-13 font-medium text-gray-1000">接下来要做的</div>
-                <ol className="mt-1.5 space-y-1 t-label-12 text-gray-800">
-                  <li>1. 确认客户端是 {room.mc} + {room.loader}（版本不对会连不上）。</li>
-                  <li>2. 点「一键准备客户端」，按房间码把 Mod 拉进你指定的客户端目录。</li>
-                  <li>3. 进游戏 → 多人游戏 → 添加服务器 → 填 <span className="t-mono-12">{room.addr}</span>。</li>
-                </ol>
-              </div>
-
-              {room.mods.length ? (
-                <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
-                  <div className="flex items-center justify-between">
-                    <div className="t-label-13 font-medium text-gray-1000">需要这些 Mod（{room.mods.length}）</div>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      onClick={async () => {
-                        const text = room.mods.map((m) => m.n ?? m.p).join("\n");
-                        (await copyText(text)) ? toast.success("Mod 清单已复制") : toast.error("复制失败");
-                      }}
-                    >
-                      <Copy className="size-3" />
-                      复制清单
-                    </Button>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {room.mods.map((m) => (
-                      <Badge key={m.p + m.v} variant="gray" size="sm">
-                        {m.n ?? m.p}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="t-label-12 mt-2 text-gray-700">
-                    这些 Mod 记的是 Modrinth 版本号，助手可以直接按 id 拉齐；暂时也可以去资源库手动搜。
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={async () => {
-                    if (!room.mods.length) {
-                      toast.info("这个房间不需要额外 Mod，直接进游戏加地址就行");
-                      return;
-                    }
-                    const dir = await window.mcss.dialog.openDirectory();
-                    if (!dir) return;
-                    setPreparing(true);
-                    setProgress({ stage: "准备中", percent: 0 });
-                    const off = window.mcss.client.onProgress(setProgress);
-                    try {
-                      const res = await window.mcss.client.prepare({ dir, mods: room.mods });
-                      if (!res.ok) throw new Error(res.error || res.results?.find((r) => !r.ok)?.error || "准备失败");
-                      setPreparedDir(res.modsDir ?? dir);
-                      toast.success(`客户端已备好：${res.results?.length ?? 0} 个 Mod`);
-                    } catch (e) {
-                      toast.error((e as Error).message);
-                    } finally {
-                      off();
-                      setPreparing(false);
-                      setProgress(null);
-                    }
-                  }}
-                  loading={preparing}
-                >
-                  <Download className="size-4" />
-                  一键准备客户端
+            {/* 主路径 */}
+            <div className="rounded-xl bg-background-100 p-3 shadow-geist-border">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button size="lg" onClick={prepareAndPlay} loading={busy} disabled={busy}>
+                  {room.mods.length ? <Package className="size-4" /> : <Play className="size-4" />}
+                  {room.mods.length ? "准备进游戏" : "复制地址并打开启动器"}
                   <ArrowRight className="size-4" />
                 </Button>
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    const target = await window.mcss.dialog.saveFile({
-                      defaultPath: `${room.name || "mcss-room"}.mrpack`,
-                      filters: [{ name: "Modrinth 整合包", extensions: ["mrpack"] }],
-                    });
-                    if (!target) return;
-                    setPreparing(true);
-                    setProgress({ stage: "准备进服包", percent: 0 });
-                    const off = window.mcss.client.onProgress(setProgress);
-                    try {
-                      const res = await window.mcss.client.exportMrpack({ outFile: target, room });
-                      if (!res.ok) throw new Error(res.error || "导出失败");
-                      setExported({ file: res.file ?? target, size: res.size ?? 0, mods: res.mods ?? 0 });
-                      toast.success("进服包已导出", {
-                        description: `${res.mods} 个 Mod · ${res.size ? (res.size / 1024).toFixed(0) + " KB" : ""} · 在启动器里导入即可`,
-                      });
-                    } catch (e) {
-                      toast.error((e as Error).message);
-                    } finally {
-                      off();
-                      setPreparing(false);
-                      setProgress(null);
-                    }
-                  }}
-                  loading={preparing}
-                >
-                  <Package className="size-4" />
-                  导出进服包
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    const dir = await window.mcss.dialog.openDirectory();
-                    if (!dir) return;
-                    const res = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: room.addr });
-                    if (res.ok) toast.success("已加入多人游戏列表", { description: `共 ${res.count} 个服务器` });
-                    else toast.error(res.error || "添加失败");
-                  }}
-                >
-                  <Server className="size-4" />
-                  加入服务器列表
-                </Button>
-                <Button variant="secondary" onClick={() => navigate("/library")}>
-                  <Package className="size-4" />
-                  去资源库看看
-                </Button>
-                <Button variant="ghost" onClick={() => { setRoom(null); setInput(""); }}>
-                  换一个房间码
-                </Button>
+                <span className="t-label-12 text-gray-700">
+                  {room.mods.length
+                    ? "生成一个进服包并打开启动器，导入后服务器已在列表里"
+                    : "这个房间不需要额外 Mod，进游戏加地址即可"}
+                </span>
               </div>
 
               {progress ? (
-                <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
+                <div className="mt-3">
                   <div className="mb-1.5 flex items-center justify-between t-label-12 text-gray-800">
                     <span>{progress.stage}</span>
                     <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
@@ -261,86 +231,92 @@ export default function Join() {
               ) : null}
 
               {exported ? (
-                <div className="rounded-lg bg-green-800/10 p-3">
+                <div className="mt-3 rounded-lg bg-green-800/10 p-3">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="size-4 shrink-0 text-green-900" />
                     <span className="t-label-13 font-medium text-green-900">进服包已就绪</span>
                     <span className="t-mono-12 truncate text-gray-700">{exported.file}</span>
                   </div>
-                  <p className="t-label-12 mt-1 text-gray-800">
-                    {exported.mods} 个 Mod · {(exported.size / 1024).toFixed(0)} KB。
-                    把这个文件发给朋友，在启动器里「导入整合包」→ 开始游戏；服务器已经在多人列表里了。
-                  </p>
+                  <ol className="mt-1 space-y-0.5 t-label-12 text-gray-800">
+                    <li>1. 在启动器里点「导入整合包」，选刚生成的文件</li>
+                    <li>2. 启动游戏，服务器已经在多人列表：<span className="t-mono-12">{room.addr}</span></li>
+                  </ol>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <Button
-                      size="xs"
-                      variant="secondary"
-                      onClick={() => window.mcss.app.openPath(exported.file.replace(/[\\/][^\\/]+$/, ""))}
-                    >
+                    <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(exported.file.replace(/[\\/][^\\/]+$/, ""))}>
                       打开所在文件夹
                     </Button>
-                    <Button
-                      size="xs"
-                      variant="secondary"
-                      onClick={async () => {
-                        const text = [
-                          `来一起玩「${room.name}」！`,
-                          `1. 拿到整合包 ${exported.file.split(/[\\/]/).pop()}（${exported.mods} 个 Mod）`,
-                          `2. 启动器里「导入整合包」，选这个文件`,
-                          `3. 开始游戏，服务器已经在列表里：${room.addr}`,
-                          `版本：Minecraft ${room.mc} · ${room.loader}`,
-                        ].join("\n");
-                        (await copyText(text)) ? toast.success("话术已复制") : toast.error("复制失败");
-                      }}
-                    >
-                      复制发给朋友的话
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-
-              {launchers.length ? (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-100 p-3 shadow-geist-border">
-                  <Gamepad2 className="size-4 text-gray-800" />
-                  <span className="t-label-12 text-gray-700">检测到启动器：{launchers.map((l) => l.name).join("、")}</span>
-                  <div className="ml-auto flex gap-1.5">
-                    {launchers.slice(0, 2).map((l) => (
-                      <Button
-                        key={l.path}
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => {
-                          void window.mcss.app.openPath(l.path);
-                          toast.info(`已打开 ${l.name}，选 ${room.mc} 的实例就能进`);
-                        }}
-                      >
-                        打开 {l.name}
+                    {launchers[0] ? (
+                      <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(launchers[0].path)}>
+                        打开 {launchers[0].name}
                       </Button>
-                    ))}
+                    ) : null}
                   </div>
                 </div>
               ) : null}
+            </div>
 
-              {preparedDir ? (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-green-800/10 p-3">
-                  <CheckCircle2 className="size-4 text-green-900" />
-                  <span className="t-label-12 text-green-900">Mod 已放进</span>
-                  <span className="t-mono-12 truncate text-gray-900">{preparedDir}</span>
-                  <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(preparedDir)}>
-                    打开目录
+            {/* Mod 清单 */}
+            {room.mods.length ? (
+              <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
+                <div className="flex items-center justify-between">
+                  <div className="t-label-13 font-medium text-gray-1000">这个房间需要这些 Mod（{room.mods.length}）</div>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={async () => {
+                      const text = room.mods.map((m) => m.n ?? m.p).join("\n");
+                      (await copyText(text)) ? toast.success("Mod 清单已复制") : toast.error("复制失败");
+                    }}
+                  >
+                    <Copy className="size-3" />
+                    复制清单
                   </Button>
                 </div>
-              ) : null}
-            </Card>
-
-            {room.note ? (
-              <Card>
-                <div className="t-label-12 text-gray-700">服主留言</div>
-                <div className="t-label-13 mt-1 whitespace-pre-wrap text-gray-1000">{room.note}</div>
-              </Card>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {room.mods.map((m) => (
+                    <Badge key={m.p + m.v} variant="gray" size="sm">{m.n ?? m.p}</Badge>
+                  ))}
+                </div>
+              </div>
             ) : null}
-          </>
+
+            {/* 旁路 */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-gray-300 pt-3">
+              <Button size="sm" variant="secondary" onClick={installIntoClient} disabled={busy}>
+                <Download className="size-3.5" />
+                装进现有客户端
+              </Button>
+              <span className="t-label-12 text-gray-700">
+                不想新建实例？选你的 <span className="t-mono-12">.minecraft</span>，Mod 和服务器列表一起写好
+              </span>
+              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => { setRoom(null); setInput(""); }}>
+                换一个房间码
+              </Button>
+            </div>
+
+            {preparedDir ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-green-800/10 p-3">
+                <CheckCircle2 className="size-4 text-green-900" />
+                <span className="t-label-12 text-green-900">已写入</span>
+                <span className="t-mono-12 truncate text-gray-900">{preparedDir}</span>
+                <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(preparedDir)}>
+                  打开目录
+                </Button>
+              </div>
+            ) : null}
+
+            <p className="t-label-12 text-gray-700">
+              版本不对会连不上：本机客户端需要 {room.mc} + {room.loader}。
+            </p>
+          </Card>
         )}
+
+        {room?.note ? (
+          <Card>
+            <div className="t-label-12 text-gray-700">服主留言</div>
+            <div className="t-label-13 mt-1 whitespace-pre-wrap text-gray-1000">{room.note}</div>
+          </Card>
+        ) : null}
 
         {!room && !error ? (
           <EmptyState
