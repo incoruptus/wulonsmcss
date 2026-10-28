@@ -11,6 +11,7 @@ const TITLES: Record<string, string> = {
   "/instances": "实例",
   "/library": "资源库",
   "/network": "联机",
+  "/join": "加入房间",
   "/settings": "设置",
 };
 
@@ -24,7 +25,11 @@ export function TitleBar() {
   const active = instances.find((i) => i.id === activeId);
   const section =
     TITLES[location.pathname] ??
-    (location.pathname.startsWith("/instances/") ? active?.name ?? "实例" : "");
+    (location.pathname.startsWith("/instances/")
+      ? active?.name ?? "实例"
+      : location.pathname.startsWith("/join/")
+        ? "加入房间"
+        : "");
 
   useEffect(() => {
     window.mcss.window.isMaximized().then(setMaximized).catch(() => {});

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu } from "lucide-react";
+import { FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/misc";
+import { InviteDialog } from "@/components/instance/InviteDialog";
 import { useServer } from "@/stores/server";
 import type { Instance } from "@/lib/types";
 import { formatDuration, timeAgo } from "@/lib/utils";
@@ -14,6 +15,7 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
   const memoryUsed = useServer((s) => s.memoryUsed);
   const setMemory = useServer((s) => s.setMemory);
   const [now, setNow] = useState(Date.now());
+  const [inviting, setInviting] = useState(false);
   const [counts, setCounts] = useState<{ mods: number; worlds: number }>({ mods: 0, worlds: 0 });
 
   const running = status === "running" || status === "starting";
@@ -55,7 +57,8 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
   const uptime = running && startedAt ? Math.floor((now - startedAt) / 1000) : 0;
 
   return (
-    <div className="space-y-4">
+    <>
+      <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={<Clock className="size-4" />} label="运行时长" value={running ? formatDuration(uptime) : "未运行"} />
         <Metric icon={<Users className="size-4" />} label="在线玩家" value={running ? String(players.length) : "—"} />
@@ -91,6 +94,10 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
             <Button variant="secondary" size="sm" onClick={onEdit}>
               编辑设置
             </Button>
+            <Button variant="secondary" size="sm" onClick={() => setInviting(true)}>
+              <Send className="size-3.5" />
+              邀请朋友
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -125,7 +132,10 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
           </ul>
         </Card>
       </div>
-    </div>
+      </div>
+
+      <InviteDialog open={inviting} onOpenChange={setInviting} instance={instance} />
+    </>
   );
 }
 

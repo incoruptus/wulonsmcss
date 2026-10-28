@@ -56,6 +56,7 @@ export interface McssApi {
     openExternal: (url: string) => Promise<void>;
     pickJava: () => Promise<string | null>;
     detectJava: () => Promise<JavaInfo[]>;
+    lanAddress: () => Promise<{ ip: string }>;
     installJava: () => Promise<{ ok: boolean; path?: string; error?: string }>;
   };
   config: {

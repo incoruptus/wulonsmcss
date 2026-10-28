@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld("mcss", {
     openExternal: (url: string) => invoke("app:open-external", url),
     pickJava: () => invoke("app:pick-java"),
     detectJava: () => invoke("app:detect-java"),
+    lanAddress: () => invoke("app:lan-address"),
     installJava: () => invoke("app:install-java")
   }
 });

@@ -9,6 +9,7 @@ import Instances from "@/pages/Instances";
 import InstanceDetail from "@/pages/InstanceDetail";
 import Library from "@/pages/Library";
 import Network from "@/pages/Network";
+import Join from "@/pages/Join";
 import Settings from "@/pages/Settings";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
@@ -73,6 +74,8 @@ export default function App() {
             <Route path="/instances/:id" element={<InstanceDetail />} />
             <Route path="/library" element={<Library />} />
             <Route path="/network" element={<Network />} />
+            <Route path="/join" element={<Join />} />
+            <Route path="/join/:code" element={<Join />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

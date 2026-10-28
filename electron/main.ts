@@ -234,6 +234,25 @@ ipcMain.handle("app:install-java", async () => {
 
 ipcMain.handle("app:detect-java", () => javaIpc.detectJava());
 
+/** 本机内网地址（同 WiFi 的朋友可以直接连） */
+ipcMain.handle("app:lan-address", () => {
+  const os = require("os");
+  const nets = os.networkInterfaces();
+  for (const list of Object.values(nets)) {
+    for (const net of list || []) {
+      if (net.family === "IPv4" && !net.internal && /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(net.address)) {
+        return { ip: net.address };
+      }
+    }
+  }
+  for (const list of Object.values(nets)) {
+    for (const net of list || []) {
+      if (net.family === "IPv4" && !net.internal) return { ip: net.address };
+    }
+  }
+  return { ip: "127.0.0.1" };
+});
+
 /* --------------------------------- 服务器 --------------------------------- */
 
 ipcMain.handle("server:start", async (_e, instanceId) => {
