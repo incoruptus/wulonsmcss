@@ -5,7 +5,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execFileSync } = require("child_process");
+const { spawnSync } = require("child_process");
 
 function majorFromVersionString(text) {
   const m = String(text).match(/version "(\d+)(?:\.(\d+))?/i);
@@ -16,20 +16,16 @@ function majorFromVersionString(text) {
 }
 
 function probeJava(javaPath) {
-  try {
-    const out = execFileSync(javaPath, ["-version"], {
-      encoding: "utf8",
-      timeout: 6000,
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    return { path: javaPath, major: majorFromVersionString(out) };
-  } catch (e) {
-    const text = `${e.stderr || ""}${e.stdout || ""}`;
-    const major = majorFromVersionString(text);
-    if (major) return { path: javaPath, major };
-    return null;
-  }
+  // 注意：java -version 把版本号打到 stderr，必须一起收
+  const res = spawnSync(javaPath, ["-version"], {
+    encoding: "utf8",
+    timeout: 6000,
+    windowsHide: true
+  });
+  const text = `${res.stderr || ""}${res.stdout || ""}`;
+  const major = majorFromVersionString(text);
+  if (!major) return null;
+  return { path: javaPath, major, version: (text.match(/version "([^"]+)"/) || [])[1] };
 }
 
 function listJavaCandidates() {
@@ -44,7 +40,6 @@ function listJavaCandidates() {
     try {
       for (const name of fs.readdirSync(mcRuntime)) {
         push(path.join(mcRuntime, name, "bin", "java.exe"));
-        push(path.join(mcRuntime, name, "bin", "javaw.exe"));
       }
     } catch (e) {}
   }

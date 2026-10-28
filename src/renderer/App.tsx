@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
+import { FirstRunWizard } from "@/components/app/FirstRunWizard";
 import Overview from "@/pages/Overview";
 import Instances from "@/pages/Instances";
 import InstanceDetail from "@/pages/InstanceDetail";
@@ -16,6 +17,8 @@ import { buildDeps, runSync } from "@/lib/sync/engine";
 export default function App() {
   const load = useConfig((s) => s.load);
   const loaded = useConfig((s) => s.loaded);
+  const patch = useConfig((s) => s.patch);
+  const setupComplete = useConfig((s) => s.cfg.setupComplete);
   const bind = useServer((s) => s.bind);
   const theme = useConfig((s) => s.cfg.theme);
 
@@ -79,6 +82,7 @@ export default function App() {
         theme={theme === "light" ? "light" : "dark"}
         toastOptions={{ style: { fontFamily: "inherit" } }}
       />
+      <FirstRunWizard open={!setupComplete} onDone={() => patch({ setupComplete: true })} />
     </div>
   );
 }

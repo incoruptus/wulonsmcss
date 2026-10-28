@@ -69,6 +69,19 @@ function createWindow() {
     if (!app.isPackaged && process.env.MCSS_DEVTOOLS === "1") {
       mainWindow?.webContents.openDevTools({ mode: "detach" });
     }
+    // 截图自检：MCSS_SHOT=<png 路径>，配合 MCSS_SHOT_EXIT=1 截图后自动退出
+    if (process.env.MCSS_SHOT) {
+      setTimeout(async () => {
+        try {
+          const image = await mainWindow?.webContents.capturePage();
+          if (image) fs.writeFileSync(process.env.MCSS_SHOT!, image.toPNG());
+          console.log("screenshot saved:", process.env.MCSS_SHOT);
+        } catch (err) {
+          console.error("screenshot failed:", err);
+        }
+        if (process.env.MCSS_SHOT_EXIT === "1") app.quit();
+      }, Number(process.env.MCSS_SHOT_DELAY || 2500));
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

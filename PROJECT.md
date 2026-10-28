@@ -116,13 +116,14 @@ node package-win.js   # 便携版打包 → ../wulons-mcss-b27.0.0/
 | GitHub Gist 跨端同步（配对码 + AES-GCM + 分片 + 中转站认领） | ✅ 10 项单测 |
 | 资源库（Modrinth 搜索 / 一键装 Mod） | ✅ |
 | FRP 隧道（通用 frpc 自动下载 + 日志解析公网地址；SakuraFrp 启动器托管） | ✅ 本机 frps 端到端验证 |
-| 零基础开服向导（版本 → Mod → 联机 → 开服） | ⏳ 下一阶段 |
+| 零基础开服向导（Java 检测 → 版本 → 下载安装 → 开服） | ✅ 首启自动弹出 |
 
 ### 验证方式
 
 ```bash
-pnpm test              # 同步内核 10 项单测（加密/信封/合并）
+pnpm test                  # 同步内核 10 项单测（加密/信封/合并）
 node scripts/frp-e2e.cjs   # 本机起 frps → frpc 连上 → 校验「start proxy success」与地址解析
+node scripts/screenshot.cjs out.png [延迟ms]   # 启动应用并截图（MCSS_SHOT 环境变量驱动）
 ```
 
 同步设计要点：
@@ -167,3 +168,5 @@ node scripts/frp-e2e.cjs   # 本机起 frps → frpc 连上 → 校验「start p
 - GitHub 直连在国内常不通：frpc / 版本下载内置了 `gh-proxy.com → ghfast.top → ghproxy.net` 镜像回退。
 - SakuraFrp 只做启动器托管，其隧道状态以启动器界面为准（客户端不暴露状态）。
 - 同步的「设置 / 快捷操作 / FRP」是整组 LWW（按远端 payload 时间戳），暂不做字段级合并。
+- 跨端同步的真实链路需要你自己的 GitHub Token 才能端到端验证；仓库里已用单测覆盖加解密与合并逻辑。
+- 截图自检：`MCSS_SHOT=<png>` 环境变量会让主进程在窗口就绪后截图（仅开发用）。
