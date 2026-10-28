@@ -613,6 +613,157 @@ fn prepare_client(shared: &Shared, opts: &Json) -> Result<Json, String> {    let
     ]))
 }
 
+/* ------------------------------- 备份 ------------------------------- */
+
+fn backup_dir(server_dir: &str) -> PathBuf {
+    Path::new(server_dir).join("backups")
+}
+
+/// 东八区的 YYYYMMDD-HHMMSS（不引时区库，用民用历算法自己算）
+fn now_stamp() -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+        + 8 * 3600;
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    let (y, m, d) = civil_from_days(days);
+    format!(
+        "{y:04}{m:02}{d:02}-{:02}{:02}{:02}",
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
+    )
+}
+
+/// Howard Hinnant 的 civil_from_days
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+fn mtime_ms(path: &Path) -> f64 {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0)
+}
+
+fn backup_list(server_dir: &str) -> Result<Json, String> {
+    let dir = backup_dir(server_dir);
+    let mut items: Vec<(f64, Json)> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(&dir) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("zip") {
+                continue;
+            }
+            let at = mtime_ms(&path);
+            items.push((
+                at,
+                Json::obj(vec![
+                    ("name", Json::s(&entry.file_name().to_string_lossy())),
+                    ("path", Json::s(&path.to_string_lossy())),
+                    ("size", Json::n(std::fs::metadata(&path).map(|m| m.len() as f64).unwrap_or(0.0))),
+                    ("mtime", Json::n(at)),
+                ]),
+            ));
+        }
+    }
+    items.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(Json::Arr(items.into_iter().map(|(_, v)| v).collect()))
+}
+
+fn backup_create(server_dir: &str) -> Result<Json, String> {
+    let world = Path::new(server_dir).join("world");
+    if !world.exists() {
+        return Err("还没有 world 目录，先启动一次服务器".into());
+    }
+    let dir = backup_dir(server_dir);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建备份目录失败：{e}"))?;
+    let name = format!("world-{}.zip", now_stamp());
+    let out = dir.join(&name);
+
+    let status = Command::new("tar")
+        .args(["-a", "-c", "-f"])
+        .arg(&out)
+        .arg("world")
+        .current_dir(server_dir)
+        .status()
+        .map_err(|e| format!("打包失败：{e}"))?;
+
+    if !status.success() {
+        let _ = std::fs::remove_file(&out);
+        return Err("打包失败（tar 退出码非 0）".into());
+    }
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("name", Json::s(&name)),
+        ("size", Json::n(std::fs::metadata(&out).map(|m| m.len() as f64).unwrap_or(0.0))),
+    ]))
+}
+
+fn backup_remove(server_dir: &str, name: &str) -> Result<Json, String> {
+    if name.contains(['/', '\\']) || !name.ends_with(".zip") {
+        return Err("文件名不合法".into());
+    }
+    std::fs::remove_file(backup_dir(server_dir).join(name)).map_err(|e| format!("删除失败：{e}"))?;
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
+/// 恢复：先把现有 world 改名留底，解压失败自动回滚
+fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json, String> {
+    {
+        let state = shared.lock().unwrap();
+        if state.status != "stopped" {
+            return Err("先把服务器停掉再恢复，否则会写坏存档".into());
+        }
+    }
+    if name.contains(['/', '\\']) || !name.ends_with(".zip") {
+        return Err("文件名不合法".into());
+    }
+    let file = backup_dir(server_dir).join(name);
+    if !file.exists() {
+        return Err("备份文件不存在".into());
+    }
+
+    let world = Path::new(server_dir).join("world");
+    let parked = Path::new(server_dir).join(format!("world.before-restore-{}", now_stamp()));
+    if world.exists() {
+        std::fs::rename(&world, &parked).map_err(|e| format!("移走旧存档失败：{e}"))?;
+    }
+
+    let status = Command::new("tar")
+        .args(["-x", "-f"])
+        .arg(&file)
+        .current_dir(server_dir)
+        .status();
+
+    match status {
+        Ok(s) if s.success() => Ok(Json::obj(vec![
+            ("ok", Json::Bool(true)),
+            ("parked", Json::s(&parked.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())),
+        ])),
+        _ => {
+            // 回滚
+            let _ = std::fs::remove_dir_all(&world);
+            let _ = std::fs::rename(&parked, &world);
+            Err("恢复失败，已还原原来的存档".into())
+        }
+    }
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -683,6 +834,10 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "client:add-server" => add_server(args.first().ok_or("缺少参数")?),
         "client:prepare" => prepare_client(shared, args.first().ok_or("缺少参数")?),
         "client:export-mrpack" => export_mrpack(shared, args.first().ok_or("缺少参数")?),
+        "backup:list" => backup_list(arg0),
+        "backup:create" => backup_create(arg0),
+        "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
+        "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "server:start" => start_server(shared, arg0),
         "server:stop" => Ok(stop_server(shared)),
         "server:command" => send_command(shared, arg0),

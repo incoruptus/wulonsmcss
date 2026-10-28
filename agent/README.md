@@ -43,9 +43,19 @@ node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未
 
 `app:info` · `app:lan-address` · `config:read|write` · `fs:read|write|exists|list|mkdir` ·
 `server:start|stop|command|status|pid|memory` ·
-`client:add-server` · `client:prepare` · `client:export-mrpack`
+`client:add-server` · `client:prepare` · `client:export-mrpack` ·
+`backup:list` · `backup:create` · `backup:restore` · `backup:remove`
 
 事件：`server:output`（含时间戳/级别/正文）、`server:status`、`client:progress`。
+
+### 备份
+
+| channel | 说明 |
+|---|---|
+| `backup:create` | `tar -a` 打包 `world/` → `backups/world-YYYYMMDD-HHMMSS.zip` |
+| `backup:list` | 按时间倒序列出，含大小 |
+| `backup:restore` | 要求服务器已停止；先改名留底 `world.before-restore-*`，失败自动回滚 |
+| `backup:remove` | 拒绝路径穿越，只接受 `*.zip` 文件名 |
 
 ### 客户端通道（网页版也能「一键进服」）
 

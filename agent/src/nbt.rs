@@ -125,6 +125,7 @@ pub fn upsert(servers: &mut Vec<Server>, name: &str, ip: &str) {
 mod tests {
     use super::*;
 
+
     #[test]
     fn roundtrip_with_chinese() {
         let servers = vec![
