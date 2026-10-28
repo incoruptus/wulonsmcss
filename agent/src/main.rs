@@ -9,6 +9,7 @@
 mod http;
 mod json;
 mod nbt;
+mod sha1;
 
 use json::Json;
 use std::io::{BufRead, BufReader, Write};
@@ -2527,6 +2528,200 @@ fn ping_server(host: &str, port: u16, timeout_ms: u64) -> Result<Json, String> {
     ]))
 }
 
+/* --------------------------- 增量快照（时间机） --------------------------- */
+
+fn snapshots_root(server_dir: &str) -> PathBuf {
+    Path::new(server_dir).join("backups")
+}
+fn snapshots_objects(server_dir: &str) -> PathBuf {
+    snapshots_root(server_dir).join("objects")
+}
+fn snapshots_dir(server_dir: &str) -> PathBuf {
+    snapshots_root(server_dir).join("snapshots")
+}
+
+fn walk_files(dir: &Path, base: &str, out: &mut Vec<(String, PathBuf)>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let rel = if base.is_empty() { name.clone() } else { format!("{base}/{name}") };
+        let path = entry.path();
+        if path.is_dir() {
+            walk_files(&path, &rel, out);
+        } else if path.is_file() {
+            out.push((rel, path));
+        }
+    }
+}
+
+fn hash_file(path: &Path) -> Result<String, String> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).map_err(|e| format!("读取失败：{e}"))?;
+    let mut hasher = sha1::Sha1::new();
+    let mut buf = vec![0u8; 64 * 1024];
+    loop {
+        let n = file.read(&mut buf).map_err(|e| format!("读取失败：{e}"))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(sha1::hex(&hasher.finish()))
+}
+
+fn objects_size(server_dir: &str) -> u64 {
+    let mut total = 0;
+    if let Ok(entries) = std::fs::read_dir(snapshots_objects(server_dir)) {
+        for entry in entries.flatten() {
+            total += entry.metadata().map(|m| m.len()).unwrap_or(0);
+        }
+    }
+    total
+}
+
+fn backup_snapshot(server_dir: &str) -> Result<Json, String> {
+    let world = Path::new(server_dir).join("world");
+    if !world.exists() {
+        return Err("还没有 world 目录，先启动一次服务器".into());
+    }
+    let objects = snapshots_objects(server_dir);
+    let snaps = snapshots_dir(server_dir);
+    std::fs::create_dir_all(&objects).map_err(|e| format!("创建 objects 失败：{e}"))?;
+    std::fs::create_dir_all(&snaps).map_err(|e| format!("创建 snapshots 失败：{e}"))?;
+
+    let mut files = Vec::new();
+    walk_files(&world, "", &mut files);
+
+    let mut entries = Vec::new();
+    let mut bytes_total: u64 = 0;
+    let mut bytes_new: u64 = 0;
+
+    for (rel, path) in &files {
+        let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+        let hash = hash_file(path)?;
+        entries.push(Json::obj(vec![
+            ("path", Json::s(rel)),
+            ("size", Json::n(size as f64)),
+            ("hash", Json::s(&hash)),
+        ]));
+        bytes_total += size;
+
+        let target = objects.join(&hash);
+        if !target.exists() {
+            std::fs::copy(path, &target).map_err(|e| format!("写入对象失败：{e}"))?;
+            bytes_new += size;
+        }
+    }
+
+    // 同一秒内连打两个快照也不能互相覆盖
+    let mut name = format!("snap-{}", now_stamp());
+    let mut counter = 2;
+    while snaps.join(&name).exists() {
+        name = format!("snap-{}-{}", now_stamp(), counter);
+        counter += 1;
+    }
+    let dir = snaps.join(&name);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建快照目录失败：{e}"))?;
+    let manifest = Json::obj(vec![
+        ("version", Json::n(1.0)),
+        ("at", Json::n(now_ms())),
+        ("source", Json::s("world")),
+        ("files", Json::n(entries.len() as f64)),
+        ("bytesTotal", Json::n(bytes_total as f64)),
+        ("bytesNew", Json::n(bytes_new as f64)),
+        ("entries", Json::Arr(entries)),
+    ]);
+    std::fs::write(dir.join("manifest.json"), manifest.to_string()).map_err(|e| format!("写入清单失败：{e}"))?;
+
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("name", Json::s(&name)),
+        ("files", Json::n(files.len() as f64)),
+        ("bytesTotal", Json::n(bytes_total as f64)),
+        ("bytesNew", Json::n(bytes_new as f64)),
+    ]))
+}
+
+fn read_manifest(server_dir: &str, name: &str) -> Option<Json> {
+    let path = snapshots_dir(server_dir).join(name).join("manifest.json");
+    std::fs::read_to_string(path).ok().and_then(|t| Json::parse(&t).ok())
+}
+
+fn backup_snapshots(server_dir: &str) -> Result<Json, String> {
+    let mut items: Vec<(f64, Json)> = Vec::new();
+    let stored = objects_size(server_dir) as f64;
+    if let Ok(entries) = std::fs::read_dir(snapshots_dir(server_dir)) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let Some(manifest) = read_manifest(server_dir, &name) else { continue };
+            let at = manifest.get("at").and_then(|v| v.num()).unwrap_or(0.0);
+            items.push((
+                at,
+                Json::obj(vec![
+                    ("name", Json::s(&name)),
+                    ("at", Json::n(at)),
+                    ("files", Json::n(manifest.get("files").and_then(|v| v.num()).unwrap_or(0.0))),
+                    ("bytesTotal", Json::n(manifest.get("bytesTotal").and_then(|v| v.num()).unwrap_or(0.0))),
+                    ("bytesNew", Json::n(manifest.get("bytesNew").and_then(|v| v.num()).unwrap_or(0.0))),
+                    ("stored", Json::n(stored)),
+                ]),
+            ));
+        }
+    }
+    items.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(Json::Arr(items.into_iter().map(|(_, v)| v).collect()))
+}
+
+fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Result<Json, String> {
+    {
+        let state = shared.lock().unwrap();
+        if state.status != "stopped" {
+            return Err("先把服务器停掉再恢复，否则会写坏存档".into());
+        }
+    }
+    let Some(manifest) = read_manifest(server_dir, name) else {
+        return Err("快照不存在或已损坏".into());
+    };
+
+    let world = Path::new(server_dir).join("world");
+    let parked = Path::new(server_dir).join(format!("world.before-restore-{}", now_stamp()));
+    if world.exists() {
+        std::fs::rename(&world, &parked).map_err(|e| format!("移走旧存档失败：{e}"))?;
+    }
+
+    let entries = manifest.get("entries").and_then(|v| v.arr()).cloned().unwrap_or_default();
+    let mut restored = 0;
+    for entry in &entries {
+        let hash = entry.get("hash").and_then(|v| v.str()).unwrap_or("");
+        let rel = entry.get("path").and_then(|v| v.str()).unwrap_or("");
+        let source = snapshots_objects(server_dir).join(hash);
+        if !source.exists() {
+            let _ = std::fs::remove_dir_all(&world);
+            let _ = std::fs::rename(&parked, &world);
+            return Err(format!("快照缺少对象 {}", &hash[..hash.len().min(8)]));
+        }
+        let target = world.join(rel.replace('/', "\\"));
+        if let Some(parent) = target.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Err(e) = std::fs::copy(&source, &target) {
+            let _ = std::fs::remove_dir_all(&world);
+            let _ = std::fs::rename(&parked, &world);
+            return Err(format!("恢复失败，已还原：{e}"));
+        }
+        restored += 1;
+    }
+
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("restored", Json::n(restored as f64)),
+        (
+            "parked",
+            Json::s(&parked.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()),
+        ),
+    ]))
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -2696,6 +2891,11 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:list" => backup_list(arg0),
         "backup:create" => backup_create(arg0),
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
+        "backup:snapshot" => backup_snapshot(arg0),
+        "backup:snapshots" => backup_snapshots(arg0),
+        "backup:restore-snapshot" => {
+            backup_restore_snapshot(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or(""))
+        }
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
         "net:ping" => {
@@ -2919,3 +3119,4 @@ fn main() {
         thread::spawn(move || handle(&shared, stream));
     }
 }
+

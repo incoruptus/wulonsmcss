@@ -73,7 +73,10 @@ contextBridge.exposeInMainWorld("mcss", {
     list: (serverDir: string) => invoke("backup:list", serverDir),
     create: (serverDir: string) => invoke("backup:create", serverDir),
     restore: (serverDir: string, name: string) => invoke("backup:restore", serverDir, name),
-    remove: (serverDir: string, name: string) => invoke("backup:remove", serverDir, name)
+    remove: (serverDir: string, name: string) => invoke("backup:remove", serverDir, name),
+    snapshot: (serverDir: string) => invoke("backup:snapshot", serverDir),
+    snapshots: (serverDir: string) => invoke("backup:snapshots", serverDir),
+    restoreSnapshot: (serverDir: string, name: string) => invoke("backup:restore-snapshot", serverDir, name)
   },
   versions: {
     minecraft: () => invoke("versions:minecraft"),

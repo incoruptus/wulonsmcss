@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw } from "lucide-react";
+import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw, History } from "lucide-react";
 import { SwitchRow } from "@/components/ui/field";
 import { useConfig } from "@/stores/config";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,13 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   const [backups, setBackups] = useState<{ name: string; size: number; mtime: number }[]>([]);
   const [backupBusy, setBackupBusy] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [snaps, setSnaps] = useState<{ name: string; at: number; files: number; bytesTotal: number; bytesNew: number; stored: number }[]>([]);
+  const [snapBusy, setSnapBusy] = useState(false);
+  const [restoringSnap, setRestoringSnap] = useState<string | null>(null);
+
+  async function loadSnaps() {
+    setSnaps(await window.mcss.backup.snapshots(instance.dir).catch(() => []));
+  }
   const cfg = useConfig((s) => s.cfg);
   const patch = useConfig((s) => s.patch);
 
@@ -48,6 +55,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   useEffect(() => {
     void load();
     void loadBackups();
+    void loadSnaps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instance.dir]);
 
@@ -256,6 +264,102 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           </div>
         </div>
       </Card>
+
+      {/* 时间机：增量快照 */}
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="size-4 text-gray-800" />
+            <h3 className="t-h-14 text-gray-1000">时间机</h3>
+            <Badge variant="gray" size="sm">{snaps.length}</Badge>
+          </div>
+          <Button
+            size="sm"
+            loading={snapBusy}
+            onClick={async () => {
+              setSnapBusy(true);
+              try {
+                const res = await window.mcss.backup.snapshot(instance.dir);
+                if (!res.ok) throw new Error(res.error || "快照失败");
+                toast.success(`已打快照 ${res.name}`, {
+                  description: `${res.files} 个文件 · 新增 ${formatBytes(res.bytesNew ?? 0)}`,
+                });
+                await loadSnaps();
+              } catch (e) {
+                toast.error((e as Error).message);
+              } finally {
+                setSnapBusy(false);
+              }
+            }}
+          >
+            <History className="size-3.5" />
+            打个快照
+          </Button>
+        </div>
+
+        <p className="t-label-12 text-gray-700">
+          只存变化的部分：没动过的文件在多个快照之间共用一份，磁盘约等于「一份世界 + 改动」。
+          还原前会把当前存档留底。
+        </p>
+
+        {snaps.length === 0 ? (
+          <div className="t-label-12 py-3 text-gray-700">还没有快照。第一个快照是完整的，之后的只补增量。</div>
+        ) : (
+          <div className="mt-2 space-y-1">
+            <div className="t-label-12 text-gray-700">
+              共 {snaps.length} 个快照 · 磁盘实际占用 {formatBytes(snaps[0].stored)}
+              {(() => {
+                const full = snaps.reduce((n, s) => n + s.bytesTotal, 0);
+                if (!full) return null;
+                const saved = Math.max(0, Math.round((1 - snaps[0].stored / full) * 100));
+                return saved > 0 ? ` · 比存 ${snaps.length} 份完整存档省了 ${saved}%` : "";
+              })()}
+            </div>
+            <div className="max-h-[200px] divide-y divide-gray-300 overflow-y-auto scroll-thin">
+              {snaps.map((s) => (
+                <div key={s.name} className="flex items-center gap-2 py-1.5">
+                  <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{s.name}</span>
+                  <span className="t-label-12 shrink-0 text-gray-700">{formatDateTime(s.at)}</span>
+                  <span className="t-label-12 shrink-0 text-gray-700">{s.files} 文件</span>
+                  <span className="t-label-12 shrink-0 text-gray-700">+{formatBytes(s.bytesNew)}</span>
+                  <Button variant="ghost" size="xs" onClick={() => setRestoringSnap(s.name)}>
+                    <RotateCcw className="size-3.5" />
+                    还原
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Dialog open={Boolean(restoringSnap)} onOpenChange={(v) => !v && setRestoringSnap(null)} widthClass="max-w-md">
+        <DialogHeader title="还原到这个快照？" desc="会先把当前的 world 改名留底，再按快照拼回去。" />
+        <DialogBody>
+          <p className="t-label-13 text-gray-800">
+            服务器必须处于停止状态。当前存档会变成 <span className="t-mono-12">world.before-restore-*</span>，随时可以找回。
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => setRestoringSnap(null)}>取消</Button>
+          <Button
+            variant="error"
+            onClick={async () => {
+              const name = restoringSnap!;
+              setRestoringSnap(null);
+              const res = await window.mcss.backup.restoreSnapshot(instance.dir, name);
+              if (res.ok) {
+                toast.success(`已还原 ${res.restored} 个文件`, { description: res.parked ? `旧存档留底为 ${res.parked}` : undefined });
+                await load();
+              } else {
+                toast.error(res.error || "还原失败");
+              }
+            }}
+          >
+            还原
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       <Dialog open={Boolean(restoring)} onOpenChange={(v) => !v && setRestoring(null)} widthClass="max-w-md">
         <DialogHeader title="恢复到这个备份？" desc="会先把当前的 world 改名留底，再解压备份。" />

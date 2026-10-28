@@ -185,6 +185,9 @@ export function createHttpClient(base: string, token: string): McssApi {
       create: (serverDir) => invoke("backup:create", serverDir),
       restore: (serverDir, name) => invoke("backup:restore", serverDir, name),
       remove: (serverDir, name) => invoke("backup:remove", serverDir, name),
+      snapshot: (serverDir) => invoke("backup:snapshot", serverDir),
+      snapshots: (serverDir) => invoke("backup:snapshots", serverDir),
+      restoreSnapshot: (serverDir, name) => invoke("backup:restore-snapshot", serverDir, name),
     },
     versions: {
       minecraft: () => invoke("versions:minecraft"),

@@ -20,6 +20,7 @@ const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
 const schedule = require(path.join(IPC_DIR, "schedule.js"));
 const aidiag = require(path.join(IPC_DIR, "aidiag.js"));
 const slp = require(path.join(IPC_DIR, "slp.js"));
+const backups = require(path.join(IPC_DIR, "backups.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -456,6 +457,14 @@ ipcMain.handle("backup:list", (_e, serverDir) => backup.list(serverDir));
 ipcMain.handle("backup:create", (_e, serverDir) => backup.create(serverDir, server));
 ipcMain.handle("backup:restore", (_e, serverDir, name) => backup.restore(serverDir, name, server));
 ipcMain.handle("backup:remove", (_e, serverDir, name) => backup.remove(serverDir, name));
+
+/* 增量快照：只存变过的文件，快照之间共用内容 */
+ipcMain.handle("backup:snapshot", (_e, serverDir) => backups.createSnapshot(serverDir));
+ipcMain.handle("backup:snapshots", (_e, serverDir) => backups.listSnapshots(serverDir));
+ipcMain.handle("backup:restore-snapshot", (_e, serverDir, name) => {
+  if (server.getStatus() !== "stopped") return { ok: false, error: "先把服务器停掉再恢复，否则会写坏存档" };
+  return backups.restoreSnapshot(serverDir, name);
+});
 
 /* -------------------------------- 资源库 --------------------------------- */
 

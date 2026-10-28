@@ -132,6 +132,11 @@ export interface McssApi {
     create: (serverDir: string) => Promise<{ ok: boolean; name?: string; size?: number; error?: string }>;
     restore: (serverDir: string, name: string) => Promise<{ ok: boolean; parked?: string; error?: string }>;
     remove: (serverDir: string, name: string) => Promise<{ ok: boolean; error?: string }>;
+    snapshot: (serverDir: string) => Promise<{ ok: boolean; name?: string; files?: number; bytesTotal?: number; bytesNew?: number; error?: string }>;
+    snapshots: (serverDir: string) => Promise<
+      { name: string; at: number; files: number; bytesTotal: number; bytesNew: number; stored: number }[]
+    >;
+    restoreSnapshot: (serverDir: string, name: string) => Promise<{ ok: boolean; restored?: number; parked?: string; error?: string }>;
   };
   versions: {
     minecraft: () => Promise<McVersion[]>;
