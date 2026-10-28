@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Check, Copy, Link2, QrCode, RefreshCw, Send } from "lucide-react";
+import { AlertTriangle, Check, Copy, Link2, QrCode, RefreshCw, Send } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
@@ -28,6 +28,11 @@ export function InviteDialog({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [modRefs, setModRefs] = useState<{ p: string; v: string; n?: string }[]>([]);
+  const [stale, setStale] = useState(false);
+
+  /** 当前 Mod 清单指纹：用来判断「上次生成的邀请码是否已过期」 */
+  const fingerprint = useMemo(() => modRefs.map((m) => `${m.p}:${m.v}`).sort().join("|"), [modRefs]);
+  const storageKey = `mcss.room.${instance.id}`;
 
   useEffect(() => {
     if (!open) return;
@@ -68,6 +73,10 @@ export function InviteDialog({
     setBusy(true);
     try {
       setCode(await encodeRoom(room));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ fp: fingerprint, at: Date.now() }));
+      } catch (e) {}
+      setStale(false);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -79,6 +88,16 @@ export function InviteDialog({
     if (open && addr) void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, addr, roomName]);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null") as { fp?: string } | null;
+      setStale(Boolean(saved?.fp && saved.fp !== fingerprint));
+    } catch (e) {
+      setStale(false);
+    }
+  }, [open, fingerprint, storageKey]);
 
   async function copy(text: string, label: string) {
     const ok = await copyText(text);
@@ -130,6 +149,16 @@ export function InviteDialog({
             />
           </Field>
         )}
+
+        {stale ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-2.5 t-label-12 text-amber-900">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            服务器 Mod 清单变了，旧链接里的 Mod 可能不全——建议重新生成再发。
+            <Button size="xs" variant="secondary" className="ml-auto" onClick={generate} loading={busy}>
+              重新生成
+            </Button>
+          </div>
+        ) : null}
 
         {code ? (
           <>

@@ -19,6 +19,7 @@ export default function Join() {
   const [preparing, setPreparing] = useState(false);
   const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
   const [preparedDir, setPreparedDir] = useState<string | null>(null);
+  const [exported, setExported] = useState<{ file: string; size: number; mods: number } | null>(null);
   const [launchers, setLaunchers] = useState<{ name: string; path: string }[]>([]);
 
   useEffect(() => {
@@ -208,6 +209,7 @@ export default function Join() {
                     try {
                       const res = await window.mcss.client.exportMrpack({ outFile: target, room });
                       if (!res.ok) throw new Error(res.error || "导出失败");
+                      setExported({ file: res.file ?? target, size: res.size ?? 0, mods: res.mods ?? 0 });
                       toast.success("进服包已导出", {
                         description: `${res.mods} 个 Mod · ${res.size ? (res.size / 1024).toFixed(0) + " KB" : ""} · 在启动器里导入即可`,
                       });
@@ -254,6 +256,45 @@ export default function Join() {
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
                     <div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${Math.max(2, progress.percent)}%` }} />
+                  </div>
+                </div>
+              ) : null}
+
+              {exported ? (
+                <div className="rounded-lg bg-green-800/10 p-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="size-4 shrink-0 text-green-900" />
+                    <span className="t-label-13 font-medium text-green-900">进服包已就绪</span>
+                    <span className="t-mono-12 truncate text-gray-700">{exported.file}</span>
+                  </div>
+                  <p className="t-label-12 mt-1 text-gray-800">
+                    {exported.mods} 个 Mod · {(exported.size / 1024).toFixed(0)} KB。
+                    把这个文件发给朋友，在启动器里「导入整合包」→ 开始游戏；服务器已经在多人列表里了。
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => window.mcss.app.openPath(exported.file.replace(/[\\/][^\\/]+$/, ""))}
+                    >
+                      打开所在文件夹
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={async () => {
+                        const text = [
+                          `来一起玩「${room.name}」！`,
+                          `1. 拿到整合包 ${exported.file.split(/[\\/]/).pop()}（${exported.mods} 个 Mod）`,
+                          `2. 启动器里「导入整合包」，选这个文件`,
+                          `3. 开始游戏，服务器已经在列表里：${room.addr}`,
+                          `版本：Minecraft ${room.mc} · ${room.loader}`,
+                        ].join("\n");
+                        (await copyText(text)) ? toast.success("话术已复制") : toast.error("复制失败");
+                      }}
+                    >
+                      复制发给朋友的话
+                    </Button>
                   </div>
                 </div>
               ) : null}
