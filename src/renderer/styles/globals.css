@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* 等宽字体：Cascadia Code 随包（终端/日志用），未命中回退系统等宽 */
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("../assets/fonts/Cascadia Code.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("../assets/fonts/Cascadia Code Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* ============================================================
    Wulon's MCSS · Geist 设计系统令牌（移植自 WulonVocab）
    - 两级背景：background-100 / background-200
