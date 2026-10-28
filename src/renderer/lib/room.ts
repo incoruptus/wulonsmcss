@@ -162,6 +162,11 @@ export function roomDeepLink(code: string): string {
   return `${ROOM_SCHEME}://join/${code}`;
 }
 
+/** 一键准备好：唤起助手后直接开始生成进服包，不再需要点按钮 */
+export function roomInstallLink(code: string): string {
+  return `${ROOM_SCHEME}://install/${code}`;
+}
+
 /** 人话版说明，方便直接发给朋友 */
 export function roomShareText(room: RoomDescriptorV1, code: string, origin?: string): string {
   const mods = room.mods.length ? `\n需要的 Mod：${room.mods.length} 个（点开链接会自动准备）` : "";

@@ -84,7 +84,9 @@ function createWindow() {
       setTimeout(async () => {
         try {
           if (process.env.MCSS_DUMP) {
-            const text = await mainWindow?.webContents.executeJavaScript("document.body.innerText");
+            const text = await mainWindow?.webContents.executeJavaScript(
+              "JSON.stringify({href: location.href, hash: location.hash, search: location.search}) + '\\n' + document.body.innerText"
+            );
             console.log("DUMP>>>" + String(text ?? "").slice(0, 20000));
           }
           if (process.env.MCSS_SHOT) {

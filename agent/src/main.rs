@@ -182,20 +182,22 @@ fn ensure_protocol() {
 }
 
 /// 被 mcss:// 唤起时：把房间码转成网页链接并打开
+///   mcss://join/<code>      → 打开房间页
+///   mcss://install/<code>   → 打开并自动开始准备（少点一次）
 fn handle_join(arg: &str, token: &str) {
-    let code = arg
-        .split("/")
-        .last()
-        .unwrap_or("")
-        .trim()
-        .trim_end_matches('/')
-        .to_string();
+    let parts: Vec<&str> = arg.trim_end_matches('/').split('/').collect();
+    let code = parts.last().unwrap_or(&"").to_string();
+    let auto = parts.iter().any(|p| p.contains(":install")) || arg.contains("//install");
     if code.is_empty() {
         eprintln!("深链里没有房间码：{arg}");
         return;
     }
     let base = std::env::var("MCSS_WEB_BASE").unwrap_or_else(|_| "https://wulons.github.io/mcss".into());
-    let url = format!("{base}/#/join/{code}?t={token}");
+    let url = if auto {
+        format!("{base}/#/join/{code}?auto=1&t={token}")
+    } else {
+        format!("{base}/#/join/{code}?t={token}")
+    };
     println!("打开：{url}");
     if std::env::var("MCSS_NO_OPEN").is_err() {
         #[cfg(windows)]

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Badge, SegmentedControl } from "@/components/ui/misc";
 import type { Instance } from "@/lib/types";
-import { encodeRoom, roomDeepLink, roomShareText, roomWebLink, type RoomDescriptorV1 } from "@/lib/room";
+import { encodeRoom, roomDeepLink, roomInstallLink, roomShareText, roomWebLink, type RoomDescriptorV1 } from "@/lib/room";
 import { copyText } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
 
@@ -238,6 +238,14 @@ export function InviteDialog({
               <Button size="sm" variant="secondary" onClick={() => copy(roomDeepLink(code), "深链")}>
                 <Link2 className="size-3.5" />
                 复制 mcss:// 深链
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => copy(roomInstallLink(code), "一键准备好链接")}
+              >
+                <Package className="size-3.5" />
+                一键准备好链接
               </Button>
               <Button size="sm" variant="ghost" onClick={generate} loading={busy}>
                 <RefreshCw className="size-3.5" />

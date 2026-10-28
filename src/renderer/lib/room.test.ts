@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeRoom, encodeRoom, extractCode, roomDeepLink, roomWebLink, type RoomDescriptorV1 } from "./room";
+import { decodeRoom, encodeRoom, extractCode, roomDeepLink, roomInstallLink, roomWebLink, type RoomDescriptorV1 } from "./room";
 
 const ROOM: RoomDescriptorV1 = {
   v: 1,
@@ -24,6 +24,11 @@ describe("房间描述符", () => {
   it("没有内网地址时也能正常解码（旧码兼容）", async () => {
     const code = await encodeRoom(ROOM);
     expect((await decodeRoom(code)).lan).toBeUndefined();
+  });
+
+  it("深链与一键准备好链接分开", () => {
+    expect(roomDeepLink("w1z.abc.def")).toBe("mcss://join/w1z.abc.def");
+    expect(roomInstallLink("w1z.abc.def")).toBe("mcss://install/w1z.abc.def");
   });
 
   it("编码 → 解码能还原", async () => {

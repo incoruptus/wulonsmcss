@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -123,6 +123,27 @@ export default function Join() {
     }
   }
 
+  // 一键准备好：从 mcss://install/<code> 进来的，体检一出来就自己动手，不再让人找按钮
+  const autoRun = useRef(false);
+  // 注意：路由是 Hash 模式，`?auto=1` 在 # 之后，得从 hash 里取
+  const autoRequested = (() => {
+    if (typeof window === "undefined") return false;
+    const hashQuery = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
+    const params = new URLSearchParams(hashQuery || window.location.search);
+    return params.get("auto") === "1";
+  })();
+  useEffect(() => {
+    if (!autoRequested || !room || !checkup || autoRun.current) return;
+    autoRun.current = true;
+    if (checkup.verdict === "ready") {
+      if (launchers[0]) void window.mcss.app.openPath(launchers[0].path);
+      toast.success("客户端已就绪，启动器已打开", { description: `选 ${checkup.match ?? room.mc} 这个实例就能进` });
+      return;
+    }
+    void prepareAndPlay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRequested, room, checkup]);
+
   useEffect(() => {
     window.mcss.app.detectLaunchers?.().then(setLaunchers).catch(() => {});
   }, []);
@@ -145,8 +166,10 @@ export default function Join() {
 
   useEffect(() => {
     if (code) {
-      setInput(code);
-      void load(code);
+      // 路由参数里可能带着 hash 查询串（?auto=1），先剥掉再解码
+      const clean = code.split("?")[0];
+      setInput(clean);
+      void load(clean);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
