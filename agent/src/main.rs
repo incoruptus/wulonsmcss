@@ -1841,6 +1841,183 @@ fn now_ms() -> f64 {
         .unwrap_or(0.0)
 }
 
+/* ------------------------------ 版本与下载 ------------------------------ */
+
+const MC_MANIFEST: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+const FABRIC_META: &str = "https://meta.fabricmc.net/v2";
+/// GitHub 直连在国内常不通，按顺序回退；空串表示直连
+const MIRRORS: [&str; 4] = ["", "https://gh-proxy.com/", "https://ghfast.top/", "https://ghproxy.net/"];
+
+fn versions_minecraft() -> Result<Json, String> {
+    let json = get_json(MC_MANIFEST)?;
+    let list = json.get("versions").and_then(|v| v.arr()).cloned().unwrap_or_default();
+    let out = list
+        .iter()
+        .map(|v| {
+            let s = |k: &str| Json::s(v.get(k).and_then(|x| x.str()).unwrap_or(""));
+            Json::obj(vec![
+                ("id", s("id")),
+                ("type", s("type")),
+                ("releaseTime", s("releaseTime")),
+                ("url", s("url")),
+            ])
+        })
+        .collect();
+    Ok(Json::Arr(out))
+}
+
+fn fabric_loaders(mc: &str) -> Result<Json, String> {
+    let url = format!("{FABRIC_META}/versions/loader/{}", urlencode(mc));
+    let json = get_json(&url)?;
+    let list = json.arr().ok_or("Fabric 返回格式不对")?;
+    let mut out: Vec<Json> = list
+        .iter()
+        .filter_map(|l| {
+            let loader = l.get("loader")?;
+            let version = loader.get("version").and_then(|v| v.str())?;
+            Some(Json::obj(vec![
+                ("version", Json::s(version)),
+                ("stable", Json::Bool(loader.get("stable").and_then(|v| v.bool()).unwrap_or(false))),
+            ]))
+        })
+        .collect();
+    // stable 排前面
+    out.sort_by_key(|v| !v.get("stable").and_then(|x| x.bool()).unwrap_or(false));
+    Ok(Json::Arr(out))
+}
+
+/// 下载到 dest：先写 .part，成功后再改名，避免半截文件被当成可用
+fn download_to(url: &str, dest: &Path, mirrors: bool) -> Result<u64, String> {
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败：{e}"))?;
+    }
+    let part = dest.with_extension(format!(
+        "{}part",
+        dest.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| format!("{e}."))
+            .unwrap_or_default()
+    ));
+
+    let candidates: Vec<String> = if mirrors {
+        MIRRORS.iter().map(|p| format!("{p}{url}")).collect()
+    } else {
+        vec![url.to_string()]
+    };
+
+    let mut last_error = String::from("下载失败");
+    for candidate in candidates {
+        let result = curl(&[
+            "-L",
+            "--fail",
+            "--max-time",
+            "900",
+            "-H",
+            &format!("User-Agent: {UA}"),
+            "-o",
+            &part.to_string_lossy(),
+            &candidate,
+        ]);
+        match result {
+            Ok(_) => {
+                if dest.exists() {
+                    let _ = std::fs::remove_file(dest);
+                }
+                std::fs::rename(&part, dest).map_err(|e| format!("重命名失败：{e}"))?;
+                return Ok(std::fs::metadata(dest).map(|m| m.len()).unwrap_or(0));
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&part);
+                last_error = e;
+            }
+        }
+    }
+    Err(last_error)
+}
+
+fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
+    let dir = opts.get("dir").and_then(|v| v.str()).unwrap_or("");
+    let mc = opts.get("mc").and_then(|v| v.str()).unwrap_or("");
+    let loader = opts.get("loader").and_then(|v| v.str()).unwrap_or("vanilla");
+    let loader_version = opts.get("loaderVersion").and_then(|v| v.str()).unwrap_or("");
+    if dir.is_empty() || mc.is_empty() {
+        return Err("缺少安装参数".into());
+    }
+    let dir_path = PathBuf::from(dir);
+    std::fs::create_dir_all(&dir_path).map_err(|e| format!("创建目录失败：{e}"))?;
+
+    let progress = |stage: &str, percent: i32, detail: &str| {
+        let mut state = shared.lock().unwrap();
+        broadcast(
+            &mut state,
+            "versions:progress",
+            Json::obj(vec![
+                ("stage", Json::s(stage)),
+                ("percent", Json::n(percent as f64)),
+                ("detail", Json::s(detail)),
+            ]),
+        );
+    };
+
+    if loader == "fabric" {
+        progress("解析 Fabric Loader", 2, "");
+        let loaders = fabric_loaders(mc)?;
+        let chosen = if !loader_version.is_empty() {
+            loader_version.to_string()
+        } else {
+            loaders
+                .arr()
+                .and_then(|list| list.first())
+                .and_then(|l| l.get("version"))
+                .and_then(|v| v.str())
+                .ok_or_else(|| format!("Fabric 没有适配 {mc} 的 Loader"))?
+                .to_string()
+        };
+
+        let installer = get_json(&format!("{FABRIC_META}/versions/installer"))
+            .ok()
+            .and_then(|j| j.arr().and_then(|a| a.first()).and_then(|v| v.get("version")).and_then(|v| v.str()).map(String::from))
+            .unwrap_or_else(|| "1.0.1".to_string());
+
+        let url = format!(
+            "{FABRIC_META}/versions/loader/{}/{}/{}/server/jar",
+            urlencode(mc),
+            urlencode(&chosen),
+            urlencode(&installer)
+        );
+        progress("下载 Fabric 服务端", 5, "");
+        let size = download_to(&url, &dir_path.join("fabric-server-launch.jar"), false)?;
+        progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
+        return Ok(Json::obj(vec![
+            ("ok", Json::Bool(true)),
+            ("loaderVersion", Json::s(&chosen)),
+        ]));
+    }
+
+    progress("解析版本清单", 3, "");
+    let manifest = get_json(MC_MANIFEST)?;
+    let entry = manifest
+        .get("versions")
+        .and_then(|v| v.arr())
+        .and_then(|list| list.iter().find(|v| v.get("id").and_then(|x| x.str()) == Some(mc)))
+        .cloned()
+        .ok_or_else(|| format!("找不到 Minecraft {mc}"))?;
+    let detail_url = entry.get("url").and_then(|v| v.str()).ok_or("清单缺少版本地址")?;
+    let detail = get_json(detail_url)?;
+    let server_url = detail
+        .get("downloads")
+        .and_then(|d| d.get("server"))
+        .and_then(|s| s.get("url"))
+        .and_then(|v| v.str())
+        .ok_or_else(|| format!("{mc} 没有服务端下载（可能是快照早期版本）"))?
+        .to_string();
+
+    progress("下载原版服务端", 6, "");
+    let size = download_to(&server_url, &dir_path.join("server.jar"), false)?;
+    progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -1997,6 +2174,9 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "versions:minecraft" => versions_minecraft(),
+        "versions:fabric-loaders" => fabric_loaders(arg0),
+        "versions:install" => install_server(shared, args.first().ok_or("缺少参数")?),
         "server:preflight" => preflight(shared, arg0),
         "modrinth:search" => modrinth_search(arg0, args.get(1)),
         "modrinth:versions" => modrinth_versions(arg0, args.get(1)),
