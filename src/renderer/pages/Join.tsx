@@ -21,6 +21,11 @@ export default function Join() {
   const [preparing, setPreparing] = useState(false);
   const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
   const [preparedDir, setPreparedDir] = useState<string | null>(null);
+  const [launchers, setLaunchers] = useState<{ name: string; path: string }[]>([]);
+
+  useEffect(() => {
+    window.mcss.app.detectLaunchers?.().then(setLaunchers).catch(() => {});
+  }, []);
 
   async function load(raw: string) {
     if (!raw.trim()) return;
@@ -214,6 +219,28 @@ export default function Join() {
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
                     <div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${Math.max(2, progress.percent)}%` }} />
+                  </div>
+                </div>
+              ) : null}
+
+              {launchers.length ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-100 p-3 shadow-geist-border">
+                  <Gamepad2 className="size-4 text-gray-800" />
+                  <span className="t-label-12 text-gray-700">检测到启动器：{launchers.map((l) => l.name).join("、")}</span>
+                  <div className="ml-auto flex gap-1.5">
+                    {launchers.slice(0, 2).map((l) => (
+                      <Button
+                        key={l.path}
+                        size="xs"
+                        variant="secondary"
+                        onClick={() => {
+                          void window.mcss.app.openPath(l.path);
+                          toast.info(`已打开 ${l.name}，选 ${room.mc} 的实例就能进`);
+                        }}
+                      >
+                        打开 {l.name}
+                      </Button>
+                    ))}
                   </div>
                 </div>
               ) : null}

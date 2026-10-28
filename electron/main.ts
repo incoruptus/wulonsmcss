@@ -253,6 +253,32 @@ ipcMain.handle("app:install-java", async () => {
 
 ipcMain.handle("app:detect-java", () => javaIpc.detectJava());
 
+/** 探测常见启动器（只做「找到并帮你打开」，不做实例注入） */
+ipcMain.handle("app:detect-launchers", () => {
+  const home = require("os").homedir();
+  const env = process.env;
+  const candidates = [
+    { name: "Plain Craft Launcher 2", path: path.join(home, "Desktop", "Plain Craft Launcher 2.exe") },
+    { name: "Plain Craft Launcher 2", path: "D:\\Games\\Minecraft\\Plain Craft Launcher 2.exe" },
+    { name: "Minecraft Launcher", path: "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe" },
+    { name: "Minecraft Launcher", path: "C:\\Program Files\\Minecraft Launcher\\MinecraftLauncher.exe" },
+    { name: "Modrinth App", path: path.join(env.LOCALAPPDATA || "", "Programs", "Modrinth App", "Modrinth App.exe") },
+    { name: "Prism Launcher", path: path.join(env.APPDATA || "", "PrismLauncher", "prismlauncher.exe") },
+    { name: "HMCL", path: path.join(home, "Desktop", "HMCL.exe") },
+    { name: "HMCL", path: path.join(home, "Desktop", "HMCL.jar") },
+  ];
+  const found = [];
+  const seen = new Set();
+  for (const c of candidates) {
+    if (!c.path || seen.has(c.path)) continue;
+    seen.add(c.path);
+    try {
+      if (fs.existsSync(c.path)) found.push(c);
+    } catch (e) {}
+  }
+  return found;
+});
+
 /** 本机内网地址（同 WiFi 的朋友可以直接连） */
 ipcMain.handle("app:lan-address", () => {
   const os = require("os");
