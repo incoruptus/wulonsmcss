@@ -1610,6 +1610,237 @@ fn dialog_save_file(title: &str, default_name: &str, filter: &str) -> Result<Jso
     dialog_run("save", title, default_name, filter)
 }
 
+/* ------------------------------ 开服预检 ------------------------------ */
+
+fn issue(id: &str, level: &str, title: &str, detail: &str, fix: Option<&str>) -> Json {
+    Json::obj(vec![
+        ("id", Json::s(id)),
+        ("level", Json::s(level)),
+        ("title", Json::s(title)),
+        ("detail", Json::s(detail)),
+        ("fix", fix.map(Json::s).unwrap_or(Json::Null)),
+    ])
+}
+
+fn check_eula(dir: &Path) -> Option<Json> {
+    let path = dir.join("eula.txt");
+    if !path.exists() {
+        return Some(issue(
+            "eula-missing",
+            "warn",
+            "还没同意 EULA",
+            "首次启动会自动生成 eula.txt，需要改成 eula=true",
+            Some("accept-eula"),
+        ));
+    }
+    let Ok(text) = std::fs::read_to_string(&path) else { return None };
+    // 容忍 `eula = true` / `EULA=TRUE`
+    let compact: String = text
+        .to_lowercase()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    if compact.contains("eula=true") {
+        None
+    } else {
+        Some(issue(
+            "eula-false",
+            "error",
+            "EULA 未接受",
+            "eula.txt 里不是 true，服务器会直接退出",
+            Some("accept-eula"),
+        ))
+    }
+}
+
+fn check_datapacks(dir: &Path) -> Option<Json> {
+    let root = dir.join("world").join("datapacks");
+    let Ok(entries) = std::fs::read_dir(&root) else { return None };
+    let mut broken: Vec<String> = Vec::new();
+
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("mwm-") || !entry.path().is_dir() {
+            continue;
+        }
+        let pack = entry.path();
+        let Ok(namespaces) = std::fs::read_dir(pack.join("data")) else { continue };
+        for ns in namespaces.flatten() {
+            let ns_name = ns.file_name().to_string_lossy().to_string();
+            let type_dir = pack.join("data").join(&ns_name).join("dimension_type");
+            let Ok(files) = std::fs::read_dir(&type_dir) else { continue };
+            for file in files.flatten() {
+                let file_name = file.file_name().to_string_lossy().to_string();
+                if !file_name.ends_with(".json") {
+                    continue;
+                }
+                let ok = std::fs::read_to_string(file.path())
+                    .ok()
+                    .and_then(|t| Json::parse(&t).ok())
+                    .and_then(|j| j.get("has_ender_dragon_fight").and_then(|v| v.bool()))
+                    .is_some();
+                if !ok {
+                    broken.push(format!("{name}/{ns_name}/{file_name}"));
+                }
+            }
+        }
+    }
+
+    if broken.is_empty() {
+        return None;
+    }
+    let mut item = issue(
+        "datapack-format",
+        "error",
+        &format!("{} 个维度定义是旧格式", broken.len()),
+        "26.1 的数据包会让服务器在「加载注册表」阶段直接失败，无法启动。",
+        Some("repair-datapacks"),
+    );
+    if let Json::Obj(ref mut items) = item {
+        items.push((
+            "samples".into(),
+            Json::Arr(broken.iter().take(3).map(|s| Json::s(s)).collect()),
+        ));
+    }
+    Some(item)
+}
+
+/// 物理内存与磁盘：标准库没有，借 PowerShell 拿数值（结果缓存，别每次预检都跑）
+fn ps_number(script: &str) -> Option<f64> {
+    let out = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout).trim().parse::<f64>().ok()
+}
+
+fn total_memory_gb() -> Option<f64> {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Option<f64>> = OnceLock::new();
+    *CACHE.get_or_init(|| {
+        ps_number("(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB").map(|gb| gb.round())
+    })
+}
+
+fn free_disk_gb(dir: &Path) -> Option<f64> {
+    let root = dir.components().next().map(|c| c.as_os_str().to_string_lossy().to_string())?;
+    let drive = root.trim_end_matches('\\').to_string();
+    ps_number(&format!(
+        "(Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='{drive}'\").FreeSpace / 1GB"
+    ))
+}
+
+fn check_port(port: u16) -> Option<Json> {
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+    let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+    if TcpStream::connect_timeout(&addr, Duration::from_millis(600)).is_ok() {
+        return Some(issue(
+            "port-busy",
+            "error",
+            &format!("端口 {port} 已被占用"),
+            "可能已经有一个服务器在跑，或者别的程序占了这个端口",
+            Some("change-port"),
+        ));
+    }
+    None
+}
+
+fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
+    let instance = {
+        let state = shared.lock().unwrap();
+        instance_by_id(&state.config, instance_id).cloned()
+    };
+    let instance = instance.ok_or("实例不存在")?;
+
+    let dir = instance.get("dir").and_then(|v| v.str()).unwrap_or("").to_string();
+    if dir.is_empty() {
+        return Ok(Json::obj(vec![("ok", Json::Bool(false)), ("issues", Json::Arr(vec![]))]));
+    }
+    let dir_path = PathBuf::from(&dir);
+    let mut issues: Vec<Json> = Vec::new();
+
+    // Java
+    let java = instance.get("javaPath").and_then(|v| v.str()).unwrap_or("");
+    if java.is_empty() {
+        issues.push(issue("java-missing", "error", "没有指定 Java", "实例设置里没有 Java 路径，服务器无法启动。", Some("set-java")));
+    } else if (java.contains('\\') || java.contains('/')) && !Path::new(java).exists() {
+        issues.push(issue("java-path", "error", "Java 路径不存在", java, Some("set-java")));
+    }
+
+    // 服务端 jar
+    if !dir_path.join("fabric-server-launch.jar").exists() && !dir_path.join("server.jar").exists() {
+        issues.push(issue(
+            "jar-missing",
+            "error",
+            "找不到服务端 jar",
+            &format!("在 {dir} 下既没有 fabric-server-launch.jar 也没有 server.jar"),
+            Some("reinstall"),
+        ));
+    }
+
+    if let Some(item) = check_eula(&dir_path) {
+        issues.push(item);
+    }
+    if let Some(item) = check_datapacks(&dir_path) {
+        issues.push(item);
+    }
+
+    let port = instance.get("port").and_then(|v| v.num()).unwrap_or(0.0) as u16;
+    if port > 0 {
+        if let Some(item) = check_port(port) {
+            issues.push(item);
+        }
+    }
+
+    let max_gb = instance.get("memoryMax").and_then(|v| v.num()).unwrap_or(0.0);
+    if max_gb > 0.0 {
+        if let Some(total) = total_memory_gb() {
+            if max_gb > total {
+                issues.push(issue(
+                    "memory-too-high",
+                    "warn",
+                    &format!("最大内存 {max_gb:.0}G 超过物理内存"),
+                    &format!("本机只有约 {total:.0}G，设这么高容易触发系统换页反而更卡"),
+                    Some("lower-memory"),
+                ));
+            }
+        }
+    }
+
+    if let Some(free) = free_disk_gb(&dir_path) {
+        if free < 2.0 {
+            issues.push(issue(
+                "disk-low",
+                "warn",
+                "磁盘剩余空间不足 2G",
+                &format!("当前约 {free:.1}G"),
+                None,
+            ));
+        }
+    }
+
+    let ok = !issues
+        .iter()
+        .any(|i| i.get("level").and_then(|v| v.str()) == Some("error"));
+
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(ok)),
+        ("issues", Json::Arr(issues)),
+        ("checkedAt", Json::n(now_ms())),
+    ]))
+}
+
+fn now_ms() -> f64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0)
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -1766,6 +1997,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "server:preflight" => preflight(shared, arg0),
         "modrinth:search" => modrinth_search(arg0, args.get(1)),
         "modrinth:versions" => modrinth_versions(arg0, args.get(1)),
         "modrinth:install" => modrinth_install(args.first().ok_or("缺少参数")?),
