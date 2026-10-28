@@ -764,6 +764,158 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
     }
 }
 
+/* ----------------------------- AI 现场包 ----------------------------- */
+
+/// 知识库在编译期嵌进二进制：agent 单文件分发，不依赖外部 docs 目录
+const KNOWLEDGE_MD: &str = include_str!("../../docs/ai/knowledge.md");
+
+fn is_secret_key(key: &str) -> bool {
+    let k = key.to_ascii_lowercase();
+    ["token", "password", "secret", "gistid", "paircode", "apikey"]
+        .iter()
+        .any(|s| k.contains(s))
+}
+
+/// 令牌换掉、结构保留
+fn sanitize(value: &Json) -> Json {
+    match value {
+        Json::Obj(items) => Json::Obj(
+            items
+                .iter()
+                .map(|(k, v)| {
+                    if is_secret_key(k) {
+                        (k.clone(), Json::s(if matches!(v, Json::Null) { "" } else { "*** REDACTED ***" }))
+                    } else {
+                        (k.clone(), sanitize(v))
+                    }
+                })
+                .collect(),
+        ),
+        Json::Arr(items) => Json::Arr(items.iter().map(sanitize).collect()),
+        other => other.clone(),
+    }
+}
+
+fn redact_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut redact_next = false;
+    for token in text.split_whitespace() {
+        if redact_next {
+            out.push_str("***REDACTED***");
+            redact_next = false;
+        } else if token == "Bearer" || token == "bearer" {
+            out.push_str(token);
+            redact_next = true;
+        } else if token.contains("ghp_") || token.contains("github_pat_") {
+            out.push_str("***REDACTED***");
+        } else {
+            out.push_str(token);
+        }
+        out.push(' ');
+    }
+    out
+}
+
+fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
+    let out_file = opts.get("outFile").and_then(|v| v.str()).unwrap_or("").to_string();
+    if out_file.is_empty() {
+        return Err("缺少导出路径".into());
+    }
+    let instance_id = opts.get("instanceId").and_then(|v| v.str()).unwrap_or("");
+    let symptom = opts.get("symptom");
+    let logs: Vec<String> = opts
+        .get("logs")
+        .and_then(|v| v.arr())
+        .map(|arr| arr.iter().filter_map(|v| v.str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    let (config, instance) = {
+        let state = shared.lock().unwrap();
+        let inst = instance_by_id(&state.config, instance_id).cloned();
+        (state.config.clone(), inst)
+    };
+    let instance = instance.ok_or("实例不存在")?;
+
+    let stage = std::env::temp_dir().join(format!("mcss-aidiag-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&stage);
+    std::fs::create_dir_all(stage.join("logs")).map_err(|e| format!("创建临时目录失败：{e}"))?;
+
+    let readme = format!(
+        "# Wulon's MCSS 排错现场包\n\n生成时间：{}\n实例：{} · Minecraft {} · {}\n\n\
+         ## 文件\n- `context.md`：实例信息与症状，**先读这个**\n- `logs/recent.log`：最近的控制台输出（已脱敏）\n\
+         - `config.sanitized.json`：配置（令牌已替换）\n- `knowledge.md`：症状→原因→修法对照表\n\n\
+         ## 希望你（AI）怎么做\n1. 先复述症状与证据；\n2. 对照知识库判断原因；\n\
+         3. 给不超过 3 个可逆步骤；\n4. 证据不足就说还需要哪段日志。\n",
+        now_stamp(),
+        instance.get("name").and_then(|v| v.str()).unwrap_or("?"),
+        instance.get("mcVersion").and_then(|v| v.str()).unwrap_or("?"),
+        instance.get("loader").and_then(|v| v.str()).unwrap_or("?"),
+    );
+
+    let mut context = String::new();
+    context.push_str("# 现场\n\n## 实例\n");
+    for (label, key) in [
+        ("名称", "name"),
+        ("版本", "mcVersion"),
+        ("加载器", "loader"),
+        ("目录", "dir"),
+        ("Java", "javaPath"),
+    ] {
+        context.push_str(&format!(
+            "- {label}：{}\n",
+            instance.get(key).and_then(|v| v.str()).unwrap_or("?")
+        ));
+    }
+    context.push_str(&format!(
+        "- 端口：{}\n",
+        instance.get("port").and_then(|v| v.num()).unwrap_or(0.0)
+    ));
+    if let Some(s) = symptom {
+        context.push_str("\n## 用户描述的症状\n");
+        context.push_str(s.get("title").and_then(|v| v.str()).unwrap_or(""));
+        context.push('\n');
+        if let Some(d) = s.get("detail").and_then(|v| v.str()) {
+            context.push_str(d);
+            context.push('\n');
+        }
+    }
+    context.push_str(&format!("\n日志共 {} 行，见 logs/recent.log。\n", logs.len()));
+
+    let tail: Vec<String> = logs.iter().rev().take(500).rev().map(|l| redact_text(l)).collect();
+
+    std::fs::write(stage.join("README.md"), readme).map_err(|e| format!("写入失败：{e}"))?;
+    std::fs::write(stage.join("context.md"), context).map_err(|e| format!("写入失败：{e}"))?;
+    std::fs::write(stage.join("knowledge.md"), KNOWLEDGE_MD).map_err(|e| format!("写入失败：{e}"))?;
+    std::fs::write(stage.join("logs").join("recent.log"), tail.join("\n")).map_err(|e| format!("写入失败：{e}"))?;
+    std::fs::write(
+        stage.join("config.sanitized.json"),
+        sanitize(&config).to_string(),
+    )
+    .map_err(|e| format!("写入失败：{e}"))?;
+
+    if let Some(parent) = Path::new(&out_file).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let status = Command::new("tar")
+        .args(["-a", "-c", "-f"])
+        .arg(&out_file)
+        .args(["README.md", "context.md", "knowledge.md", "config.sanitized.json", "logs"])
+        .current_dir(&stage)
+        .status()
+        .map_err(|e| format!("打包失败：{e}"))?;
+    let _ = std::fs::remove_dir_all(&stage);
+    if !status.success() {
+        return Err("打包失败（tar 退出码非 0）".into());
+    }
+
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("file", Json::s(&out_file)),
+        ("size", Json::n(std::fs::metadata(&out_file).map(|m| m.len() as f64).unwrap_or(0.0))),
+        ("logs", Json::n(tail.len() as f64)),
+    ]))
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -838,6 +990,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:create" => backup_create(arg0),
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
+        "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
         "server:start" => start_server(shared, arg0),
         "server:stop" => Ok(stop_server(shared)),
         "server:command" => send_command(shared, arg0),
