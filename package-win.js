@@ -114,6 +114,15 @@ if (fs.existsSync(aiDocs)) {
   execSync(`xcopy "${aiDocs}" "${path.join(RESOURCES_DIR, 'ai')}\\" /E /I /Q /Y >nul 2>nul`, { shell: true })
 }
 
+// 本地助手：桌面版也用得上（网页版可以把这个 exe 单独发给朋友）
+const agentExe = path.join(APP_DIR, 'agent', 'target', 'release', 'mcss-agent.exe')
+if (fs.existsSync(agentExe)) {
+  console.log('Copying local agent...')
+  fs.mkdirSync(path.join(RESOURCES_DIR, 'agent'), { recursive: true })
+  fs.copyFileSync(agentExe, path.join(RESOURCES_DIR, 'agent', 'mcss-agent.exe'))
+  fs.copyFileSync(path.join(APP_DIR, 'agent', 'README.md'), path.join(RESOURCES_DIR, 'agent', 'README.md'))
+}
+
 // Step 4: Write metadata
 fs.writeFileSync(path.join(OUT_DIR, 'version'), pkg.version)
 fs.writeFileSync(path.join(OUT_DIR, 'LICENSE'), 'ISC License\nCopyright (c) 2026 隐刻INCO')

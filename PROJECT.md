@@ -1,184 +1,83 @@
-# Wulon's MCSS · 乌龙味 MC 开服茶
+# Wulon's MCSS v27 · 现状
 
-**一站式 Minecraft 服务器管理桌面应用**
-Electron + React 19 + Tailwind v4，面向零基础用户：选版本 → 装 Mod → 配联机 → 一键开服。
+> 最后一次更新：2026-10-28。这份文件是给「三天后的自己」和「第一次打开仓库的人」看的。
 
-> v27 重构版（2026-10）。v26 的 Vue 3 + Material You 版本见 git 历史 `ea78a05`。
+## 一句话
 
----
+本地 Minecraft 服务器管理器：**单实例灵便管理 + 玩家零门槛进服**，桌面版与网页版共用同一套 UI。
 
-## 技术栈
+## 三种用法
 
-| 层级 | 技术 | 用途 |
-|------|------|------|
-| 框架 | Electron 33 + React 19 | 桌面外壳 + 函数式 UI |
-| 构建 | electron-vite 5 + Vite 5 | 三端打包（主进程 / 预加载 / 渲染） |
-| 样式 | Tailwind CSS v4 + Geist 设计令牌 | 原子化样式，令牌与 WulonVocab 同源 |
-| 组件 | Radix UI primitives | 无障碍弹窗 / 菜单 / 开关 / 滑杆 |
-| 状态 | Zustand 5 | 配置、服务器状态、日志流 |
-| 路由 | React Router 7（Hash） | `file://` 下无刷新路由 |
-| 图标 | lucide-react | 统一线性图标 |
-| 字体 | Sora（拉丁，随包）→ 系统黑体链 | 中文回退到 PingFang / 微软雅黑 |
-| 提示 | sonner | Toast |
+| 用法 | 需要什么 | 适合 |
+|---|---|---|
+| 桌面版 | `WulonsMCSS.exe`（271MB，免安装） | 服主日常：建服、管 Mod、备份、联机 |
+| 网页版 + 助手 | 浏览器 + `mcss-agent.exe`（0.36MB） | 不想装大包、只想进服或开个轻量服 |
+| 纯网页 | 浏览器 | 解析房间码、看房间信息、复制地址 |
 
-渲染进程不直接碰 Node：全部能力经 `window.mcss`（contextBridge）走 IPC。
+## 已做完
 
----
+**服主**
+- 开服前预检 7 项（Java / jar / EULA / 端口 / 数据包 / 内存 / 磁盘）+ 一键修复
+- 控制台：日志解析、46 条指令补全、搜索高亮、导出、**卡顿记录**（tick 落后告警）
+- 崩溃翻译官：7 类高置信模式 + 真动作（禁用 Mod、修 26.1 数据包）
+- 世界：多世界数据包生成（26.1 schema）、备份/恢复、停服自动备份 + 保留份数
+- Mod：扫描元数据、禁用/启用、资源库搜索安装、**Modrinth 自动匹配**（真实 25 个命中 18）
+- 自动化：每日重启、定时公告、定时备份（纯函数 + 6 项单测）
+- 联机：FRP 隧道、邀请码
 
-## 目录结构
+**玩家**
+- 房间码自包含（地址/版本/加载器/Modrinth Mod id），可链接、可深链、可手抄
+- 一键准备客户端：按 Modrinth id 拉 Mod
+- 一键进服包：`.mrpack`（PCL2 / HMCL / Prism / Modrinth App 通用），含 `overrides/servers.dat`
+- 启动器探测（PCL2 / 官方 / Modrinth / Prism / HMCL）并打开
 
-```
-wulons-mcss/
-├── electron/
-│   ├── main.ts               ← 窗口、IPC 注册、生命周期（薄壳）
-│   ├── preload/index.ts      ← contextBridge：window.mcss
-│   └── ipc/
-│       ├── config.js         ← 配置读写 + v26→v27 迁移
-│       ├── server.js         ← 服务器进程：启动/停止/stdin/日志/内存
-│       ├── versions.js       ← Mojang 清单 / Fabric Meta / 流式下载
-│       ├── mods.js           ← ZIP 中央目录解析 + fabric.mod.json 扫描
-│       ├── worlds.js         ← 多世界数据包（调用 MWM CLI）
-│       ├── files.js          ← 文件与 server.properties
-│       └── java.js           ← Java 运行时探测
-├── src/renderer/
-│   ├── main.tsx / App.tsx    ← 入口 / 布局与路由
-│   ├── pages/                ← Overview · Instances · InstanceDetail · Settings
-│   ├── components/
-│   │   ├── app/              ← TitleBar（自绘无边框）、Sidebar、PageHeader
-│   │   ├── ui/               ← Geist 组件（移植自 WulonVocab）
-│   │   └── instance/         ← 实例详情各 Tab 与新建向导
-│   ├── stores/               ← config / server（zustand）
-│   ├── lib/                  ← api 类型、types、utils
-│   └── styles/globals.css    ← 设计令牌 + 字体栈 + 工具类
-├── wulons-mcss-mwm/          ← 子项目：多世界数据包 CLI（Node ESM）
-├── wulons-mcss-mwm-mod/      ← 子项目：游戏内世界切换模组（Fabric）
-└── package-win.js            ← 便携版打包
-```
+**AI 后备链路**
+- `docs/ai/` 知识库（症状→原因→修法 + 排错纪律）
+- 诊断卡「让 AI 看看」复制提示词、「导出现场包」生成 zip（日志/脱敏配置/知识库）
+- agent 版把知识库 `include_str!` 编进二进制
 
----
+## 没做完
 
-## 数据模型（config.json · v27）
+- **启动器实例注入**：现在只到「帮你打开启动器」，最后一下仍要手点
+- **内置启动器**：没有
+- 网页版缺 `versions:*` / `frp:*` / `worlds:*`（会提示「需要桌面版」）
+- Modrinth 未匹配的 7 个 Mod 需要手动绑定
 
-```ts
-interface AppConfig {
-  version: 27
-  theme: 'light' | 'dark' | 'system'
-  accent: string
-  instances: Instance[]        // 多实例：各自独立的版本 / Mod / 配置 / 存档
-  activeInstanceId: string | null
-  consoleViewMode: 'code' | 'bubble'
-  maxLogLines: number
-  quickActions: QuickAction[]
-  frpProfiles: FrpProfile[]
-  sync: SyncConfig | null      // GitHub Gist 跨端同步
-  setupComplete: boolean
-}
-```
+## 11 月 1 日上线要做什么
 
-`Instance` = `{ id, name, dir, mcVersion, loader, loaderVersion, javaPath, memoryMin, memoryMax, jvmArgs, port, ... }`。
-
-**迁移**：v26 的扁平 `serverPath / javaPath / maxMemory / initMemory / jvmArgs` 会
-在首次读取时收敛成一条 `id: "legacy"` 的实例；主题、控制台视图、动画开关一并保留。
-
----
-
-## 打包
+仓库建好后：
 
 ```bash
-node package-win.js     # 便携版 → ../wulons-mcss-b27.0.0/WulonsMCSS-win32-x64/
-pnpm dist               # NSIS 安装包（electron-builder）
+git remote add origin <repo>
+git push -u origin master
 ```
 
-v27.0.0 便携版已构建并实测：`WulonsMCSS.exe` 约 189MB，asar 外的 `resources/mwm` 供多世界生成器使用；
-首次启动若是全新机器会走首启向导，若检测到旧版（v26）配置会自动迁移成多实例结构。
+然后在仓库 Settings → Pages → Source 选 **GitHub Actions**。`.github/workflows/pages.yml` 会自动 typecheck → `build:web` → 发布 `dist-web`。
 
----
+需要确认的两件事：
+1. `pnpm-lock.yaml` 已提交（CI 用 `--frozen-lockfile`）
+2. 页面用相对路径 + Hash 路由，挂在 `/<repo>/` 子目录也能跑
 
-## 开发命令
+## 常用命令
 
 ```bash
-pnpm dev          # Vite dev server + Electron
-pnpm build        # 三端构建（out/）
-pnpm typecheck    # tsc --noEmit（渲染进程，当前为绿）
-pnpm test         # vitest（同步内核）
-node package-win.js   # 便携版打包 → ../wulons-mcss-b27.0.0/
+pnpm dev            # 桌面版开发
+pnpm build          # 三端构建
+pnpm build:web      # 静态网页 → dist-web/
+pnpm test           # vitest + node:test
+cargo build --release --manifest-path agent/Cargo.toml
+node package-win.js # 免安装包
+node scripts/web-shot.cjs          # 网页版截图
+node scripts/web-dump.cjs "/settings"  # 抓任意路由文本
 ```
 
----
+## 验证脚本
 
-## 设计系统
-
-- **令牌**：background-100/200 + 10 级灰 + blue/green/amber/red 语义色（`globals.css`）
-- **强调色**：`<html data-accent>` + `--ui-accent-hex`，blue 色阶整体重定向
-- **字体**：`Sora → PingFang SC → HarmonyOS Sans SC → 微软雅黑 → system-ui`
-- **体例**：`.t-h-24 / .t-label-13 / .t-mono-12` 等字号工具类，与 WulonVocab 一致
-
----
-
-## 当前进度
-
-| 模块 | 状态 |
-|------|------|
-| 三端重构（React 19 + Tailwind 4 + Radix） | ✅ |
-| 多实例：列表 / 新建（真实的 Mojang + Fabric 下载）/ 编辑 / 删除 | ✅ |
-| 服务器进程：启动/停止/指令/日志/内存/TPS | ✅ |
-| 实例详情：概览 / 控制台 / 配置 / Mod / 世界 / 玩家 | ✅ |
-| Mod 扫描（ZIP 直读 `fabric.mod.json`）与**客户端 ↔ 服务端比对** | ✅ |
-| 多世界数据包（生成 / 删除 / 扫描） | ✅ |
-| GitHub Gist 跨端同步（配对码 + AES-GCM + 分片 + 中转站认领） | ✅ 10 项单测 |
-| 资源库（Modrinth 搜索 / 一键装 Mod） | ✅ |
-| FRP 隧道（通用 frpc 自动下载 + 日志解析公网地址；SakuraFrp 启动器托管） | ✅ 本机 frps 端到端验证 |
-| 零基础开服向导（Java 检测 → 版本 → 下载安装 → 开服） | ✅ 首启自动弹出 |
-
-### 验证方式
-
-```bash
-pnpm test                  # 同步内核 10 项单测（加密/信封/合并）
-node scripts/frp-e2e.cjs   # 本机起 frps → frpc 连上 → 校验「start proxy success」与地址解析
-node scripts/screenshot.cjs out.png [延迟ms]   # 启动应用并截图（MCSS_SHOT 环境变量驱动）
-```
-
-同步设计要点：
-
-- **配对码**是唯一秘密（`XXXX-XXXX-XXXX-XXXX-XXXX`，≈100 bit），PBKDF2-SHA256 60 万次 → AES-GCM-256，载荷先 gzip；
-- 上传前一律加密，Gist 里只有密文；`secret gist` 不等于私密；
-- 单文件超 460KB 自动分片，避免 GitHub API 1MB 截断；
-- 首次同步会在账号下创建 Gist，其余设备靠**描述里的配对标识**认领同一个中转站（否则各端各建一个，永远同步不上）；
-- 合并按 `updatedAt` 取新，删除用墓碑；**目录 / Java 路径永远不上传**，跨设备导入的实例显示「待绑定目录」。
-
----
-
-## 维护记录
-
-### 2026-10-28 · v27 重构
-
-- 技术栈从 Vue 3 + Material You 换成 **React 19 + Vite + Tailwind v4 + Radix**，
-  完全复用 WulonVocab 的 Geist 设计令牌与 UI 组件；Next.js 被评估后否决
-  （静态导出后 SSR/RSC 归零，`file://` 下 App Router 还需额外适配）。
-- 字体回退按要求改为 **Sora → 系统黑体链**，正文不再依赖 22MB 的 OPPO Sans。
-- 信息架构按「实例」重组：概览 / 实例 / 实例详情（6 个 Tab）/ 设置。
-- 主进程拆成 `electron/ipc/*` 七个模块，`main.ts` 只做窗口与 IPC 注册。
-- `mods.js` 用 ZIP 中央目录 + `zlib.inflateRawSync` 直读 jar，替代原来的 `tar` 子进程。
-- 配置升级为 v27（多实例），并带自动迁移。
-
-### 2026-10-28 · v26 接管修复
-
-| 问题 | 处理 |
-|------|------|
-| `server.js` 的 `sendCommand` 被截断，应用启动即崩 | 重写该模块（stdin 写入 + 回显 + 错误处理） |
-| 设置里的内存从未传给 JVM | 启动时拼 `-Xms/-Xmx` |
-| 打包版「创建世界」必失败 | CLI 移到 asar 外，用 `ELECTRON_RUN_AS_NODE` 调 |
-| 打包版换壁纸静默失败 | 改存 `userData/wallpapers` |
-| 无版本控制 | `git init` + `.gitignore`，建立基线 |
-
----
-
-## 已知限制
-
-- 同一时刻只运行一个服务器实例（进程管理是单例，UI 以「当前实例」为准）。
-- 「重置全部设置」会清空实例列表，但不会删除磁盘上的服务器文件。
-- GitHub 直连在国内常不通：frpc / 版本下载内置了 `gh-proxy.com → ghfast.top → ghproxy.net` 镜像回退。
-- SakuraFrp 只做启动器托管，其隧道状态以启动器界面为准（客户端不暴露状态）。
-- 同步的「设置 / 快捷操作 / FRP」是整组 LWW（按远端 payload 时间戳），暂不做字段级合并。
-- 跨端同步的真实链路需要你自己的 GitHub Token 才能端到端验证；仓库里已用单测覆盖加解密与合并逻辑。
-- 截图自检：`MCSS_SHOT=<png>` 环境变量会让主进程在窗口就绪后截图（仅开发用）。
+| 脚本 | 验什么 |
+|---|---|
+| `scripts/web-e2e.cjs` | agent 契约（健康/令牌/配置/SSE） |
+| `scripts/agent-client-e2e.cjs` | 写服务器列表 / 拉 Mod / 导出 mrpack |
+| `scripts/agent-backup-e2e.cjs` | 备份创建→恢复→删除 + 路径穿越拒绝 |
+| `scripts/agent-mods-e2e.cjs` | Modrinth 搜索 / 安装 / Mod 扫描 |
+| `scripts/agent-ai-e2e.cjs` | 现场包结构与脱敏 |
+| `scripts/crash-shot.cjs` | 占端口→起服→诊断卡截图 |
