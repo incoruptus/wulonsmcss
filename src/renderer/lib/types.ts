@@ -87,6 +87,10 @@ export interface AppConfig {
   modrinthIndex?: Record<string, { p: string; v: string; n?: string }>;
   /** 上次自动检测到的 Java 路径 */
   detectedJava?: string | null;
+  /** 停服后自动备份 */
+  autoBackupOnStop?: boolean;
+  /** 备份保留份数 */
+  backupKeep?: number;
 }
 
 export interface DirEntry {

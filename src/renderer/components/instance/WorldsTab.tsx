@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw } from "lucide-react";
+import { SwitchRow } from "@/components/ui/field";
+import { useConfig } from "@/stores/config";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -26,6 +28,8 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   const [backups, setBackups] = useState<{ name: string; size: number; mtime: number }[]>([]);
   const [backupBusy, setBackupBusy] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const cfg = useConfig((s) => s.cfg);
+  const patch = useConfig((s) => s.patch);
 
   async function loadBackups() {
     setBackups(await window.mcss.backup.list(instance.dir).catch(() => []));
@@ -187,8 +191,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             还没有备份。备份会把整个 <span className="t-mono-12">world/</span> 打成 zip，服务器在跑时会先暂停写入。
           </div>
         ) : (
-          <div className="max-h-[220px] divide-y divide-gray-300 overflow-y-auto scroll-thin">
-            {backups.map((b) => (
+          <div className="max-h-[220px] divide-y divide-gray-300 overflow-y-auto scroll-thin">            {backups.map((b) => (
               <div key={b.name} className="flex items-center gap-2 py-1.5">
                 <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{b.name}</span>
                 <span className="t-label-12 shrink-0 text-gray-700">{formatBytes(b.size)}</span>
@@ -215,6 +218,42 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             ))}
           </div>
         )}
+
+        <div className="mt-3 border-t border-gray-300 pt-3">
+          <SwitchRow
+            label="停止服务器后自动备份"
+            hint="停服时自动打包 world，并按下面的份数清理旧备份"
+            checked={Boolean(cfg.autoBackupOnStop)}
+            onCheckedChange={(v) => patch({ autoBackupOnStop: v })}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <span className="t-label-12 text-gray-700">保留最近</span>
+            <Select
+              className="w-[90px]"
+              value={String(cfg.backupKeep ?? 5)}
+              onChange={(e) => patch({ backupKeep: Number(e.target.value) })}
+              options={[
+                { value: "3", label: "3 份" },
+                { value: "5", label: "5 份" },
+                { value: "10", label: "10 份" },
+                { value: "20", label: "20 份" },
+              ]}
+            />
+            <Button
+              size="xs"
+              variant="secondary"
+              disabled={!backups.length}
+              onClick={async () => {
+                const res = await window.mcss.backup.remove(instance.dir, backups[backups.length - 1].name);
+                if (!res.ok) return toast.error(res.error || "清理失败");
+                toast.success("已删除最旧的一份");
+                await loadBackups();
+              }}
+            >
+              清理最旧一份
+            </Button>
+          </div>
+        </div>
       </Card>
 
       <Dialog open={Boolean(restoring)} onOpenChange={(v) => !v && setRestoring(null)} widthClass="max-w-md">

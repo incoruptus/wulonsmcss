@@ -340,7 +340,26 @@ ipcMain.handle("server:memory", () => server.getMemory());
 ipcMain.handle("server:pid", () => server.getPid());
 
 server.onOutput((entry) => send("server:output", entry));
-server.onStatus((status) => send("server:status", status));
+server.onStatus((status) => {
+  send("server:status", status);
+
+  // 停服后自动备份（可在世界页开关）
+  if (status === "stopped" && activeInstanceId) {
+    const cfg = readConfig();
+    if (cfg.autoBackupOnStop) {
+      const inst = findInstance(activeInstanceId);
+      if (inst) {
+        try {
+          const res = backup.create(inst.dir, null);
+          if (res.ok) {
+            backup.prune(inst.dir, cfg.backupKeep ?? 5);
+            send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `已自动备份 ${res.name}` });
+          }
+        } catch (e) {}
+      }
+    }
+  }
+});
 
 /* ---------------------------------- 系统 ---------------------------------- */
 

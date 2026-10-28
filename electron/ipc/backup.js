@@ -113,4 +113,18 @@ function remove(serverDir, name) {
   }
 }
 
-module.exports = { list, create, restore, remove, backupDir };
+/** 只保留最近 keep 份，返回删掉的 */
+function prune(serverDir, keep) {
+  const n = Math.max(1, Number(keep) || 5);
+  const all = list(serverDir);
+  const removed = [];
+  for (const item of all.slice(n)) {
+    try {
+      fs.unlinkSync(item.path);
+      removed.push(item.name);
+    } catch (e) {}
+  }
+  return { ok: true, removed, kept: all.slice(0, n).map((x) => x.name) };
+}
+
+module.exports = { list, create, restore, remove, prune, backupDir };
