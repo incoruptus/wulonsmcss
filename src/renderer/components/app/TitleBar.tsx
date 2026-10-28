@@ -42,9 +42,6 @@ export function TitleBar() {
   return (
     <header className="drag-region flex h-10 shrink-0 items-center gap-3 border-b border-gray-300 bg-background-100 px-3">
       <div className="flex items-center gap-2">
-        <div className="grid size-6 place-items-center rounded-md bg-gray-1000 text-[11px] font-bold text-background-100">
-          茶
-        </div>
         <span className="t-label-13 font-medium text-gray-1000">Wulon&apos;s MCSS</span>
       </div>
 
