@@ -1,0 +1,11 @@
+{
+  "type": "wulons:arena_end",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "minecraft:end",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "preset": "minecraft:end"
+    }
+  }
+}

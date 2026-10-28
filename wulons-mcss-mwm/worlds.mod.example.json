@@ -1,0 +1,121 @@
+{
+  "namespace": "wulons",
+  "worlds": [
+    {
+      "name": "bop_world",
+      "label": "BOP 生态世界",
+      "type": "overworld",
+      "biomes": [
+        "minecraft:plains",
+        "minecraft:forest",
+        "minecraft:desert",
+        "minecraft:jungle",
+        "minecraft:taiga",
+        "biomesoplenty:rainforest",
+        "biomesoplenty:marsh",
+        "biomesoplenty:mediterranean_forest",
+        "biomesoplenty:jade_cliffs",
+        "biomesoplenty:highland",
+        "biomesoplenty:muskeg",
+        "biomesoplenty:bamboo_grove",
+        "biomesoplenty:cherry_blossom_grove",
+        "biomesoplenty:lavender_field",
+        "biomesoplenty:origin_valley",
+        "biomesoplenty:volcanic_plains",
+        "biomesoplenty:wasteland",
+        "biomesoplenty:woodland"
+      ],
+      "description": "Biomes O' Plenty 全群系体验世界"
+    },
+    {
+      "name": "traverse_lands",
+      "label": "遍历大陆",
+      "type": "overworld",
+      "biomes": [
+        "minecraft:plains",
+        "minecraft:forest",
+        "traverse:woodlands",
+        "traverse:meadow",
+        "traverse:autumnal_woodland",
+        "traverse:orchard",
+        "traverse:lush_swamp",
+        "traverse:coniferous_forest",
+        "traverse:snowy_coniferous_forest",
+        "traverse:temperate_rainforest",
+        "traverse:arid_highlands",
+        "traverse:cliffs"
+      ],
+      "description": "遍历 (Traverse) 生态世界"
+    },
+    {
+      "name": "terralith_wilds",
+      "label": "Terralith 荒野",
+      "type": "overworld",
+      "biomes": [
+        "minecraft:plains",
+        "minecraft:forest",
+        "terralith:alpine_grove",
+        "terralith:amethyst_canyon",
+        "terralith:amethyst_rainforest",
+        "terralith:arid_highlands",
+        "terralith:birch_taiga",
+        "terralith:brushland",
+        "terralith:cave/desert_cave",
+        "terralith:cave/fungal_cave",
+        "terralith:cave/ice_caves",
+        "terralith:cloud_forest",
+        "terralith:desert_canyon",
+        "terralith:desert_oasis",
+        "terralith:forested_highlands",
+        "terralith:gravel_desert",
+        "terralith:hot_shrubland",
+        "terralith:lush_valley",
+        "terralith:mirage_isles",
+        "terralith:red_oasis",
+        "terralith:sakura_grove",
+        "terralith:shield_clearing",
+        "terralith:snowy_shield",
+        "terralith:steppe",
+        "terralith:tropical_jungle",
+        "terralith:volcanic_peaks",
+        "terralith:yosemite_cliffs"
+      ],
+      "description": "Terralith 生态世界"
+    },
+    {
+      "name": "mega_explore",
+      "label": "超级探险",
+      "type": "overworld",
+      "biomes": [
+        "minecraft:plains",
+        "minecraft:forest",
+        "minecraft:taiga",
+        "minecraft:desert",
+        "minecraft:jungle",
+        "minecraft:savanna",
+        "minecraft:badlands",
+        "minecraft:snowy_plains",
+        "biomesoplenty:rainforest",
+        "biomesoplenty:jade_cliffs",
+        "biomesoplenty:cherry_blossom_grove",
+        "biomesoplenty:lavender_field",
+        "biomesoplenty:volcanic_plains",
+        "traverse:autumnal_woodland",
+        "traverse:temperate_rainforest",
+        "traverse:cliffs",
+        "terralith:sakura_grove",
+        "terralith:tropical_jungle",
+        "terralith:volcanic_peaks",
+        "terralith:amethyst_canyon"
+      ],
+      "description": "三大模组群系混合探险世界"
+    },
+    {
+      "name": "bop_rainforest_only",
+      "label": "BOP 雨林",
+      "type": "overworld",
+      "single_biome": "biomesoplenty:rainforest",
+      "description": "单一 BOP 雨林世界（fixed 模式）"
+    }
+  ]
+}

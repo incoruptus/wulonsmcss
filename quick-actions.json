@@ -1,0 +1,26 @@
+[
+  {
+    "id": "qa_1784199725813",
+    "name": "服务器路径",
+    "type": "section",
+    "section": "section-paths",
+    "page": "settings",
+    "icon": "folder"
+  },
+  {
+    "id": "qa_1784199737069",
+    "name": "网络与性能",
+    "type": "section",
+    "section": "section-network",
+    "page": "config",
+    "icon": "wifi"
+  },
+  {
+    "id": "qa_1784387684040",
+    "name": "多世界",
+    "type": "section",
+    "section": "worlds",
+    "page": "worlds",
+    "icon": "public"
+  }
+]

@@ -1,0 +1,61 @@
+{
+  "namespace": "wulons",
+  "worlds": [
+    {
+      "name": "mining_world",
+      "label": "挖矿世界",
+      "type": "overworld",
+      "description": "资源丰富的挖矿专用世界"
+    },
+    {
+      "name": "mining_world_nether",
+      "label": "挖矿下界",
+      "type": "nether",
+      "description": "下界资源世界"
+    },
+    {
+      "name": "build_flat",
+      "label": "建筑平原",
+      "type": "superflat",
+      "biome": "minecraft:plains",
+      "structures": false,
+      "description": "超平坦建筑世界"
+    },
+    {
+      "name": "parkour_void",
+      "label": "跑酷虚空",
+      "type": "void",
+      "description": "跑酷专用虚空世界"
+    },
+    {
+      "name": "arena_end",
+      "label": "竞技场",
+      "type": "the_end",
+      "description": "末地风格 PVP 竞技场"
+    },
+    {
+      "name": "garden",
+      "label": "花园世界",
+      "type": "overworld",
+      "biome_preset": "minecraft:overworld",
+      "seed": 42,
+      "description": "自定义种子花园世界"
+    },
+    {
+      "name": "exploration",
+      "label": "探险世界",
+      "type": "overworld",
+      "biomes": [
+        "minecraft:plains",
+        "minecraft:forest",
+        "minecraft:taiga",
+        "minecraft:desert",
+        "minecraft:jungle",
+        "minecraft:savanna",
+        "minecraft:badlands",
+        "minecraft:snowy_plains"
+      ],
+      "description": "精选原版群系探险世界"
+    }
+  ]
+}

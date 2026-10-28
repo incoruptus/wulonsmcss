@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "wulons-mwm-mod",
+  "version": "${version}",
+  "name": "MWM - Multi-World Management",
+  "description": "多世界管理 (数据包 + MCSS 仪表盘)",
+  "authors": ["隐刻INCO"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.wulons.mwm.MwmMod"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": ">=26.1"
+  }
+}

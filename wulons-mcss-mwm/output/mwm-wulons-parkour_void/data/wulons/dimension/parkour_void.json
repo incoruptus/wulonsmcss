@@ -1,0 +1,19 @@
+{
+  "type": "wulons:parkour_void",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "layers": [
+        {
+          "block": "minecraft:bedrock",
+          "height": 1
+        }
+      ],
+      "biome": "minecraft:plains",
+      "structure_overrides": [
+        "minecraft:strongholds",
+        "minecraft:villages"
+      ]
+    }
+  }
+}

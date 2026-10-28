@@ -1,0 +1,41 @@
+appId: com.wulons.mcss
+productName: 乌龙味MC开服茶
+copyright: Copyright © 2026 隐刻INCO
+
+directories:
+  output: D:\Games\Minecraft\MCServer\wulons-mcss-b26.7.02
+  buildResources: .
+
+files:
+  - out/**/*
+  - electron/ipc/**/*
+  - resources/**/*
+  - package.json
+
+# 多世界数据包生成器（CLI）以 asar 外的真实文件形式提供，
+# 主进程用 Electron 自带的 Node 以子进程方式调用它
+extraResources:
+  - from: wulons-mcss-mwm/src
+    to: mwm/src
+    filter:
+      - "**/*"
+  - from: wulons-mcss-mwm/package.json
+    to: mwm/package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/app-icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 乌龙味MC开服茶
+  artifactName: "Wulons-MCSS-Setup-${version}-${arch}.${ext}"
+
+asar: true
+compression: maximum

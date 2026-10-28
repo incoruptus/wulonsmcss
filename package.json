@@ -1,0 +1,44 @@
+{
+  "name": "wulons-mcss",
+  "version": "26.7.02",
+  "description": "Wulon's MCSS · 乌龙味MC开服茶",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "lint": "eslint . --ext .vue,.ts,.tsx --fix",
+    "dist": "electron-builder --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@material/web": "^2.4.0",
+    "material-symbols": "^0.45.0",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@electron/asar": "^4.2.0",
+    "@electron/packager": "^20.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@unocss/preset-uno": "^66.0.0",
+    "@unocss/transformer-directives": "^66.0.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-vue": "^9.32.0",
+    "typescript": "^5.7.0",
+    "unocss": "^66.0.0",
+    "vue-tsc": "^2.2.0"
+  },
+  "keywords": [],
+  "author": "隐刻INCO",
+  "license": "ISC",
+  "type": "commonjs",
+  "allowScripts": {
+    "file:.pnpm/electron@33.4.11/node_modules/electron": true
+  }
+}

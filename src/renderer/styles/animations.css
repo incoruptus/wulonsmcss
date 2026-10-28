@@ -1,0 +1,251 @@
+/* ===== Animation System ===== */
+/* Apple-style nonlinear curves */
+:root {
+  --anim-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --anim-ease-in-out: cubic-bezier(0.44, 0, 0.2, 1);
+  --anim-decel: cubic-bezier(0.2, 0, 0, 1);
+  --anim-accel: cubic-bezier(0.4, 0, 1, 1);
+  --anim-duration-fast: calc(400ms * var(--anim-modifier, 1));
+  --anim-duration: calc(600ms * var(--anim-modifier, 1));
+  --anim-duration-slow: calc(1000ms * var(--anim-modifier, 1));
+  --anim-ripple-duration: calc(800ms * var(--anim-modifier, 1));
+  --anim-stagger: calc(120ms * var(--anim-modifier, 1));
+}
+
+/* ===== Keyframes ===== */
+@keyframes anim-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes anim-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes anim-slide-right {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes anim-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes anim-ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+@keyframes anim-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes anim-skeleton {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* ===== Utility Classes ===== */
+.anim-fade { animation: anim-fade-in var(--anim-duration) var(--anim-ease-out) both; }
+.anim-slide-up { animation: anim-slide-up var(--anim-duration) var(--anim-ease-out) both; }
+.anim-slide-right { animation: anim-slide-right var(--anim-duration) var(--anim-ease-out) both; }
+.anim-scale-in { animation: anim-scale-in var(--anim-duration) var(--anim-ease-out) both; }
+
+/* Staggered list */
+.anim-stagger > * {
+  opacity: 0;
+  animation: anim-slide-up var(--anim-duration) var(--anim-ease-out) forwards;
+}
+.anim-stagger > *:nth-child(1) { animation-delay: calc(0 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(2) { animation-delay: calc(1 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(3) { animation-delay: calc(2 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(4) { animation-delay: calc(3 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(5) { animation-delay: calc(4 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(6) { animation-delay: calc(5 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(7) { animation-delay: calc(6 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(8) { animation-delay: calc(7 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(9) { animation-delay: calc(8 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(10) { animation-delay: calc(9 * var(--anim-stagger)); }
+.anim-stagger > *:nth-child(n+11) { animation-delay: calc(9 * var(--anim-stagger)); }
+
+/* Skeleton loading */
+.anim-skeleton {
+  background: linear-gradient(90deg, var(--md-sys-color-surface-container-high) 25%, var(--md-sys-color-surface-container-highest) 50%, var(--md-sys-color-surface-container-high) 75%);
+  background-size: 200% 100%;
+  animation: anim-shimmer 1.5s infinite;
+  border-radius: var(--md-sys-shape-corner-small);
+}
+
+/* Ripple container */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===== Page Transitions ===== */
+.page-leave-active {
+  transition: opacity calc(0.12s * var(--anim-modifier, 1)) var(--anim-ease-out);
+}
+
+.page-enter-active {
+  transition: opacity calc(0.35s * var(--anim-modifier, 1)) var(--anim-ease-out),
+              transform calc(0.35s * var(--anim-modifier, 1)) var(--anim-ease-out);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.page-leave-to {
+  opacity: 0;
+}
+
+/* ===== Component Transitions ===== */
+/* Fade */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--anim-duration-fast) var(--anim-ease-out);
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Slide + Fade for dialogs */
+.dialog-enter-active,
+.dialog-leave-active {
+  transition: opacity var(--anim-duration) var(--anim-ease-out);
+}
+.dialog-enter-active .dialog-card,
+.dialog-leave-active .dialog-card {
+  transition: transform var(--anim-duration) var(--anim-ease-out),
+              opacity var(--anim-duration) var(--anim-ease-out);
+}
+
+.dialog-enter-from,
+.dialog-leave-to {
+  opacity: 0;
+}
+
+.dialog-enter-from .dialog-card {
+  transform: scale(0.92);
+  opacity: 0;
+}
+
+.dialog-leave-to .dialog-card {
+  transform: scale(0.92);
+  opacity: 0;
+}
+
+/* List items */
+.list-enter-active,
+.list-leave-active {
+  transition: all var(--anim-duration) var(--anim-ease-out);
+}
+.list-enter-from {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(16px);
+}
+.list-move {
+  transition: transform var(--anim-duration) var(--anim-ease-out);
+}
+
+/* ===== Ripple directive style ===== */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  animation: anim-ripple var(--anim-ripple-duration) var(--anim-ease-out) forwards;
+}
+
+/* ===== Hover/Focus transitions ===== */
+.hover-lift {
+  transition: transform var(--anim-duration-fast) var(--anim-ease-out),
+              box-shadow var(--anim-duration-fast) var(--anim-ease-out);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--md-elevation-level2);
+}
+
+/* ===== Directional slide transitions ===== */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: opacity calc(var(--anim-duration-fast) * 0.7) var(--anim-ease-out),
+              transform calc(var(--anim-duration-fast) * 0.7) var(--anim-ease-out);
+  grid-area: 1 / 1;
+}
+.slide-left-enter-from { opacity: 0; transform: translateX(32px); }
+.slide-left-leave-to { opacity: 0; transform: translateX(-32px); }
+.slide-right-enter-from { opacity: 0; transform: translateX(-32px); }
+.slide-right-leave-to { opacity: 0; transform: translateX(32px); }
+
+/* Wrapper: grid stacking keeps natural height */
+.slide-wrap {
+  display: grid;
+  min-height: 100px;
+}
+
+/* ===== Dashboard animations ===== */
+@keyframes dash-count-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes dash-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+  50% { box-shadow: 0 0 0 16px rgba(255,255,255,0); }
+}
+@keyframes dash-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes dash-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+}
+
+.dash-stagger > * {
+  animation: dash-count-up var(--anim-duration) var(--anim-ease-out) both;
+}
+.dash-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.dash-stagger > *:nth-child(2) { animation-delay: calc(1 * var(--anim-stagger)); }
+.dash-stagger > *:nth-child(3) { animation-delay: calc(2 * var(--anim-stagger)); }
+.dash-stagger > *:nth-child(4) { animation-delay: calc(3 * var(--anim-stagger)); }
+
+.dash-running .power-btn {
+  animation: dash-pulse calc(2s * var(--anim-modifier, 1)) infinite;
+}
+
+.dash-stat-value {
+  animation: dash-count-up var(--anim-duration) var(--anim-ease-out) both;
+}
+
+.dash-slide-up {
+  animation: dash-count-up calc(1.2s * var(--anim-modifier, 1)) var(--anim-ease-out) both;
+}
+
+/* Dashboard container fade-in */
+.dash-fade-in {
+  animation: anim-fade-in calc(0.6s * var(--anim-modifier, 1)) var(--anim-ease-out) both;
+}
+
+/* Bottom row hide/show */
+.dash-row-enter-active,
+.dash-row-leave-active {
+  transition: opacity calc(0.5s * var(--anim-modifier, 1)) var(--anim-ease-out);
+}
+.dash-row-enter-from,
+.dash-row-leave-to {
+  opacity: 0;
+}

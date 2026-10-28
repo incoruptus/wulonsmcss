@@ -1,0 +1,238 @@
+@import './fonts.css';
+@import './md3-theme.css';
+@import './animations.css';
+@import 'material-symbols/index.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html, body, #app {
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  min-height: 30px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline);
+}
+
+/* Rounded containers with scroll: prevent scrollbar bleeding past border-radius */
+.rounded-scroll {
+  overflow: hidden;
+}
+
+.rounded-scroll > .scroll-content {
+  overflow-y: auto;
+  height: 100%;
+  scrollbar-gutter: stable;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+}
+
+.material-symbols-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+}
+
+/* ===== MD3 Component Overrides ===== */
+/* All interactive elements: 40px height, consistent shape */
+
+/* Buttons — icon + text alignment */
+md-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+md-filled-button,
+md-outlined-button,
+md-text-button,
+md-filled-tonal-button,
+md-elevated-button {
+  --md-filled-button-container-shape: var(--md-sys-shape-corner-full);
+  --md-outlined-button-container-shape: var(--md-sys-shape-corner-full);
+  --md-text-button-container-shape: var(--md-sys-shape-corner-full);
+  --md-filled-tonal-button-container-shape: var(--md-sys-shape-corner-full);
+  --md-elevated-button-container-shape: var(--md-sys-shape-corner-full);
+  --md-filled-button-leading-space: 24px;
+  --md-filled-button-trailing-space: 24px;
+  --md-outlined-button-leading-space: 24px;
+  --md-outlined-button-trailing-space: 24px;
+  --md-text-button-leading-space: 12px;
+  --md-text-button-trailing-space: 12px;
+  --md-filled-tonal-button-leading-space: 24px;
+  --md-filled-tonal-button-trailing-space: 24px;
+  --md-elevated-button-leading-space: 24px;
+  --md-elevated-button-trailing-space: 24px;
+  --md-filled-button-container-height: 40px;
+  --md-outlined-button-container-height: 40px;
+  --md-text-button-container-height: 40px;
+  --md-filled-tonal-button-container-height: 40px;
+  --md-elevated-button-container-height: 40px;
+  --md-filled-button-with-leading-icon-leading-space: 16px;
+  --md-filled-button-with-leading-icon-trailing-space: 24px;
+  --md-outlined-button-with-leading-icon-leading-space: 16px;
+  --md-outlined-button-with-leading-icon-trailing-space: 24px;
+}
+
+/* Text Fields */
+md-outlined-text-field {
+  --md-outlined-text-field-container-shape: var(--md-sys-shape-corner-small);
+  --md-outlined-text-field-outline-width: 1px;
+  --md-outlined-text-field-input-text-size: 14px;
+  --md-outlined-text-field-label-text-size: 14px;
+  --md-outlined-text-field-label-text-populated-size: 12px;
+  --md-outlined-text-field-supporting-text-size: 12px;
+  --md-outlined-text-field-top-space: 8px;
+  --md-outlined-text-field-bottom-space: 8px;
+  --md-outlined-text-field-input-text-font: var(--font-ui);
+  --md-outlined-text-field-label-text-font: var(--font-ui);
+  --md-outlined-text-field-supporting-text-font: var(--font-ui);
+  --md-outlined-field-top-space: 8px;
+  --md-outlined-field-bottom-space: 8px;
+}
+
+/* Select dropdowns */
+md-outlined-select {
+  --md-outlined-select-text-field-container-shape: var(--md-sys-shape-corner-small);
+  --md-outlined-select-text-field-outline-width: 1px;
+  --md-outlined-select-text-field-input-text-size: 14px;
+  --md-outlined-select-text-field-label-text-size: 14px;
+  --md-outlined-select-text-field-label-text-populated-size: 12px;
+  --md-outlined-select-text-field-top-space: 8px;
+  --md-outlined-select-text-field-bottom-space: 8px;
+  --md-outlined-select-text-field-input-text-font: var(--font-ui);
+  --md-outlined-select-text-field-label-text-font: var(--font-ui);
+  --md-outlined-field-top-space: 8px;
+  --md-outlined-field-bottom-space: 8px;
+  --md-menu-item-top-space: 8px;
+  --md-menu-item-bottom-space: 8px;
+  --md-menu-item-leading-space: 16px;
+  --md-menu-item-trailing-space: 16px;
+  --md-menu-item-one-line-container-height: 40px;
+  --md-menu-item-label-text-size: 14px;
+  --md-menu-item-label-text-font: var(--font-ui);
+  --md-menu-item-supporting-text-size: 12px;
+  --md-menu-item-supporting-text-font: var(--font-ui);
+  --md-menu-container-shape: var(--md-sys-shape-corner-small);
+  --md-menu-surface-container-color: var(--md-sys-color-surface-container-high);
+}
+
+/* Switch - restore default track size since they looked wrong */
+md-switch {
+  --md-switch-track-width: 48px;
+  --md-switch-track-height: 28px;
+  --md-switch-selected-handle-height: 20px;
+  --md-switch-selected-handle-width: 20px;
+  --md-switch-handle-height: 14px;
+  --md-switch-handle-width: 14px;
+  --md-switch-pressed-handle-height: 24px;
+  --md-switch-pressed-handle-width: 24px;
+  --md-switch-state-layer-size: 36px;
+}
+
+/* Tabs */
+md-tabs {
+  --md-primary-tab-container-shape: var(--md-sys-shape-corner-small);
+}
+
+md-primary-tab {
+  --md-primary-tab-active-indicator-height: 3px;
+  --md-primary-tab-label-text-size: 14px;
+}
+
+/* Dialog */
+md-dialog {
+  --md-dialog-container-shape: var(--md-sys-shape-corner-large);
+}
+
+/* Ensure select menus aren't clipped */
+md-menu {
+  z-index: 1000;
+}
+
+/* List */
+md-list {
+  --md-list-item-container-shape: var(--md-sys-shape-corner-small);
+}
+
+/* Icon button */
+md-icon-button {
+  --md-icon-button-container-shape: var(--md-sys-shape-corner-full);
+}
+
+/* Progress */
+md-circular-progress {
+  --md-circular-progress-size: 40px;
+}
+
+/* ===== Dark mode overrides for MD3 components ===== */
+[data-theme='dark'] md-outlined-text-field {
+  --md-outlined-text-field-input-text-color: var(--md-sys-color-on-surface);
+  --md-outlined-text-field-label-text-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-text-field-outline-color: var(--md-sys-color-outline);
+  --md-outlined-text-field-focus-outline-color: var(--md-sys-color-primary);
+  --md-outlined-text-field-hover-outline-color: var(--md-sys-color-on-surface);
+  --md-outlined-text-field-supporting-text-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-text-field-leading-icon-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-text-field-trailing-icon-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-text-field-caret-color: var(--md-sys-color-primary);
+}
+
+[data-theme='dark'] md-outlined-select {
+  --md-outlined-select-text-field-input-text-color: var(--md-sys-color-on-surface);
+  --md-outlined-select-text-field-label-text-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-select-text-field-outline-color: var(--md-sys-color-outline);
+  --md-outlined-select-text-field-focus-outline-color: var(--md-sys-color-primary);
+  --md-outlined-select-text-field-hover-outline-color: var(--md-sys-color-on-surface);
+  --md-outlined-select-text-field-supporting-text-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-select-text-field-leading-icon-color: var(--md-sys-color-on-surface-variant);
+  --md-outlined-select-text-field-trailing-icon-color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-theme='dark'] md-filled-button {
+  --md-filled-button-label-text-color: var(--md-sys-color-on-primary);
+  --md-filled-button-container-color: var(--md-sys-color-primary);
+}
+
+[data-theme='dark'] md-outlined-button {
+  --md-outlined-button-label-text-color: var(--md-sys-color-primary);
+  --md-outlined-button-outline-color: var(--md-sys-color-outline);
+}
+
+[data-theme='dark'] md-text-button {
+  --md-text-button-label-text-color: var(--md-sys-color-primary);
+}

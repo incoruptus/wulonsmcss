@@ -1,0 +1,156 @@
+{
+  "type": "wulons:traverse_lands",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "minecraft:overworld",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "biomes": [
+        {
+          "biome": "minecraft:plains",
+          "parameters": {
+            "temperature": 0,
+            "humidity": 1,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "minecraft:forest",
+          "parameters": {
+            "temperature": 0.09,
+            "humidity": 0.91,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:woodlands",
+          "parameters": {
+            "temperature": 0.18,
+            "humidity": 0.82,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:meadow",
+          "parameters": {
+            "temperature": 0.27,
+            "humidity": 0.73,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:autumnal_woodland",
+          "parameters": {
+            "temperature": 0.36,
+            "humidity": 0.64,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:orchard",
+          "parameters": {
+            "temperature": 0.45,
+            "humidity": 0.55,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:lush_swamp",
+          "parameters": {
+            "temperature": 0.55,
+            "humidity": 0.45,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:coniferous_forest",
+          "parameters": {
+            "temperature": 0.64,
+            "humidity": 0.36,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:snowy_coniferous_forest",
+          "parameters": {
+            "temperature": 0.73,
+            "humidity": 0.27,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:temperate_rainforest",
+          "parameters": {
+            "temperature": 0.82,
+            "humidity": 0.18,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:arid_highlands",
+          "parameters": {
+            "temperature": 0.91,
+            "humidity": 0.09,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        },
+        {
+          "biome": "traverse:cliffs",
+          "parameters": {
+            "temperature": 1,
+            "humidity": 0,
+            "continentalness": 0,
+            "erosion": 0,
+            "depth": 0,
+            "weirdness": 0,
+            "offset": 0
+          }
+        }
+      ]
+    }
+  }
+}

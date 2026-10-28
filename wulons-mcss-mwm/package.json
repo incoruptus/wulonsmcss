@@ -1,0 +1,15 @@
+{
+  "name": "wulons-mcss-mwm",
+  "version": "26.1.0",
+  "description": "Multi-World Management — Minecraft 26.1 自定义维度数据包生成器",
+  "type": "module",
+  "main": "src/cli.js",
+  "bin": {
+    "mwm": "src/cli.js"
+  },
+  "scripts": {
+    "generate": "node src/cli.js"
+  },
+  "author": "隐刻INCO",
+  "license": "ISC"
+}
