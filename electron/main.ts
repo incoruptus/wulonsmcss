@@ -188,6 +188,19 @@ ipcMain.handle("props:write", (_e, p, props) => files.writeProperties(p, props))
 
 ipcMain.handle("mods:scan", (_e, dir) => mods.scanMods(dir));
 ipcMain.handle("mods:meta", (_e, jarPath) => mods.readModMeta(jarPath));
+ipcMain.handle("mods:disable", (_e, jarPath) => {
+  if (!fs.existsSync(jarPath)) throw new Error("找不到这个 Mod 文件");
+  const dest = `${jarPath}.disabled`;
+  if (fs.existsSync(dest)) fs.unlinkSync(dest);
+  fs.renameSync(jarPath, dest);
+  return true;
+});
+ipcMain.handle("mods:enable", (_e, jarPath) => {
+  if (!fs.existsSync(jarPath)) throw new Error("找不到这个 Mod 文件");
+  const dest = jarPath.replace(/\.disabled$/i, "");
+  fs.renameSync(jarPath, dest);
+  return true;
+});
 
 /* -------------------------------- 多世界 ---------------------------------- */
 

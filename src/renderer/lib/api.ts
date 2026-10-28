@@ -97,6 +97,8 @@ export interface McssApi {
   mods: {
     scan: (dir: string) => Promise<ModMeta[]>;
     meta: (jarPath: string) => Promise<ModMeta | null>;
+    disable: (jarPath: string) => Promise<boolean>;
+    enable: (jarPath: string) => Promise<boolean>;
   };
   worlds: {
     scan: (serverDir: string) => Promise<WorldPack[]>;

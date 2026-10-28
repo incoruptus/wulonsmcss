@@ -148,6 +148,8 @@ export function createHttpClient(base: string, token: string): McssApi {
     mods: {
       scan: (dir) => invoke("mods:scan", dir),
       meta: (jarPath) => invoke("mods:meta", jarPath),
+      disable: (jarPath) => invoke("mods:disable", jarPath),
+      enable: (jarPath) => invoke("mods:enable", jarPath),
     },
     worlds: {
       scan: (serverDir) => invoke("worlds:scan", serverDir),

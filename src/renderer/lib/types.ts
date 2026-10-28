@@ -83,6 +83,8 @@ export interface AppConfig {
   sync: SyncConfig | null;
   /** 从云端拉下来的 Mod 清单（key = instanceId），供「与云端比对」 */
   remoteCatalogs?: Record<string, RemoteCatalog>;
+  /** 通过资源库安装的 Mod 的 Modrinth 索引（key = jar 文件名），房间码用它来带 Mod */
+  modrinthIndex?: Record<string, { p: string; v: string; n?: string }>;
   /** 上次自动检测到的 Java 路径 */
   detectedJava?: string | null;
 }

@@ -23,6 +23,7 @@ interface Hit {
 export default function Library() {
   const instances = useConfig((s) => s.cfg.instances);
   const activeId = useConfig((s) => s.cfg.activeInstanceId);
+  const patch = useConfig((s) => s.patch);
   const active = useMemo(() => instances.find((i) => i.id === activeId) ?? instances[0], [instances, activeId]);
 
   const [query, setQuery] = useState("");
@@ -77,6 +78,13 @@ export default function Library() {
         fileName: file.filename,
       });
       if (!res.ok) throw new Error(res.error || "安装失败");
+      // 记下 Modrinth 索引，房间码才能带上「需要哪些 Mod」
+      await patch({
+        modrinthIndex: {
+          ...(useConfig.getState().cfg.modrinthIndex ?? {}),
+          [file.filename]: { p: hit.id, v: v.id, n: hit.title },
+        },
+      });
       toast.success("已安装", { description: `${hit.title} ${v.versionNumber} · ${formatBytes(file.size)}` });
     } catch (e) {
       toast.error(`安装失败：${(e as Error).message}`);

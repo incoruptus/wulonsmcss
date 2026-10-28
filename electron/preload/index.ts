@@ -64,7 +64,9 @@ contextBridge.exposeInMainWorld("mcss", {
   },
   mods: {
     scan: (dir: string) => invoke("mods:scan", dir),
-    meta: (jarPath: string) => invoke("mods:meta", jarPath)
+    meta: (jarPath: string) => invoke("mods:meta", jarPath),
+    disable: (jarPath: string) => invoke("mods:disable", jarPath),
+    enable: (jarPath: string) => invoke("mods:enable", jarPath)
   },
   worlds: {
     scan: (serverDir: string) => invoke("worlds:scan", serverDir),

@@ -8,6 +8,7 @@ import { Badge, SegmentedControl } from "@/components/ui/misc";
 import type { Instance } from "@/lib/types";
 import { encodeRoom, roomDeepLink, roomShareText, roomWebLink, type RoomDescriptorV1 } from "@/lib/room";
 import { copyText } from "@/lib/utils";
+import { useConfig } from "@/stores/config";
 
 type AddrMode = "lan" | "custom";
 
@@ -26,11 +27,22 @@ export function InviteDialog({
   const [roomName, setRoomName] = useState(instance.name);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [modRefs, setModRefs] = useState<{ p: string; v: string; n?: string }[]>([]);
 
   useEffect(() => {
     if (!open) return;
     void window.mcss.app.lanAddress().then((r) => setLanIp(r.ip)).catch(() => setLanIp("127.0.0.1"));
-  }, [open]);
+    // 用 Modrinth 索引给房间码带上「需要哪些 Mod」
+    void (async () => {
+      const index = useConfig.getState().cfg.modrinthIndex ?? {};
+      const list = await window.mcss.mods.scan(`${instance.dir}\\mods`).catch(() => []);
+      const refs = list
+        .map((m) => index[m.file])
+        .filter(Boolean)
+        .map((x) => ({ p: x.p, v: x.v, n: x.n }));
+      setModRefs(refs);
+    })();
+  }, [open, instance.dir]);
 
   const addr = mode === "lan" ? `${lanIp || "127.0.0.1"}:${instance.port}` : customAddr.trim();
 
@@ -41,10 +53,10 @@ export function InviteDialog({
       addr,
       mc: instance.mcVersion,
       loader: instance.loader,
-      // Mod 的 Modrinth id 索引还没落库，先留空；下一步接「准备客户端」时补齐
-      mods: [],
+      // 通过资源库装的 Mod 会被带进房间码（客户端可按 id 自动拉齐）
+      mods: modRefs,
     }),
-    [roomName, addr, instance],
+    [roomName, addr, instance, modRefs],
   );
 
   async function generate() {

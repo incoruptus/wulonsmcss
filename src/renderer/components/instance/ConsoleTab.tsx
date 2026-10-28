@@ -7,6 +7,7 @@ import {
   Eraser,
   Search,
   Send,
+  Stethoscope,
   Terminal,
   X,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { Badge, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { useServer } from "@/stores/server";
 import { suggestCommands } from "@/lib/commands";
+import { diagnose, type Diagnosis } from "@/lib/crash";
 import { copyText, cx } from "@/lib/utils";
 import type { Instance } from "@/lib/types";
 import type { LogEntry } from "@/lib/api";
@@ -50,8 +52,20 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   const [historyIdx, setHistoryIdx] = useState(-1);
   const [suggestIdx, setSuggestIdx] = useState(0);
   const [confirmStop, setConfirmStop] = useState(false);
+  const [hideDiag, setHideDiag] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 停服后如果日志里有异常，翻译成人话
+  const diagnosis = useMemo(() => {
+    if (status !== "stopped" || hideDiag) return null;
+    const recent = logs.slice(-150).map((l) => `[${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`);
+    return diagnose(recent);
+  }, [status, logs, hideDiag]);
+
+  useEffect(() => {
+    if (status === "running") setHideDiag(false);
+  }, [status]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { INFO: 0, WARN: 0, ERROR: 0, CHAT: 0 };
@@ -186,6 +200,15 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
           <Eraser className="size-3.5" />
         </IconButton>
       </div>
+
+      {/* 崩溃诊断 */}
+      {diagnosis ? (
+        <DiagnosisCard
+          diagnosis={diagnosis}
+          instance={instance}
+          onDismiss={() => setHideDiag(true)}
+        />
+      ) : null}
 
       {/* 日志区 */}
       <div className="relative min-h-0 flex-1">
@@ -417,6 +440,74 @@ function LogRow({ log, query }: { log: LogEntry; query: string }) {
       >
         <Copy className="size-3" />
       </button>
+    </div>
+  );
+}
+
+/* ---------------- 崩溃诊断卡 ---------------- */
+
+function DiagnosisCard({
+  diagnosis,
+  instance,
+  onDismiss,
+}: {
+  diagnosis: Diagnosis;
+  instance: Instance;
+  onDismiss: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function run(action: Diagnosis["actions"][number]) {
+    if (action.kind === "none") return;
+    setBusy(true);
+    try {
+      if (action.kind === "disable-mod" && action.arg) {
+        const list = await window.mcss.mods.scan(`${instance.dir}\\mods`);
+        const target = list.find((m) => m.id === action.arg) ?? list.find((m) => m.file.includes(action.arg!));
+        if (!target) {
+          toast.error(`没找到 ${action.arg} 的 jar，去 Mod 页手动关掉吧`);
+          return;
+        }
+        await window.mcss.mods.disable(target.path);
+        toast.success(`已禁用 ${target.name}，再启动试试`);
+        onDismiss();
+      } else if (action.kind === "repair-datapacks") {
+        const res = await window.mcss.worlds.repair(instance.dir);
+        if (!res.success) throw new Error(res.error || "修复失败");
+        toast.success(`已修复 ${res.fixed?.length ?? 0} 处，再启动试试`);
+        onDismiss();
+      } else if (action.kind === "change-java") {
+        const picked = await window.mcss.app.pickJava();
+        if (picked) toast.success("Java 已选中，保存到实例设置后再启动");
+      } else {
+        toast.info("去「实例设置」里改一下就好");
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl bg-red-700/10 p-3">
+      <div className="flex items-start gap-2">
+        <Stethoscope className="mt-0.5 size-4 shrink-0 text-red-900" />
+        <div className="min-w-0 flex-1">
+          <div className="t-label-13 font-medium text-red-900">服务器没能起来：{diagnosis.title}</div>
+          <div className="t-label-12 mt-0.5 text-gray-800">{diagnosis.detail}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {diagnosis.actions.map((a) => (
+              <Button key={a.label} size="xs" variant="secondary" onClick={() => run(a)} loading={busy}>
+                {a.label}
+              </Button>
+            ))}
+            <Button size="xs" variant="ghost" onClick={onDismiss}>
+              知道了
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
