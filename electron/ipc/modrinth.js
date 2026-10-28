@@ -87,4 +87,76 @@ async function install({ dir, fileUrl, fileName, onProgress }) {
   return { ok: true, path: dest };
 }
 
-module.exports = { search, versions, install };
+/**
+ * 给「本地手动装的 Mod」反查 Modrinth 版本。
+ * 两条路：
+ *   1) 直接把 fabric.mod.json 的 id 当 slug 查项目（sodium / fabric-api …）
+ *   2) 查不到就用显示名搜索，并对候选逐个核对「文件名完全一致」才认
+ *      （文件名是最硬的证据，避免搜到同名的另一个 Mod）
+ */
+async function resolveByModId({ id, file, version, name }) {
+  const candidates = [];
+
+  if (id) {
+    try {
+      const p = await getJson(`${API}/project/${encodeURIComponent(id)}`);
+      if (p?.id) candidates.push(p);
+    } catch (e) {}
+  }
+
+  if (!candidates.length && name) {
+    try {
+      const params = new URLSearchParams({
+        query: name,
+        limit: "3",
+        facets: JSON.stringify([["project_type:mod"]]),
+      });
+      const found = await getJson(`${API}/search?${params.toString()}`);
+      for (const hit of found.hits || []) {
+        candidates.push({ id: hit.project_id, title: hit.title, slug: hit.slug });
+      }
+    } catch (e) {}
+  }
+
+  for (const project of candidates) {
+    let versions = [];
+    try {
+      versions = await getJson(`${API}/project/${project.id}/version`);
+    } catch (e) {
+      continue;
+    }
+    if (!Array.isArray(versions)) continue;
+    const byFile = versions.find((v) => (v.files || []).some((f) => f.filename === file));
+    const byVersion = versions.find((v) => v.version_number === version);
+    const hit = byFile || byVersion;
+    if (hit) {
+      return {
+        p: project.id,
+        v: hit.id,
+        n: project.title,
+        matched: byFile ? "file" : "version",
+      };
+    }
+  }
+  return null;
+}
+
+/** 批量反查（并发 4，单条失败不影响其它） */
+async function resolveMany(list) {
+  const out = [];
+  const queue = [...list];
+  const workers = Array.from({ length: Math.min(4, queue.length) }, async () => {
+    for (;;) {
+      const item = queue.shift();
+      if (!item) return;
+      try {
+        const hit = await resolveByModId(item);
+        if (hit) out.push({ file: item.file, ...hit });
+      } catch (e) {}
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+module.exports = { search, versions, install, resolveByModId, resolveMany };

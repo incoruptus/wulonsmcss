@@ -196,6 +196,13 @@ ipcMain.handle("props:write", (_e, p, props) => files.writeProperties(p, props))
 
 ipcMain.handle("mods:scan", (_e, dir) => mods.scanMods(dir));
 ipcMain.handle("mods:meta", (_e, jarPath) => mods.readModMeta(jarPath));
+ipcMain.handle("mods:resolve-modrinth", async (_e, list) => {
+  try {
+    return await modrinth.resolveMany(Array.isArray(list) ? list : []);
+  } catch (err) {
+    return [];
+  }
+});
 ipcMain.handle("mods:disable", (_e, jarPath) => {
   if (!fs.existsSync(jarPath)) throw new Error("找不到这个 Mod 文件");
   const dest = `${jarPath}.disabled`;

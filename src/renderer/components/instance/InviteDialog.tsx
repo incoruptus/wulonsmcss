@@ -29,6 +29,7 @@ export function InviteDialog({
   const [busy, setBusy] = useState(false);
   const [modRefs, setModRefs] = useState<{ p: string; v: string; n?: string }[]>([]);
   const [stale, setStale] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   /** 当前 Mod 清单指纹：用来判断「上次生成的邀请码是否已过期」 */
   const fingerprint = useMemo(() => modRefs.map((m) => `${m.p}:${m.v}`).sort().join("|"), [modRefs]);
@@ -39,8 +40,26 @@ export function InviteDialog({
     void window.mcss.app.lanAddress().then((r) => setLanIp(r.ip)).catch(() => setLanIp("127.0.0.1"));
     // 用 Modrinth 索引给房间码带上「需要哪些 Mod」
     void (async () => {
-      const index = useConfig.getState().cfg.modrinthIndex ?? {};
+      const cfg = useConfig.getState().cfg;
+      const index = cfg.modrinthIndex ?? {};
       const list = await window.mcss.mods.scan(`${instance.dir}\\mods`).catch(() => []);
+
+      // 手动装进 mods/ 的 Mod 没有索引：按 mod id 反查 Modrinth，查到就记下来（只查一次）
+      const missing = list
+        .filter((m) => !index[m.file])
+        .map((m) => ({ id: m.id, file: m.file, version: m.version }));
+      if (missing.length) {
+        setResolving(true);
+        const resolved = await window.mcss.mods.resolveModrinth(missing).catch(() => []);
+        setResolving(false);
+        if (resolved.length) {
+          const merged = { ...index };
+          for (const r of resolved) merged[r.file] = { p: r.p, v: r.v, n: r.n };
+          await useConfig.getState().patch({ modrinthIndex: merged });
+          Object.assign(index, merged);
+        }
+      }
+
       const refs = list
         .map((m) => index[m.file])
         .filter(Boolean)
@@ -119,6 +138,9 @@ export function InviteDialog({
             <div className="flex h-9 items-center gap-2">
               <Badge variant="gray">{instance.mcVersion}</Badge>
               <Badge variant="gray">{instance.loader}</Badge>
+              <span className="t-label-12 text-gray-700">
+                {resolving ? "正在匹配 Modrinth…" : modRefs.length ? `${modRefs.length} 个 Mod 会写进邀请` : "没有可自动分发的 Mod"}
+              </span>
             </div>
           </Field>
         </div>

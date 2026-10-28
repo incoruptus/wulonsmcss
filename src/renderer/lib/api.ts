@@ -101,6 +101,9 @@ export interface McssApi {
     meta: (jarPath: string) => Promise<ModMeta | null>;
     disable: (jarPath: string) => Promise<boolean>;
     enable: (jarPath: string) => Promise<boolean>;
+    resolveModrinth: (list: { id: string; file: string; version: string }[]) => Promise<
+      { file: string; p: string; v: string; n?: string; matched?: string }[]
+    >;
   };
   worlds: {
     scan: (serverDir: string) => Promise<WorldPack[]>;
