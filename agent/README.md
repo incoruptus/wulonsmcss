@@ -44,9 +44,18 @@ node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未
 `app:info` · `app:lan-address` · `config:read|write` · `fs:read|write|exists|list|mkdir` ·
 `server:start|stop|command|status|pid|memory` ·
 `client:add-server` · `client:prepare` · `client:export-mrpack` ·
-`backup:list` · `backup:create` · `backup:restore` · `backup:remove`
+`backup:list` · `backup:create` · `backup:restore` · `backup:remove` ·
+`modrinth:search` · `modrinth:versions` · `modrinth:install` ·
+`mods:scan` · `mods:meta` · `mods:disable` · `mods:enable` ·
+`app:detect-launchers` · `ai:export-bundle`
 
 事件：`server:output`（含时间戳/级别/正文）、`server:status`、`client:progress`。
+
+### Mod 通道
+
+`mods:scan` 用 `bsdtar -xOf <jar> fabric.mod.json` 读元数据（zip + deflate 交给它），
+25 个 jar 约 0.6 秒；读不到就退回文件名解析（`name-1.2.3.jar`）。
+`mods:disable` / `mods:enable` 只是改名，和桌面版行为一致。
 
 ### 备份
 

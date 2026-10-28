@@ -77,7 +77,7 @@ async function waitHealth(timeoutMs = 8000) {
     process.exit(1);
   }
 
-  const hash = ROOM_CODE ? `/join/${ROOM_CODE}` : "/join";
+  const hash = !ROOM_CODE ? "/join" : ROOM_CODE.startsWith("/") ? ROOM_CODE : `/join/${ROOM_CODE}`;
   const url = `http://127.0.0.1:${WEB_PORT}/?agent=http://127.0.0.1:${AGENT_PORT}&t=${TOKEN}#${hash}`;
 
   const exe = path.join(ROOT, "node_modules", ".pnpm", "electron@33.4.11", "node_modules", "electron", "dist", "electron.exe");

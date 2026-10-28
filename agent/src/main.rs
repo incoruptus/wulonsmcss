@@ -916,6 +916,284 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
     ]))
 }
 
+/* ------------------------------ Modrinth ------------------------------ */
+
+fn urlencode(text: &str) -> String {
+    let mut out = String::new();
+    for b in text.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b' ' => out.push_str("%20"),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+fn get_json(url: &str) -> Result<Json, String> {
+    let body = curl(&["-s", "--max-time", "20", "-H", &format!("User-Agent: {UA}"), url])?;
+    let text = String::from_utf8_lossy(&body).to_string();
+    Json::parse(&text).map_err(|e| format!("解析接口返回失败：{e}"))
+}
+
+fn modrinth_search(query: &str, opts: Option<&Json>) -> Result<Json, String> {
+    let limit = opts.and_then(|o| o.get("limit")).and_then(|v| v.num()).unwrap_or(20.0) as i32;
+    let offset = opts.and_then(|o| o.get("offset")).and_then(|v| v.num()).unwrap_or(0.0) as i32;
+    let mc = opts.and_then(|o| o.get("mcVersion")).and_then(|v| v.str());
+    let loader = opts.and_then(|o| o.get("loader")).and_then(|v| v.str());
+
+    let mut facets = vec![r#"["project_type:mod"]"#.to_string()];
+    if let Some(mc) = mc {
+        facets.push(format!(r#"["versions:{mc}"]"#));
+    }
+    if let Some(loader) = loader {
+        facets.push(format!(r#"["categories:{loader}"]"#));
+    }
+    let facets_json = format!("[{}]", facets.join(","));
+
+    let url = format!(
+        "https://api.modrinth.com/v2/search?query={}&limit={limit}&offset={offset}&facets={}",
+        urlencode(query),
+        urlencode(&facets_json)
+    );
+    let json = get_json(&url)?;
+
+    let mut hits = Vec::new();
+    if let Some(list) = json.get("hits").and_then(|v| v.arr()) {
+        for hit in list {
+            let str_of = |k: &str| hit.get(k).and_then(|v| v.str()).unwrap_or("").to_string();
+            let categories = hit
+                .get("categories")
+                .and_then(|v| v.arr())
+                .map(|arr| arr.iter().filter_map(|c| c.str().map(Json::s)).collect())
+                .unwrap_or_default();
+            hits.push(Json::obj(vec![
+                ("id", Json::s(&str_of("project_id"))),
+                ("slug", Json::s(&str_of("slug"))),
+                ("title", Json::s(&str_of("title"))),
+                ("description", Json::s(&str_of("description"))),
+                ("iconUrl", Json::s(&str_of("icon_url"))),
+                ("downloads", Json::n(hit.get("downloads").and_then(|v| v.num()).unwrap_or(0.0))),
+                ("author", Json::s(&str_of("author"))),
+                ("categories", Json::Arr(categories)),
+            ]));
+        }
+    }
+
+    Ok(Json::obj(vec![
+        ("hits", Json::Arr(hits)),
+        ("total", Json::n(json.get("total_hits").and_then(|v| v.num()).unwrap_or(0.0))),
+    ]))
+}
+
+fn modrinth_versions(project_id: &str, opts: Option<&Json>) -> Result<Json, String> {
+    let mc = opts.and_then(|o| o.get("mcVersion")).and_then(|v| v.str());
+    let loader = opts.and_then(|o| o.get("loader")).and_then(|v| v.str());
+
+    let mut url = format!("https://api.modrinth.com/v2/project/{}/version?", urlencode(project_id));
+    if let Some(mc) = mc {
+        url.push_str(&format!("game_versions={}&", urlencode(&format!(r#"["{mc}"]"#))));
+    }
+    if let Some(loader) = loader {
+        url.push_str(&format!("loaders={}&", urlencode(&format!(r#"["{loader}"]"#))));
+    }
+
+    let json = get_json(&url)?;
+    let list = json.arr().ok_or("接口返回格式不对")?;
+
+    let mut out = Vec::new();
+    for v in list {
+        let str_of = |k: &str| v.get(k).and_then(|x| x.str()).unwrap_or("").to_string();
+        let strs = |k: &str| {
+            v.get(k)
+                .and_then(|x| x.arr())
+                .map(|arr| arr.iter().filter_map(|s| s.str().map(Json::s)).collect::<Vec<_>>())
+                .unwrap_or_default()
+        };
+        let files = v
+            .get("files")
+            .and_then(|f| f.arr())
+            .map(|arr| {
+                arr.iter()
+                    .map(|f| {
+                        Json::obj(vec![
+                            ("url", Json::s(f.get("url").and_then(|x| x.str()).unwrap_or(""))),
+                            ("filename", Json::s(f.get("filename").and_then(|x| x.str()).unwrap_or(""))),
+                            ("size", Json::n(f.get("size").and_then(|x| x.num()).unwrap_or(0.0))),
+                            ("primary", Json::Bool(f.get("primary").and_then(|x| x.bool()).unwrap_or(false))),
+                        ])
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        out.push(Json::obj(vec![
+            ("id", Json::s(&str_of("id"))),
+            ("name", Json::s(&str_of("name"))),
+            ("versionNumber", Json::s(&str_of("version_number"))),
+            ("gameVersions", Json::Arr(strs("game_versions"))),
+            ("loaders", Json::Arr(strs("loaders"))),
+            ("datePublished", Json::s(&str_of("date_published"))),
+            ("files", Json::Arr(files)),
+        ]));
+    }
+    Ok(Json::Arr(out))
+}
+
+fn modrinth_install(opts: &Json) -> Result<Json, String> {
+    let dir = opts.get("dir").and_then(|v| v.str()).unwrap_or("");
+    let url = opts.get("fileUrl").and_then(|v| v.str()).unwrap_or("");
+    let filename = opts.get("fileName").and_then(|v| v.str()).unwrap_or("mod.jar");
+    if dir.is_empty() || !url.starts_with("https://") {
+        return Err("缺少安装目录或下载地址不合法".into());
+    }
+    let safe: String = filename
+        .chars()
+        .map(|c| if r#"[\\/:*?"<>|]"#.contains(c) { '_' } else { c })
+        .collect();
+    let dest = Path::new(dir).join("mods").join(&safe);
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败：{e}"))?;
+    }
+    curl(&[
+        "-L",
+        "--fail",
+        "--max-time",
+        "600",
+        "-H",
+        &format!("User-Agent: {UA}"),
+        "-o",
+        &dest.to_string_lossy(),
+        url,
+    ])?;
+    Ok(Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("path", Json::s(&dest.to_string_lossy())),
+    ]))
+}
+
+/* -------------------------------- Mods -------------------------------- */
+
+/// 用 bsdtar 读 jar 里的 fabric.mod.json（zip + deflate 都交给它）
+fn read_fabric_meta(jar: &Path) -> Option<Json> {
+    let out = Command::new("tar").arg("-xOf").arg(jar).arg("fabric.mod.json").output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&out.stdout).trim_start_matches('\u{feff}').to_string();
+    Json::parse(&text).ok()
+}
+
+/// 没有 fabric.mod.json 时退回文件名解析：name-1.2.3.jar
+fn fallback_meta(file: &str) -> (String, String, String) {
+    let base = file.trim_end_matches(".jar").trim_end_matches(".JAR").to_string();
+    if let Some(idx) = base.rfind('-') {
+        let (name, ver) = base.split_at(idx);
+        let version = ver.trim_start_matches('-');
+        if version.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            return (name.to_string(), version.to_string(), name.to_lowercase().replace(' ', "-"));
+        }
+    }
+    (base.clone(), String::new(), base.to_lowercase().replace(' ', "-"))
+}
+
+fn scan_mods(dir: &str) -> Result<Json, String> {
+    let rd = std::fs::read_dir(dir).map_err(|e| format!("读取目录失败：{e}"))?;
+    let mut out = Vec::new();
+
+    for entry in rd.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_lowercase();
+        if !lower.ends_with(".jar") {
+            continue;
+        }
+        let path = entry.path();
+        let meta = std::fs::metadata(&path);
+        if meta.as_ref().map(|m| !m.is_file()).unwrap_or(true) {
+            continue;
+        }
+        let size = meta.as_ref().map(|m| m.len() as f64).unwrap_or(0.0);
+        let mtime = meta
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as f64)
+            .unwrap_or(0.0);
+
+        let (id, display, version, env, depends) = match read_fabric_meta(&path) {
+            Some(meta) => {
+                let dep_names: Vec<Json> = match meta.get("depends") {
+                    Some(Json::Obj(items)) => items.iter().map(|(k, _)| Json::s(k)).collect(),
+                    _ => Vec::new(),
+                };
+                (
+                    meta.get("id").and_then(|v| v.str()).unwrap_or("").to_string(),
+                    meta.get("name")
+                        .and_then(|v| v.str())
+                        .or_else(|| meta.get("id").and_then(|v| v.str()))
+                        .unwrap_or(&name)
+                        .to_string(),
+                    meta.get("version").and_then(|v| v.str()).unwrap_or("").to_string(),
+                    match meta.get("environment").and_then(|v| v.str()) {
+                        Some("client") => "client".to_string(),
+                        Some("server") => "server".to_string(),
+                        _ => "*".to_string(),
+                    },
+                    dep_names,
+                )
+            }
+            None => {
+                let (display, version, id) = fallback_meta(&name);
+                (id, display, version, "*".to_string(), Vec::new())
+            }
+        };
+
+        out.push(Json::obj(vec![
+            ("file", Json::s(&name)),
+            ("path", Json::s(&path.to_string_lossy())),
+            ("id", Json::s(&id)),
+            ("name", Json::s(&display)),
+            ("version", Json::s(&version)),
+            ("environment", Json::s(&env)),
+            ("depends", Json::Arr(depends)),
+            ("size", Json::n(size)),
+            ("mtime", Json::n(mtime)),
+        ]));
+    }
+
+    out.sort_by(|a, b| {
+        a.get("name")
+            .and_then(|v| v.str())
+            .unwrap_or("")
+            .cmp(b.get("name").and_then(|v| v.str()).unwrap_or(""))
+    });
+    Ok(Json::Arr(out))
+}
+
+fn toggle_mod(jar_path: &str, enable: bool) -> Result<Json, String> {
+    let path = Path::new(jar_path);
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let lower = name.to_lowercase();
+
+    if enable {
+        if !lower.ends_with(".jar.disabled") {
+            return Err("这个文件不是被禁用的状态".into());
+        }
+        let target = path.with_file_name(name.trim_end_matches(".disabled").to_string());
+        std::fs::rename(path, &target).map_err(|e| format!("启用失败：{e}"))?;
+    } else {
+        if !lower.ends_with(".jar") {
+            return Err("只能禁用 .jar".into());
+        }
+        let target = path.with_file_name(format!("{name}.disabled"));
+        std::fs::rename(path, &target).map_err(|e| format!("禁用失败：{e}"))?;
+    }
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
 /* ------------------------------- 文件 ------------------------------- */
 
 fn fs_list(dir: &str) -> Result<Json, String> {
@@ -1014,6 +1292,23 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:remove" => backup_remove(arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "modrinth:search" => modrinth_search(arg0, args.get(1)),
+        "modrinth:versions" => modrinth_versions(arg0, args.get(1)),
+        "modrinth:install" => modrinth_install(args.first().ok_or("缺少参数")?),
+        "mods:scan" => scan_mods(arg0),
+        "mods:disable" => toggle_mod(arg0, false),
+        "mods:enable" => toggle_mod(arg0, true),
+        "mods:meta" => {
+            // 单个 jar 的元数据：复用目录扫描，按文件名挑出来
+            let p = Path::new(arg0);
+            let dir = p.parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default();
+            let file = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let list = scan_mods(&dir)?;
+            let hit = list
+                .arr()
+                .and_then(|arr| arr.iter().find(|m| m.get("file").and_then(|v| v.str()) == Some(file.as_str())).cloned());
+            Ok(hit.unwrap_or(Json::Null))
+        }
         "server:start" => start_server(shared, arg0),
         "server:stop" => Ok(stop_server(shared)),
         "server:command" => send_command(shared, arg0),
