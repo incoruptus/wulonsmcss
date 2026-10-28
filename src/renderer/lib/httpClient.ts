@@ -159,6 +159,12 @@ export function createHttpClient(base: string, token: string): McssApi {
       repair: (serverDir) => invoke("worlds:repair", serverDir),
       reload: () => invoke("worlds:reload"),
     },
+    backup: {
+      list: (serverDir) => invoke("backup:list", serverDir),
+      create: (serverDir) => invoke("backup:create", serverDir),
+      restore: (serverDir, name) => invoke("backup:restore", serverDir, name),
+      remove: (serverDir, name) => invoke("backup:remove", serverDir, name),
+    },
     versions: {
       minecraft: () => invoke("versions:minecraft"),
       fabricLoaders: (mc) => invoke("versions:fabric-loaders", mc),

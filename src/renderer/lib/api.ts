@@ -108,6 +108,12 @@ export interface McssApi {
     repair: (serverDir: string) => Promise<{ success: boolean; error?: string; fixed?: string[] }>;
     reload: () => Promise<{ success: boolean }>;
   };
+  backup: {
+    list: (serverDir: string) => Promise<{ name: string; path: string; size: number; mtime: number }[]>;
+    create: (serverDir: string) => Promise<{ ok: boolean; name?: string; size?: number; error?: string }>;
+    restore: (serverDir: string, name: string) => Promise<{ ok: boolean; parked?: string; error?: string }>;
+    remove: (serverDir: string, name: string) => Promise<{ ok: boolean; error?: string }>;
+  };
   versions: {
     minecraft: () => Promise<McVersion[]>;
     fabricLoaders: (mc: string) => Promise<string[]>;

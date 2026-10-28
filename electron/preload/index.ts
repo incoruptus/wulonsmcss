@@ -75,6 +75,12 @@ contextBridge.exposeInMainWorld("mcss", {
     repair: (serverDir: string) => invoke("worlds:repair", serverDir),
     reload: () => invoke("worlds:reload")
   },
+  backup: {
+    list: (serverDir: string) => invoke("backup:list", serverDir),
+    create: (serverDir: string) => invoke("backup:create", serverDir),
+    restore: (serverDir: string, name: string) => invoke("backup:restore", serverDir, name),
+    remove: (serverDir: string, name: string) => invoke("backup:remove", serverDir, name)
+  },
   versions: {
     minecraft: () => invoke("versions:minecraft"),
     fabricLoaders: (mc: string) => invoke("versions:fabric-loaders", mc),

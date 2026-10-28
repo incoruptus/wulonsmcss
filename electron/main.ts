@@ -14,6 +14,7 @@ const modrinth = require(path.join(IPC_DIR, "modrinth.js"));
 const frp = require(path.join(IPC_DIR, "frp.js"));
 const preflight = require(path.join(IPC_DIR, "preflight.js"));
 const client = require(path.join(IPC_DIR, "client.js"));
+const backup = require(path.join(IPC_DIR, "backup.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
@@ -339,6 +340,13 @@ server.onStatus((status) => send("server:status", status));
 
 ipcMain.handle("app:open-path", (_e, p) => shell.openPath(p));
 ipcMain.handle("app:open-external", (_e, url) => shell.openExternal(url));
+
+/* --------------------------------- 备份 ---------------------------------- */
+
+ipcMain.handle("backup:list", (_e, serverDir) => backup.list(serverDir));
+ipcMain.handle("backup:create", (_e, serverDir) => backup.create(serverDir, server));
+ipcMain.handle("backup:restore", (_e, serverDir, name) => backup.restore(serverDir, name, server));
+ipcMain.handle("backup:remove", (_e, serverDir, name) => backup.remove(serverDir, name));
 
 /* -------------------------------- 资源库 --------------------------------- */
 
