@@ -1,8 +1,9 @@
-# 乌龙味 MC 开服茶 · Wulon's MCSS
+# Wulon's MCSS · 乌龙味 MC 开服茶
 
 **一站式 Minecraft 服务器管理桌面应用**
+Electron + React 19 + Tailwind v4，面向零基础用户：选版本 → 装 Mod → 配联机 → 一键开服。
 
-基于 Electron + Vue 3 构建，提供图形化的服务器生命周期管理、Mod/玩家/配置管理功能，支持 Material You 动态主题色和自定义壁纸。
+> v27 重构版（2026-10）。v26 的 Vue 3 + Material You 版本见 git 历史 `ea78a05`。
 
 ---
 
@@ -10,219 +11,142 @@
 
 | 层级 | 技术 | 用途 |
 |------|------|------|
-| 框架 | Electron 33 + Vue 3.5 | 桌面 GUI + 响应式 UI |
-| 构建 | electron-vite 5 + Vite 6 | 三端打包（主进程/预加载/渲染进程） |
-| UI | @material/web 2.4 (MD3) | Material Design 3 组件库 |
-| 原子化 CSS | UnoCSS | 按需生成样式，零运行时 |
-| 状态管理 | Pinia 3 | 全局状态（主题/服务器/动画/通知） |
-| 路由 | Vue Router 4 | 页面导航、Hash History |
-| 动画 | CSS @keyframes + 自定义 easing | 渐变过渡、交错进场、涟漪反馈 |
-| 图标 | Material Symbols | 1:1 三端图标（圆体/细体/锐体 各 7000+） |
-| 字体 | OPPO Sans UI + Cascadia Code | 中英文 UI + 等宽终端字体 |
-| 包管理 | pnpm 11 | 依赖管理及工作区 |
-| 打包 | electron-builder / @electron/packager | NSIS 安装包 / 便携版 exe |
+| 框架 | Electron 33 + React 19 | 桌面外壳 + 函数式 UI |
+| 构建 | electron-vite 5 + Vite 5 | 三端打包（主进程 / 预加载 / 渲染） |
+| 样式 | Tailwind CSS v4 + Geist 设计令牌 | 原子化样式，令牌与 WulonVocab 同源 |
+| 组件 | Radix UI primitives | 无障碍弹窗 / 菜单 / 开关 / 滑杆 |
+| 状态 | Zustand 5 | 配置、服务器状态、日志流 |
+| 路由 | React Router 7（Hash） | `file://` 下无刷新路由 |
+| 图标 | lucide-react | 统一线性图标 |
+| 字体 | Sora（拉丁，随包）→ 系统黑体链 | 中文回退到 PingFang / 微软雅黑 |
+| 提示 | sonner | Toast |
+
+渲染进程不直接碰 Node：全部能力经 `window.mcss`（contextBridge）走 IPC。
 
 ---
 
-## 项目结构
+## 目录结构
 
 ```
 wulons-mcss/
 ├── electron/
-│   ├── main.ts              ← 主进程入口：窗口管理、IPC 注册
-│   ├── entry.cjs             ← Electron 启动入口
-│   ├── ipc/
-│   │   ├── server.js         ← MC 服务器进程管理（启动/停止/命令）
-│   │   └── files.js          ← 文件 I/O、Config 读写、Mod 元数据提取
-│   └── preload/
-│       └── index.ts          ← 预加载桥：contextBridge 暴露 API
+│   ├── main.ts               ← 窗口、IPC 注册、生命周期（薄壳）
+│   ├── preload/index.ts      ← contextBridge：window.mcss
+│   └── ipc/
+│       ├── config.js         ← 配置读写 + v26→v27 迁移
+│       ├── server.js         ← 服务器进程：启动/停止/stdin/日志/内存
+│       ├── versions.js       ← Mojang 清单 / Fabric Meta / 流式下载
+│       ├── mods.js           ← ZIP 中央目录解析 + fabric.mod.json 扫描
+│       ├── worlds.js         ← 多世界数据包（调用 MWM CLI）
+│       ├── files.js          ← 文件与 server.properties
+│       └── java.js           ← Java 运行时探测
 ├── src/renderer/
-│   ├── main.ts               ← Vue 应用挂载点
-│   ├── App.vue               ← 根组件：TitleBar + Sidebar + RouterView
-│   ├── env.d.ts              ← ElectronAPI 类型声明
-│   ├── router/index.ts       ← 路由配置（Hash 模式）
-│   ├── stores/               ← Pinia 存储
-│   │   ├── app.ts            ← 主题、壁纸、主题色、色调生成
-│   │   ├── server.ts         ← 服务器状态、日志、TPS、玩家列表
-│   │   ├── animation.ts      ← 动画开关、--anim-modifier 控制
-│   │   └── notifications.ts  ← Toast 通知队列
-│   ├── views/                ← 页面组件（10 个）
-│   │   ├── Dashboard.vue     ← 仪表盘：启动按钮、统计卡片、快捷操作、最近日志
-│   │   ├── Console.vue       ← 控制台：实时日志流、指令输入
-│   │   ├── ServerConfig.vue  ← 服务器配置：表单/源码模式编辑 server.properties
-│   │   ├── Players.vue       ← 玩家管理：OP/白名单/踢出
-│   │   ├── Mods.vue          ← Mod 管理：安装/删除/搜索
-│   │   ├── Settings.vue      ← 设置：外观/性能/路径/备份/关于
-│   │   ├── VersionCompare.vue← 版本比对：导入/导出/差异对比
-│   │   ├── Game.vue          ← 游戏操作：启动器、Mod 适格性审查
-│   │   ├── Worlds.vue        ← 多世界管理：扫描/创建/删除数据包
-│   │   └── Frp.vue           ← FRP 隧道管理
-│   ├── components/           ← 通用组件
-│   │   ├── TitleBar.vue      ← 自定义标题栏（无边框窗口）
-│   │   ├── Sidebar.vue       ← 侧边导航栏
-│   │   ├── ToastContainer.vue← Toast 通知容器
-│   │   ├── SetupDialog.vue   ← 首次运行设置向导
-│   │   ├── PropsEditor.vue   ← server.properties 语法高亮编辑器
-│   │   ├── SegmentedButton.vue ← 分段按钮组件
-│   │   ├── AddActionDialog.vue  ← 添加快捷操作对话框
-│   │   └── EditActionsDialog.vue← 编辑快捷操作对话框
-│   ├── styles/
-│   │   ├── global.css        ← 全局样式、滚动条、CSS 变量
-│   │   ├── animations.css    ← 动画系统：关键帧、过渡类、交错
-│   │   ├── md3-theme.css     ← Material 3 主题 token
-│   │   └── fonts.css         ← 字体声明
-│   └── directives/
-│       └── ripple.ts         ← 涟漪动画指令
-├── resources/
-│   ├── app-icon.png          ← 应用图标
-│   ├── fonts/                ← OPPO Sans / Cascadia Code 字体
-│   └── wallpaper.jpg         ← 默认壁纸
-├── wulons-mcss-mwm/          ← 子项目：多世界数据包生成 CLI（Node ESM，无依赖）
-│   ├── src/cli.js            ← 入口：node src/cli.js <config.json> [output-dir]
-│   ├── src/generate.js       ← dimension / dimension_type JSON 生成
-│   └── src/templates/        ← 各世界类型的模板与 pack.mcmeta
-├── wulons-mcss-mwm-mod/      ← 子项目：游戏内世界切换 Fabric 模组（Java）
-├── package-win.js            ← 手动打包脚本（@electron/packager + asar）
-├── electron-builder.yml      ← electron-builder 配置（NSIS 安装包）
-└── electron.vite.config.ts   ← electron-vite 三端构建配置
+│   ├── main.tsx / App.tsx    ← 入口 / 布局与路由
+│   ├── pages/                ← Overview · Instances · InstanceDetail · Settings
+│   ├── components/
+│   │   ├── app/              ← TitleBar（自绘无边框）、Sidebar、PageHeader
+│   │   ├── ui/               ← Geist 组件（移植自 WulonVocab）
+│   │   └── instance/         ← 实例详情各 Tab 与新建向导
+│   ├── stores/               ← config / server（zustand）
+│   ├── lib/                  ← api 类型、types、utils
+│   └── styles/globals.css    ← 设计令牌 + 字体栈 + 工具类
+├── wulons-mcss-mwm/          ← 子项目：多世界数据包 CLI（Node ESM）
+├── wulons-mcss-mwm-mod/      ← 子项目：游戏内世界切换模组（Fabric）
+└── package-win.js            ← 便携版打包
 ```
 
 ---
 
-## 子项目：多世界（MWM）
+## 数据模型（config.json · v27）
 
-| 模块 | 作用 | 产物 |
-|------|------|------|
-| `wulons-mcss-mwm/` | 读 `worlds.json` → 生成 `dimension` / `dimension_type` 数据包 | `world/datapacks/mwm-<ns>-<name>/` |
-| `wulons-mcss-mwm-mod/` | 游戏内左下角世界切换 HUD（P 键开关）、`/mwm` 指令 | `wulons-mwm-mod-*.jar` |
-| `Worlds.vue` + `worlds:*` IPC | 管理端：扫描 `world/datapacks/`、创建/删除数据包、`/reload` | — |
-
-创建世界时，主进程用 Electron 自带的 Node（`ELECTRON_RUN_AS_NODE=1`）以子进程调用 CLI，
-因此打包后**不需要**用户机器额外安装 Node。打包时 CLI 源码放在 asar 外的 `resources/mwm/`。
-
----
-
-## 架构设计
-
-### 三进程模型
-
-```
-┌─────────────┐     IPC      ┌──────────────┐
-│  主进程       │◄───────────►│  渲染进程      │
-│  main.ts     │   invoke     │  Vue 3 App   │
-│  server.js   │   on/handle  │  Pinia Store │
-│  files.js    │              │  Components  │
-└──────┬───────┘              └──────┬────────┘
-       │                            │
-       │  preload/index.ts          │
-       │  contextBridge             │
-       │  (安全隔离)               │
-       └────────────────────────────┘
+```ts
+interface AppConfig {
+  version: 27
+  theme: 'light' | 'dark' | 'system'
+  accent: string
+  instances: Instance[]        // 多实例：各自独立的版本 / Mod / 配置 / 存档
+  activeInstanceId: string | null
+  consoleViewMode: 'code' | 'bubble'
+  maxLogLines: number
+  quickActions: QuickAction[]
+  frpProfiles: FrpProfile[]
+  sync: SyncConfig | null      // GitHub Gist 跨端同步
+  setupComplete: boolean
+}
 ```
 
-- **主进程** (`electron/main.ts`)：管理窗口生命周期、注册所有 IPC handler。通过 `server.js` 启动/停止 Minecraft 服务器进程，通过 `files.js` 进行文件 I/O 和配置读写
-- **预加载脚本** (`electron/preload/index.ts`)：通过 `contextBridge.exposeInMainWorld` 暴露有限的 API 给渲染进程。使用单回调模式防止页面重载导致监听器重复注册
-- **渲染进程** (`src/renderer/`)：Vue 3 SPA，通过 `window.electronAPI` 调用 IPC，不直接访问 Node.js API
+`Instance` = `{ id, name, dir, mcVersion, loader, loaderVersion, javaPath, memoryMin, memoryMax, jvmArgs, port, ... }`。
 
-### IPC 通信模式
-
-所有渲染进程 → 主进程的调用统一走 `ipcMain.handle` + `ipcRenderer.invoke`（请求-响应模式）。
-事件推送（服务器日志、状态变更）走 `webContents.send` + `ipcRenderer.on`。
-
-### 配置持久化
-
-- **开发环境**：config.json 存储在项目根目录
-- **生产环境**：config.json 存储在 `app.getPath('userData')`（如 `%APPDATA%/WulonsMCSS/`）
-- 写入采用「读取→合并→写入」模式防止字段丢失
-- save() 使用 300ms debounce 防止高频写入
-
-### 主题系统
-
-Material You 动态主题色。用户选择主色后，`app.ts` 的 `setPrimaryColor()` 自动计算：
-- Primary / Secondary / Tertiary 色系
-- 各色调容器色 (Container)
-- 暗色模式适配
-- 通过 `<style id="theme-override">` 注入 CSS 变量
-
-### 动画系统
-
-`animation.ts` 通过 Pinia store 控制 `--anim-modifier` CSS 变量：
-- `--anim-modifier: 1` → 动画正常播放
-- `--anim-modifier: 0` → 全局禁用动画
-- 所有动画 duration 使用 `calc(base * var(--anim-modifier, 1))`
-- 交错进场通过 `--anim-stagger` 控制子元素延时
+**迁移**：v26 的扁平 `serverPath / javaPath / maxMemory / initMemory / jvmArgs` 会
+在首次读取时收敛成一条 `id: "legacy"` 的实例；主题、控制台视图、动画开关一并保留。
 
 ---
 
 ## 开发命令
 
 ```bash
-pnpm dev        # 启动 Vite dev server + Electron
-pnpm build      # 三端构建（out/ 目录）
-pnpm typecheck  # vue-tsc 检查渲染进程类型（当前为绿）
-pnpm typecheck:main  # 检查 electron/ 下的 TS（历史遗留，尚未清零）
-pnpm lint       # ESLint 检查
+pnpm dev          # Vite dev server + Electron
+pnpm build        # 三端构建（out/）
+pnpm typecheck    # tsc --noEmit（渲染进程，当前为绿）
+pnpm test         # vitest（同步内核）
+node package-win.js   # 便携版打包 → ../wulons-mcss-b27.0.0/
 ```
-
-## 打包命令
-
-```bash
-pnpm dist                       # electron-builder → NSIS 安装包
-node package-win.js             # 手动打包 → 便携版 exe
-```
-
-打包输出路径：`../wulons-mcss-b26.7.02/`（由 package.json 的 version 决定）
 
 ---
 
-## 关键设计决策
+## 设计系统
 
-| 决策 | 理由 |
+- **令牌**：background-100/200 + 10 级灰 + blue/green/amber/red 语义色（`globals.css`）
+- **强调色**：`<html data-accent>` + `--ui-accent-hex`，blue 色阶整体重定向
+- **字体**：`Sora → PingFang SC → HarmonyOS Sans SC → 微软雅黑 → system-ui`
+- **体例**：`.t-h-24 / .t-label-13 / .t-mono-12` 等字号工具类，与 WulonVocab 一致
+
+---
+
+## 当前进度
+
+| 模块 | 状态 |
 |------|------|
-| 无边框窗口 + 自定义 TitleBar | 统一跨平台视觉风格 |
-| 三端构建（main/preload/renderer） | 安全隔离，渲染进程不访问 Node.js |
-| `contenteditable` 语法高亮编辑器 | 替代 `<textarea>`，保留全语法高亮 |
-| hash 路由 | Electron 无需服务端路由支持 |
-| 轻量依赖（无 UI 框架） | 减少体积，直接使用 @material/web Web Components |
-| 主进程不在 ASAR 中读配置 | 生产环境改为 userData 路径以支持写操作 |
+| 三端重构（React 19 + Tailwind 4 + Radix） | ✅ |
+| 多实例：列表 / 新建（真实的 Mojang + Fabric 下载）/ 编辑 / 删除 | ✅ |
+| 服务器进程：启动/停止/指令/日志/内存/TPS | ✅ |
+| 实例详情：概览 / 控制台 / 配置 / Mod / 世界 / 玩家 | ✅ |
+| Mod 扫描（ZIP 直读 `fabric.mod.json`）与**客户端 ↔ 服务端比对** | ✅ |
+| 多世界数据包（生成 / 删除 / 扫描） | ✅ |
+| GitHub Gist 跨端同步（配对码 + AES-GCM + 分片 + 中转站认领） | ⏳ 下一阶段 |
+| 资源库（Modrinth 搜索 / 一键装 Mod） | ⏳ |
+| FRP 隧道（通用 frpc + SakuraFrp） | ⏳ |
+| 零基础开服向导（版本 → Mod → 联机 → 开服） | ⏳ |
 
 ---
 
 ## 维护记录
 
-### 2026-10-28 · 接管修复
+### 2026-10-28 · v27 重构
 
-接管时应用**完全无法启动**：`electron/ipc/server.js` 的 `sendCommand` 函数体被截断，
-文件本身无法解析（主进程 `require` 阶段即抛 `SyntaxError`）。
+- 技术栈从 Vue 3 + Material You 换成 **React 19 + Vite + Tailwind v4 + Radix**，
+  完全复用 WulonVocab 的 Geist 设计令牌与 UI 组件；Next.js 被评估后否决
+  （静态导出后 SSR/RSC 归零，`file://` 下 App Router 还需额外适配）。
+- 字体回退按要求改为 **Sora → 系统黑体链**，正文不再依赖 22MB 的 OPPO Sans。
+- 信息架构按「实例」重组：概览 / 实例 / 实例详情（6 个 Tab）/ 设置。
+- 主进程拆成 `electron/ipc/*` 七个模块，`main.ts` 只做窗口与 IPC 注册。
+- `mods.js` 用 ZIP 中央目录 + `zlib.inflateRawSync` 直读 jar，替代原来的 `tar` 子进程。
+- 配置升级为 v27（多实例），并带自动迁移。
 
-| 问题 | 影响 | 处理 |
-|------|------|------|
-| `server.js` 中 `sendCommand` 被截断 | 应用启动即崩溃；控制台指令、`stop` 全部失效 | 重写该文件：补全 stdin 写入 + 指令回显 + 未运行时告警 |
-| spawn 未监听 `error` 事件 | Java 路径错误 → 主进程未捕获异常崩溃 | 监听并输出错误日志，状态回到 stopped |
-| 设置里的初始/最大内存从未传给 JVM | 服务器一直跑默认堆大小，与界面显示不符 | 启动时拼接 `-Xms/-Xmx` |
-| JVM 参数按空格硬切 | `-javaagent:"C:\my tools\x.jar"` 这类带空格路径会被切坏 | 改为支持引号的参数解析 |
-| `starting` 状态不可达 | "启动中..." 永远不显示，启动阶段无反馈 | server.js 由 spawn→`Done (` 推进状态，store 支持 starting |
-| 打包版"创建世界"必然失败 | CLI 未进安装包，且依赖用户机器装了 node | CLI 放到 asar 外 `resources/mwm/`，用 `ELECTRON_RUN_AS_NODE` 调用自带 Node |
-| `worlds:create` 未校验世界名 | 世界名可带 `../` 写出服务端目录 | 限制为 `[a-z0-9_-]` |
-| JSON 读取不容忍 BOM | 记事本改过的 config / worlds.json 解析失败 | 读取后剥离 `\uFEFF` |
-| 打包配置重复拷贝 `resources/` | 安装包平白多出约 100MB | 移除多余的 `extraResources: resources/` |
-| 打包后更换壁纸静默失败 | `copyWallpaper` 往只读的 app.asar 里写；"清除缓存"还会误删内置壁纸 | 改存 `userData/wallpapers/`，清缓存只清用户壁纸 |
-| `pnpm typecheck` 跑不起来 | tsconfig 项目引用缺 `composite`，类型检查形同虚设 | 拆成 renderer / main 两套检查，渲染进程已清零 |
-| 版本号写死 | 26.7.02 的包内 `version` 文件仍是 26.7.01 | 统一读 package.json |
-| 仓库无版本控制 | 上面那个语法错误无从回滚/追溯 | `git init` + `.gitignore`，建立基线提交 |
+### 2026-10-28 · v26 接管修复
 
-### 已知未完成（骨架已有、数据未接）
-
-| 位置 | 现状 |
+| 问题 | 处理 |
 |------|------|
-| `views/Game.vue` · Mod 适格性审查 | `startCheck()` 只 push 一条"检查完成/版本匹配"，**并未真的比对**客户端与服务端 mods |
-| `views/Frp.vue` · 隧道管理 | `startFrp` 只是 `spawn('SakuraLauncher.exe')`，无参数、无输出解析，`frpAddress` 永远为空 |
-| `views/Mods.vue` · 在线搜索 | 依赖本地 jar 扫描，无远程仓库检索 |
-| 多世界 | 数据包生成/删除已通；世界规则、进服权限、游戏内 HUD（见 `ideas/multi-world-management.md`）未实现 |
+| `server.js` 的 `sendCommand` 被截断，应用启动即崩 | 重写该模块（stdin 写入 + 回显 + 错误处理） |
+| 设置里的内存从未传给 JVM | 启动时拼 `-Xms/-Xmx` |
+| 打包版「创建世界」必失败 | CLI 移到 asar 外，用 `ELECTRON_RUN_AS_NODE` 调 |
+| 打包版换壁纸静默失败 | 改存 `userData/wallpapers` |
+| 无版本控制 | `git init` + `.gitignore`，建立基线 |
 
-### 首次实测提醒
+---
 
-- `pnpm dev` / 打包版启动后，先在「设置 → 服务器路径 / Java 路径」确认两项配置。
-  本机 `config.json` 的 `javaPath` 指向 `.minecraft/runtime/java-runtime-epsilon`（存在），
-  项目里另带 `jdk21/jdk-21.0.6+7`，切过去也能用。
-- 起服会占用 25565 端口并加载线上存档，接管后**未擅自启动**，需确认后再验证。
+## 已知限制
+
+- 同一时刻只运行一个服务器实例（进程管理是单例，UI 以「当前实例」为准）。
+- 「重置全部设置」会清空实例列表，但不会删除磁盘上的服务器文件。
+- FRP / 资源库 / 同步的 IPC 已预留通道，当前调用会返回「尚未接入」。

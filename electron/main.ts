@@ -1,420 +1,286 @@
-const path = require('path')
-const Module = require('module')
+const path = require("path");
+const fs = require("fs");
+const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require("electron");
 
-if (!process.activateUvLoop) {
-  process.activateUvLoop = function() {}
-}
+// electron/ipc 下的模块按运行时路径加载（不进 bundle，打包时随 electron/ipc/** 一起进 asar）
+const IPC_DIR = path.join(__dirname, "..", "..", "electron", "ipc");
+const server = require(path.join(IPC_DIR, "server.js"));
+const files = require(path.join(IPC_DIR, "files.js"));
+const mods = require(path.join(IPC_DIR, "mods.js"));
+const versions = require(path.join(IPC_DIR, "versions.js"));
+const javaIpc = require(path.join(IPC_DIR, "java.js"));
+const worlds = require(path.join(IPC_DIR, "worlds.js"));
+const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
-try {
-  if (Module.builtinModules.includes('electron/js2c/browser_init')) {
-    require('electron/js2c/browser_init')
-  }
-} catch(e) {}
-
-const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require('electron')
-const { join } = require('path')
-
-const server = require(join(__dirname, '..', '..', 'electron', 'ipc', 'server.js'))
-const files = require(join(__dirname, '..', '..', 'electron', 'ipc', 'files.js'))
-
-let mainWindow = null
+let mainWindow = null;
+let configStore = null;
+let activeInstanceId = null;
 
 function getConfigPath() {
-  if (app.isPackaged) {
-    return path.join(app.getPath('userData'), 'config.json')
-  }
-  return path.join(__dirname, '..', '..', 'config.json')
+  if (app.isPackaged) return path.join(app.getPath("userData"), "config.json");
+  return path.join(__dirname, "..", "..", "config.json");
 }
 
+function getMwmDir() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "mwm")
+    : path.join(__dirname, "..", "..", "wulons-mcss-mwm");
+}
+
+function readConfig() {
+  return configStore.read();
+}
+
+function findInstance(id) {
+  const cfg = readConfig();
+  return cfg.instances.find((i) => i.id === id) || null;
+}
+
+function send(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
+
+/* ---------------------------------- 窗口 ---------------------------------- */
+
 function createWindow() {
+  const iconPath = path.join(__dirname, "..", "..", "resources", "app-icon.png");
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
-    minWidth: 960,
-    minHeight: 640,
+    minWidth: 1000,
+    minHeight: 660,
     frame: false,
-    show: true,
-    icon: join(__dirname, '..', '..', 'resources', 'app-icon.png'),
+    show: false,
+    backgroundColor: "#0a0a0a",
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
-      preload: join(__dirname, '..', 'preload', 'index.js'),
+      preload: path.join(__dirname, "..", "preload", "index.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false
+      sandbox: false
     }
-  })
+  });
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
-    if (!app.isPackaged) mainWindow?.webContents.openDevTools()
-  })
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  mainWindow.on("ready-to-show", () => {
+    mainWindow?.show();
+    if (!app.isPackaged) mainWindow?.webContents.openDevTools({ mode: "detach" });
+  });
 
-  const url = process.env.ELECTRON_RENDERER_URL
-  if (url) {
-    mainWindow.loadURL(url)
-  } else {
-    mainWindow.loadFile(join(__dirname, '..', 'renderer', 'index.html'))
-  }
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  const url = process.env.ELECTRON_RENDERER_URL;
+  if (url) mainWindow.loadURL(url);
+  else mainWindow.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
-// Window controls
-ipcMain.on('window-minimize', () => mainWindow?.minimize())
-ipcMain.on('window-maximize', () => {
-  mainWindow?.isMaximized() ? mainWindow?.unmaximize() : mainWindow?.maximize()
-})
-ipcMain.on('window-close', async () => {
-  if (server.getStatus() !== 'stopped') {
-    const choice = await dialog.showMessageBox(mainWindow, {
-      type: 'warning',
-      buttons: ['取消', '关闭服务器'],
+ipcMain.on("window:minimize", () => mainWindow?.minimize());
+ipcMain.on("window:maximize", () => {
+  if (!mainWindow) return;
+  mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+});
+ipcMain.on("window:close", async () => {
+  if (!mainWindow) return;
+  if (server.getStatus() !== "stopped") {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      buttons: ["取消", "停止服务器并退出"],
       defaultId: 1,
       cancelId: 0,
-      title: '服务器仍在运行',
-      message: 'Minecraft 服务器仍在运行中，关闭本应用也会停止服务器。',
-      detail: '是否先向玩家发送提示消息再关闭？建议在控制台输入 say 通知玩家。'
-    })
-    if (choice.response === 0) return // cancelled
-    server.stop()
+      title: "服务器仍在运行",
+      message: "Minecraft 服务器仍在运行，关闭应用会先停止服务器。",
+      detail: "建议先在控制台用 say 通知玩家，再关闭。"
+    });
+    if (response === 0) return;
+    server.stop();
   }
-  mainWindow?.close()
-})
-ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized())
+  mainWindow.close();
+});
+ipcMain.handle("window:is-maximized", () => (mainWindow ? mainWindow.isMaximized() : false));
 
-// Server control
-ipcMain.handle('server:start', (_, javaPath, serverDir, jvmArgs) => {
-  server.start(javaPath, serverDir, jvmArgs)
-})
+/* ---------------------------------- 配置 ---------------------------------- */
 
-ipcMain.handle('server:stop', () => {
-  server.stop()
-})
+ipcMain.handle("config:read", () => readConfig());
+ipcMain.handle("config:write", (_e, patch) => {
+  const next = configStore.write(patch || {});
+  if (typeof patch?.activeInstanceId === "string") activeInstanceId = patch.activeInstanceId;
+  return next;
+});
+ipcMain.handle("config:reset", () => {
+  configStore.reset();
+  return configStore.read();
+});
 
-ipcMain.handle('server:command', (_, cmd) => {
-  server.sendCommand(cmd)
-})
+ipcMain.handle("app:info", () => ({
+  version: app.getVersion(),
+  isPackaged: app.isPackaged,
+  appData: app.getPath("userData"),
+  userName: process.env.USERNAME || "",
+  platform: process.platform,
+  electron: process.versions.electron,
+  node: process.versions.node
+}));
 
-ipcMain.handle('server:status', () => {
-  return server.getStatus()
-})
+/* --------------------------------- 对话框 --------------------------------- */
 
-ipcMain.handle('server:memory', () => {
-  return server.getMemory()
-})
+ipcMain.handle("dialog:open-file", async (_e, filters) => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: filters || [{ name: "所有文件", extensions: ["*"] }]
+  });
+  return res.canceled ? null : res.filePaths[0];
+});
 
-// FRP process control
-let frpProcess = null
-ipcMain.handle('frp:start', async (_, config) => {
-  if (frpProcess) return
-  const { spawn } = require('child_process')
-  frpProcess = spawn(config.frpPath || 'SakuraLauncher.exe', [], { stdio: 'ignore' })
-  return true
-})
-ipcMain.handle('frp:stop', () => {
-  if (frpProcess) { frpProcess.kill(); frpProcess = null }
-})
+ipcMain.handle("dialog:open-directory", async () => {
+  const res = await dialog.showOpenDialog(mainWindow, { properties: ["openDirectory"] });
+  return res.canceled ? null : res.filePaths[0];
+});
 
-// Open a folder in system file explorer
-ipcMain.handle('shell:openPath', async (_, filePath) => {
-  return shell.openPath(filePath)
-})
+ipcMain.handle("dialog:save-file", async (_e, opts) => {
+  const res = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: opts?.defaultPath,
+    filters: opts?.filters || [{ name: "JSON", extensions: ["json"] }]
+  });
+  return res.canceled ? null : res.filePath;
+});
 
-// Server output events sent to renderer
-server.onOutput((entry) => {
-  mainWindow?.webContents.send('server:output', entry)
-})
+/* --------------------------------- 文件 ---------------------------------- */
 
-server.onStatus((status) => {
-  mainWindow?.webContents.send('server:status-changed', status)
-})
+ipcMain.handle("fs:read", (_e, p) => files.readText(p));
+ipcMain.handle("fs:write", (_e, p, content) => files.writeText(p, content));
+ipcMain.handle("fs:list", (_e, p) => files.listDir(p));
+ipcMain.handle("fs:exists", (_e, p) => files.exists(p));
+ipcMain.handle("fs:mkdir", (_e, p) => files.mkdir(p));
+ipcMain.handle("fs:remove", (_e, p) => files.remove(p));
+ipcMain.handle("fs:copy", (_e, src, dest) => files.copy(src, dest));
 
-// File operations
-ipcMain.handle('file:read', (_, filePath) => {
-  return files.readFile(filePath)
-})
+ipcMain.handle("props:read", (_e, p) => files.readProperties(p));
+ipcMain.handle("props:write", (_e, p, props) => files.writeProperties(p, props));
 
-ipcMain.handle('file:write', (_, filePath, content) => {
-  files.writeFile(filePath, content)
-})
+/* --------------------------------- Mod ----------------------------------- */
 
-ipcMain.handle('file:readDir', (_, dirPath) => {
-  return files.readDir(dirPath)
-})
+ipcMain.handle("mods:scan", (_e, dir) => mods.scanMods(dir));
+ipcMain.handle("mods:meta", (_e, jarPath) => mods.readModMeta(jarPath));
 
-ipcMain.handle('file:readServerProperties', (_, filePath) => {
-  return files.readServerProperties(filePath)
-})
+/* -------------------------------- 多世界 ---------------------------------- */
 
-ipcMain.handle('file:writeServerProperties', (_, filePath, props) => {
-  files.writeServerProperties(filePath, props)
-})
+ipcMain.handle("worlds:scan", (_e, serverDir) => worlds.scan(serverDir));
+ipcMain.handle("worlds:create", (_e, serverDir, cfg) => worlds.create(serverDir, cfg, getMwmDir()));
+ipcMain.handle("worlds:remove", (_e, serverDir, pack) => worlds.remove(serverDir, pack));
+ipcMain.handle("worlds:reload", () => {
+  server.sendCommand("reload");
+  return { success: true };
+});
 
-ipcMain.handle('mod:readMeta', (_, jarPath) => {
-  return files.readModMeta(jarPath)
-})
+/* -------------------------------- 版本/下载 ------------------------------- */
 
-ipcMain.handle('file:delete', (_, filePath) => {
-  try { require('fs').unlinkSync(filePath) } catch(e) {}
-})
-
-ipcMain.handle('file:copyServerIcon', (_, src, serverDir) => {
+ipcMain.handle("versions:minecraft", () => versions.listMinecraft());
+ipcMain.handle("versions:fabric-loaders", (_e, mc) => versions.fabricLoaders(mc));
+ipcMain.handle("versions:install", async (_e, opts) => {
   try {
-    const dest = require('path').join(serverDir, 'server-icon.png')
-    require('fs').copyFileSync(src, dest)
-  } catch(e) {}
-})
+    const res = await versions.installServer({
+      ...opts,
+      onProgress: (p) => send("versions:progress", p)
+    });
+    return { ok: true, ...res };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 
-ipcMain.handle('manifest:generate', (_, serverDir) => {
-  return files.getServerManifest(serverDir)
-})
+/* -------------------------------- Java ----------------------------------- */
 
-// Wallpaper copy + config persistence
-function analyzeBrightness(filePath) {
-  try {
-    const img = nativeImage.createFromPath(filePath)
-    if (img.isEmpty()) return 0.5
-    // Only analyze the center 40% of the image (where content appears)
-    const w = img.getSize().width, h = img.getSize().height
-    const cx = Math.floor(w * 0.3), cy = Math.floor(h * 0.3)
-    const cw = Math.floor(w * 0.4), ch = Math.floor(h * 0.4)
-    const cropped = img.crop({ x: cx, y: cy, width: cw, height: ch })
-    const buf = cropped.toBitmap()
-    let total = 0, count = 0
-    for (let i = 0; i < buf.length; i += 16) {
-      const b = buf[i], g = buf[i + 1], r = buf[i + 2]
-      total += (r * 0.299 + g * 0.587 + b * 0.114)
-      count++
-    }
-    return count > 0 ? total / count / 255 : 0.5
-  } catch(e) { return 0.5 }
+ipcMain.handle("app:pick-java", async () => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [{ name: "Java", extensions: ["exe"] }]
+  });
+  if (res.canceled) return null;
+  return res.filePaths[0];
+});
+
+ipcMain.handle("app:install-java", async () => {
+  // 目前只做「探测并回报」，真正的自动安装链路在后续版本接入
+  const list = javaIpc.detectJava();
+  return list.length ? { ok: true, path: list[0].path } : { ok: false, error: "没有找到可用的 Java，请手动指定" };
+});
+
+ipcMain.handle("app:detect-java", () => javaIpc.detectJava());
+
+/* --------------------------------- 服务器 --------------------------------- */
+
+ipcMain.handle("server:start", async (_e, instanceId) => {
+  const inst = findInstance(instanceId);
+  if (!inst) return { ok: false, error: "实例不存在" };
+
+  activeInstanceId = instanceId;
+  configStore.write({ activeInstanceId: instanceId });
+
+  const mem = [`-Xms${inst.memoryMin || 2}G`, `-Xmx${inst.memoryMax || 4}G`].join(" ");
+  const jvmArgs = [mem, inst.jvmArgs || ""].filter(Boolean).join(" ");
+  const res = server.start(inst.javaPath || "java", inst.dir, jvmArgs);
+  if (res?.ok) {
+    const cfg = readConfig();
+    configStore.write({
+      instances: cfg.instances.map((i) => (i.id === instanceId ? { ...i, lastStartedAt: Date.now(), updatedAt: Date.now() } : i))
+    });
+  }
+  return res || { ok: true };
+});
+
+ipcMain.handle("server:stop", () => {
+  server.stop();
+});
+ipcMain.handle("server:command", (_e, cmd) => server.sendCommand(cmd));
+ipcMain.handle("server:status", () => server.getStatus());
+ipcMain.handle("server:memory", () => server.getMemory());
+ipcMain.handle("server:pid", () => server.getPid());
+
+server.onOutput((entry) => send("server:output", entry));
+server.onStatus((status) => send("server:status", status));
+
+/* ---------------------------------- 系统 ---------------------------------- */
+
+ipcMain.handle("app:open-path", (_e, p) => shell.openPath(p));
+ipcMain.handle("app:open-external", (_e, url) => shell.openExternal(url));
+
+/* ---------------------------------- 占位 ---------------------------------- */
+// 后续版本接入：Modrinth 资源库 / FRP 隧道。先给出明确错误，避免调用方拿到 undefined。
+for (const ch of ["modrinth:search", "modrinth:versions", "modrinth:install"]) {
+  ipcMain.handle(ch, () => {
+    throw new Error("资源库功能尚未接入");
+  });
+}
+for (const ch of ["frp:start", "frp:stop", "frp:status"]) {
+  ipcMain.handle(ch, () => {
+    throw new Error("FRP 功能尚未接入");
+  });
 }
 
-// 用户上传的壁纸一律落到 userData/wallpapers：
-// 打包后 app.asar 只读，写 resources/ 会静默失败；开发时也不会覆盖内置壁纸
-function getWallpaperDir() {
-  return path.join(app.getPath('userData'), 'wallpapers')
-}
+/* ---------------------------------- 生命周期 ------------------------------ */
 
-ipcMain.handle('file:copyWallpaper', (_, src) => {
-  const ext = path.extname(src).toLowerCase() || '.png'
-  const dest = path.join(getWallpaperDir(), 'wallpaper' + ext)
-  files.copyFile(src, dest)
-  const mimeTypes = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.bmp': 'image/bmp' }
-  const mime = mimeTypes[ext] || 'image/png'
-  const data = require('fs').readFileSync(dest)
-  const brightness = analyzeBrightness(dest)
-  return { path: dest, dataUrl: `data:${mime};base64,${data.toString('base64')}`, brightness }
-})
+app.whenReady().then(() => {
+  configStore = createConfigStore(getConfigPath());
+  const cfg = readConfig();
+  activeInstanceId = cfg.activeInstanceId;
+  createWindow();
+});
 
-ipcMain.handle('file:analyzeWallpaper', (_, filePath) => {
-  return { brightness: analyzeBrightness(filePath) }
-})
+app.on("window-all-closed", () => {
+  server.stop();
+  if (process.platform !== "darwin") app.quit();
+});
 
-ipcMain.handle('file:readConfig', () => {
-  return files.readConfig(getConfigPath())
-})
+app.on("before-quit", () => {
+  server.stop();
+});
 
-ipcMain.handle('file:writeConfig', (_, data) => {
-  files.writeConfig(getConfigPath(), data)
-})
-
-// Read wallpaper file as base64 data URL for display
-ipcMain.handle('file:readWallpaper', (_, filePath) => {
-  try {
-    if (!require('fs').existsSync(filePath)) return null
-    const ext = require('path').extname(filePath).toLowerCase()
-    const mimeTypes = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.bmp': 'image/bmp' }
-    const mime = mimeTypes[ext] || 'image/png'
-    const data = require('fs').readFileSync(filePath)
-    return `data:${mime};base64,${data.toString('base64')}`
-  } catch(e) { return null }
-})
-
-ipcMain.handle('file:clearCache', () => {
-  const configPath = getConfigPath()
-  files.clearCache(configPath)
-  // 清掉用户上传并缓存的壁纸（内置壁纸在 resources/，不动）
-  try {
-    const dir = getWallpaperDir()
-    if (require('fs').existsSync(dir)) {
-      require('fs').readdirSync(dir)
-        .filter((f: string) => f.startsWith('wallpaper.'))
-        .forEach((f: string) => {
-          try { require('fs').unlinkSync(path.join(dir, f)) } catch(e) {}
-        })
-    }
-  } catch(e) {}
-})
-
-// Copy a file (used for mod installation)
-ipcMain.handle('file:copy', (_, src, dest) => {
-  return files.copyFile(src, dest)
-})
-
-// Get writable app data directory
-ipcMain.handle('app:getDataPath', () => {
-  if (app.isPackaged) {
-    return app.getPath('userData')
-  }
-  return path.join(__dirname, '..', '..')
-})
-
-// Multi-World Management IPC
-// 打包后 MWM 生成器放在 resources/mwm（asar 外），否则 app.asar 内的 ESM 子进程读取不稳妥
-const mwmDir = app.isPackaged
-  ? path.join(process.resourcesPath, 'mwm')
-  : path.join(__dirname, '..', '..', 'wulons-mcss-mwm')
-
-ipcMain.handle('worlds:scan', (_, serverDir) => {
-  const datapacksDir = path.join(serverDir, 'world', 'datapacks')
-  const worlds = []
-  try {
-    if (require('fs').existsSync(datapacksDir)) {
-      const entries = require('fs').readdirSync(datapacksDir, { withFileTypes: true })
-      for (const entry of entries) {
-        if (!entry.isDirectory() || !entry.name.startsWith('mwm-')) continue
-        const packDir = path.join(datapacksDir, entry.name)
-        const metaPath = path.join(packDir, 'pack.mcmeta')
-        let info = { name: entry.name, worlds: [] }
-        if (require('fs').existsSync(metaPath)) {
-          try {
-            const meta = JSON.parse(require('fs').readFileSync(metaPath, 'utf-8'))
-            info.description = meta.pack?.description || ''
-          } catch(e) {}
-        }
-        // Scan dimension JSONs inside the pack
-        const dimDir = path.join(packDir, 'data')
-        if (require('fs').existsSync(dimDir)) {
-          const namespaces = require('fs').readdirSync(dimDir)
-          for (const ns of namespaces) {
-            const dimPath = path.join(dimDir, ns, 'dimension')
-            if (require('fs').existsSync(dimPath)) {
-              for (const dimFile of require('fs').readdirSync(dimPath)) {
-                if (dimFile.endsWith('.json')) {
-                  try {
-                    const dimData = JSON.parse(require('fs').readFileSync(path.join(dimPath, dimFile), 'utf-8'))
-                    info.worlds.push({
-                      id: `${ns}:${dimFile.replace(/\.json$/, '')}`,
-                      type: dimData.type || '',
-                      generator: dimData.generator?.type || ''
-                    })
-                  } catch(e) {}
-                }
-              }
-            }
-          }
-        }
-        worlds.push(info)
-      }
-    }
-  } catch(e) {}
-  return worlds
-})
-
-ipcMain.handle('worlds:create', async (_, serverDir, worldConfig) => {
-  const fs = require('fs')
-  const { execFileSync } = require('child_process')
-  const mwmCli = path.join(mwmDir, 'src', 'cli.js')
-  if (!fs.existsSync(mwmCli)) return { success: false, error: `MWM 生成器缺失：${mwmCli}` }
-
-  // 世界名会直接参与目录/命名空间，先做白名单校验，避免跳出服务端目录
-  const name = String(worldConfig?.name || '')
-  if (!/^[a-z0-9_-]{1,48}$/i.test(name)) {
-    return { success: false, error: '世界名称只能包含字母、数字、下划线和连字符' }
-  }
-  const namespace = worldConfig?.namespace || 'wulons'
-  if (!/^[a-z0-9_.-]{1,48}$/i.test(namespace)) {
-    return { success: false, error: '命名空间不合法' }
-  }
-
-  // Build a temp config for MWM
-  const tmpConfig = path.join(require('os').tmpdir(), `mwm-tmp-${Date.now()}.json`)
-  const mwmConfig = { namespace, worlds: [{ ...worldConfig, name }] }
-  fs.writeFileSync(tmpConfig, JSON.stringify(mwmConfig, null, 2))
-
-  const tmpOutput = path.join(require('os').tmpdir(), `mwm-out-${Date.now()}`)
-  try {
-    // 用 Electron 自带的 Node 跑生成器，避免依赖用户机器上装了 node
-    execFileSync(process.execPath, [mwmCli, tmpConfig, tmpOutput], {
-      timeout: 30000,
-      cwd: mwmDir,
-      windowsHide: true,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
-    })
-    // Copy generated pack to server
-    const packName = `mwm-${namespace}-${name}`
-    const srcPack = path.join(tmpOutput, packName)
-    const destPack = path.join(serverDir, 'world', 'datapacks', packName)
-    if (fs.existsSync(srcPack)) {
-      if (fs.existsSync(destPack)) fs.rmSync(destPack, { recursive: true, force: true })
-      fs.cpSync(srcPack, destPack, { recursive: true })
-      return { success: true }
-    }
-    return { success: false, error: 'MWM 生成器没有产出数据包' }
-  } catch(e) {
-    const detail = (e.stderr && e.stderr.toString().trim()) || ''
-    return { success: false, error: detail ? `${e.message}\n${detail}` : e.message }
-  } finally {
-    try { fs.rmSync(tmpConfig, { force: true }) } catch(e) {}
-    try { fs.rmSync(tmpOutput, { recursive: true, force: true }) } catch(e) {}
-  }
-})
-
-ipcMain.handle('worlds:delete', (_, serverDir, packName) => {
-  try {
-    const packDir = path.join(serverDir, 'world', 'datapacks', packName)
-    if (require('fs').existsSync(packDir)) {
-      require('fs').rmSync(packDir, { recursive: true, force: true })
-    }
-    return { success: true }
-  } catch(e) {
-    return { success: false, error: e.message }
-  }
-})
-
-ipcMain.handle('worlds:reload', () => {
-  server.sendCommand('reload')
-  return { success: true }
-})
-
-// File dialogs
-ipcMain.handle('dialog:openFile', async (_, filters) => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: filters || [{ name: 'Any', extensions: ['*'] }]
-  })
-  return result.canceled ? null : result.filePaths[0]
-})
-
-ipcMain.handle('dialog:saveFile', async (_, opts) => {
-  const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: opts?.defaultPath || 'server-manifest.json',
-    filters: opts?.filters || [{ name: 'JSON', extensions: ['json'] }]
-  })
-  return result.canceled ? null : result.filePath
-})
-
-ipcMain.handle('dialog:openDirectory', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
-  })
-  return result.canceled ? null : result.filePaths[0]
-})
-
-app.whenReady().then(createWindow)
-
-// 关闭窗口时自动停服
-app.on('window-all-closed', () => {
-  server.stop()
-  if (process.platform !== 'darwin') app.quit()
-})
-
-app.on('before-quit', () => {
-  server.stop()
-})
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-})
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});

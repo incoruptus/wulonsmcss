@@ -1,72 +1,100 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer } = require("electron");
 
-// Single-callback holders — persists across page reloads (preload context)
-let _outputHandler: any = null
-let _statusHandler: any = null
+/** 单个回调持有者：preload 上下文跨页面刷新存活，避免监听器重复注册 */
+const handlers: Record<string, ((...args: any[]) => void) | null> = {};
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  // Environment info (for renderer which has contextIsolation)
+function subscribe(channel: string, key: string, cb: (...args: any[]) => void) {
+  if (handlers[key]) ipcRenderer.removeListener(channel, handlers[key]!);
+  const fn = (_e: any, ...args: any[]) => cb(...args);
+  handlers[key] = fn;
+  ipcRenderer.on(channel, fn);
+  return () => {
+    ipcRenderer.removeListener(channel, fn);
+    if (handlers[key] === fn) handlers[key] = null;
+  };
+}
+
+const invoke = (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args);
+
+contextBridge.exposeInMainWorld("mcss", {
+  window: {
+    minimize: () => ipcRenderer.send("window:minimize"),
+    maximize: () => ipcRenderer.send("window:maximize"),
+    close: () => ipcRenderer.send("window:close"),
+    isMaximized: () => invoke("window:is-maximized")
+  },
   env: {
-    APPDATA: process.env.APPDATA || '',
-    USERNAME: process.env.USERNAME || '',
+    appData: process.env.APPDATA || "",
+    userName: process.env.USERNAME || "",
+    platform: process.platform
   },
-  // Window controls
-  minimize: () => ipcRenderer.send('window-minimize'),
-  maximize: () => ipcRenderer.send('window-maximize'),
-  close: () => ipcRenderer.send('window-close'),
-  isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
-
-  // Server control
-  startServer: (javaPath: string, serverDir: string, jvmArgs?: string) => ipcRenderer.invoke('server:start', javaPath, serverDir, jvmArgs),
-  stopServer: () => ipcRenderer.invoke('server:stop'),
-  sendCommand: (cmd: string) => ipcRenderer.invoke('server:command', cmd),
-  getServerStatus: () => ipcRenderer.invoke('server:status'),
-  getServerMemory: () => ipcRenderer.invoke('server:memory'),
-  openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath),
-
-  // File operations
-  readFile: (path: string) => ipcRenderer.invoke('file:read', path),
-  writeFile: (path: string, content: string) => ipcRenderer.invoke('file:write', path, content),
-  readDir: (dirPath: string) => ipcRenderer.invoke('file:readDir', dirPath),
-  readServerProperties: (filePath: string) => ipcRenderer.invoke('file:readServerProperties', filePath),
-  writeServerProperties: (filePath: string, props: Record<string, string>) => ipcRenderer.invoke('file:writeServerProperties', filePath, props),
-  deleteFile: (filePath: string) => ipcRenderer.invoke('file:delete', filePath),
-  readModMeta: (jarPath: string) => ipcRenderer.invoke('mod:readMeta', jarPath),
-  generateManifest: (serverDir: string) => ipcRenderer.invoke('manifest:generate', serverDir),
-  copyWallpaper: (src: string) => ipcRenderer.invoke('file:copyWallpaper', src),
-  readWallpaper: (filePath: string) => ipcRenderer.invoke('file:readWallpaper', filePath),
-  analyzeWallpaper: (filePath: string) => ipcRenderer.invoke('file:analyzeWallpaper', filePath),
-  copyFile: (src: string, dest: string) => ipcRenderer.invoke('file:copy', src, dest),
-  copyServerIcon: (src: string, serverDir: string) => ipcRenderer.invoke('file:copyServerIcon', src, serverDir),
-  readConfig: () => ipcRenderer.invoke('file:readConfig'),
-  writeConfig: (data: any) => ipcRenderer.invoke('file:writeConfig', data),
-  clearCache: () => ipcRenderer.invoke('file:clearCache'),
-  getDataPath: () => ipcRenderer.invoke('app:getDataPath'),
-
-  // FRP
-  startFrp: (config: any) => ipcRenderer.invoke('frp:start', config),
-  stopFrp: () => ipcRenderer.invoke('frp:stop'),
-
-  // File dialogs
-  openFileDialog: (filters?: any) => ipcRenderer.invoke('dialog:openFile', filters),
-  saveFileDialog: (opts?: any) => ipcRenderer.invoke('dialog:saveFile', opts),
-  openDirectoryDialog: () => ipcRenderer.invoke('dialog:openDirectory'),
-
-  // Events from main — single-callback to prevent duplicates on reload
-  onServerOutput: (cb: (data: any) => void) => {
-    if (_outputHandler) ipcRenderer.removeListener('server:output', _outputHandler)
-    _outputHandler = (_e: any, data: any) => cb(data)
-    ipcRenderer.on('server:output', _outputHandler)
+  config: {
+    read: () => invoke("config:read"),
+    write: (patch: any) => invoke("config:write", patch),
+    reset: () => invoke("config:reset")
   },
-  onServerStatus: (cb: (status: string) => void) => {
-    if (_statusHandler) ipcRenderer.removeListener('server:status-changed', _statusHandler)
-    _statusHandler = (_e: any, status: any) => cb(status)
-    ipcRenderer.on('server:status-changed', _statusHandler)
+  dialog: {
+    openFile: (filters?: any) => invoke("dialog:open-file", filters),
+    openDirectory: () => invoke("dialog:open-directory"),
+    saveFile: (opts?: any) => invoke("dialog:save-file", opts)
   },
-
-  // Multi-World Management
-  scanWorlds: (serverDir: string) => ipcRenderer.invoke('worlds:scan', serverDir),
-  createWorld: (serverDir: string, worldConfig: any) => ipcRenderer.invoke('worlds:create', serverDir, worldConfig),
-  deleteWorld: (serverDir: string, packName: string) => ipcRenderer.invoke('worlds:delete', serverDir, packName),
-  reloadWorlds: () => ipcRenderer.invoke('worlds:reload')
-})
+  fs: {
+    read: (path: string) => invoke("fs:read", path),
+    write: (path: string, content: string) => invoke("fs:write", path, content),
+    list: (dir: string) => invoke("fs:list", dir),
+    exists: (path: string) => invoke("fs:exists", path),
+    mkdir: (path: string) => invoke("fs:mkdir", path),
+    remove: (path: string) => invoke("fs:remove", path),
+    copy: (src: string, dest: string) => invoke("fs:copy", src, dest)
+  },
+  server: {
+    start: (instanceId: string) => invoke("server:start", instanceId),
+    stop: () => invoke("server:stop"),
+    command: (cmd: string) => invoke("server:command", cmd),
+    status: () => invoke("server:status"),
+    memory: () => invoke("server:memory"),
+    pid: () => invoke("server:pid"),
+    onOutput: (cb: (entry: any) => void) => subscribe("server:output", "output", cb),
+    onStatus: (cb: (s: any) => void) => subscribe("server:status", "status", cb)
+  },
+  props: {
+    read: (path: string) => invoke("props:read", path),
+    write: (path: string, props: any) => invoke("props:write", path, props)
+  },
+  mods: {
+    scan: (dir: string) => invoke("mods:scan", dir),
+    meta: (jarPath: string) => invoke("mods:meta", jarPath)
+  },
+  worlds: {
+    scan: (serverDir: string) => invoke("worlds:scan", serverDir),
+    create: (serverDir: string, cfg: any) => invoke("worlds:create", serverDir, cfg),
+    remove: (serverDir: string, packName: string) => invoke("worlds:remove", serverDir, packName),
+    reload: () => invoke("worlds:reload")
+  },
+  versions: {
+    minecraft: () => invoke("versions:minecraft"),
+    fabricLoaders: (mc: string) => invoke("versions:fabric-loaders", mc),
+    install: (opts: any) => invoke("versions:install", opts),
+    onProgress: (cb: (p: any) => void) => subscribe("versions:progress", "versionsProgress", cb)
+  },
+  modrinth: {
+    search: (q: string, opts?: any) => invoke("modrinth:search", q, opts),
+    versions: (projectId: string, opts?: any) => invoke("modrinth:versions", projectId, opts),
+    install: (opts: any) => invoke("modrinth:install", opts)
+  },
+  frp: {
+    start: (profile: any) => invoke("frp:start", profile),
+    stop: () => invoke("frp:stop"),
+    status: () => invoke("frp:status"),
+    onLog: (cb: (line: string) => void) => subscribe("frp:log", "frpLog", cb),
+    onStatus: (cb: (s: any) => void) => subscribe("frp:status", "frpStatus", cb)
+  },
+  app: {
+    info: () => invoke("app:info"),
+    openPath: (path: string) => invoke("app:open-path", path),
+    openExternal: (url: string) => invoke("app:open-external", url),
+    pickJava: () => invoke("app:pick-java"),
+    detectJava: () => invoke("app:detect-java"),
+    installJava: () => invoke("app:install-java")
+  }
+});

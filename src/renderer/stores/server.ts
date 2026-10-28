@@ -1,102 +1,80 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { create } from "zustand";
+import type { LogEntry, ServerStatus } from "@/lib/api";
 
-export interface LogEntry {
-  timestamp: string
-  level: string
-  message: string
-  stack?: string
-  /** UI 折叠状态（仅前端使用） */
-  _expanded?: boolean
+interface ServerState {
+  status: ServerStatus;
+  logs: LogEntry[];
+  maxLogs: number;
+  tps: number;
+  players: string[];
+  startedAt: number | null;
+  memoryUsed: number;
+  memoryMax: number;
+  bound: boolean;
+  bind: () => void;
+  setStatus: (s: ServerStatus) => void;
+  addLog: (entry: Omit<LogEntry, "id">) => void;
+  clear: () => void;
+  setMemory: (used: number) => void;
 }
 
-export const useServerStore = defineStore('server', () => {
-  const status = ref<'stopped' | 'running' | 'starting'>('stopped')
-  const logs = ref<LogEntry[]>([])
-  const maxLogs = 1000
-  const tps = ref(20.0)
-  const onlinePlayers = ref<string[]>([])
-  const maxPlayers = ref(20)
-  const uptime = ref(0)
-  const memoryUsage = ref({ used: 0, max: 4 * 1024 * 1024 * 1024 })
-  let uptimeInterval: any = null
+let nextId = 1;
 
-  function addLog(entry: LogEntry) {
-    logs.value.push(entry)
-    if (logs.value.length > maxLogs) {
-      logs.value = logs.value.slice(-maxLogs)
-    }
-  }
+export const useServer = create<ServerState>((set, get) => ({
+  status: "stopped",
+  logs: [],
+  maxLogs: 1000,
+  tps: 20,
+  players: [],
+  startedAt: null,
+  memoryUsed: 0,
+  memoryMax: 4 * 1024 * 1024 * 1024,
+  bound: false,
 
-  function clearLogs() {
-    logs.value = []
-  }
+  /** 只绑定一次（StrictMode 双挂载也安全） */
+  bind() {
+    if (get().bound) return;
+    set({ bound: true });
 
-  function startUptime() {
-    if (uptimeInterval) return
-    uptimeInterval = setInterval(() => { uptime.value++ }, 1000)
-  }
+    window.mcss.server.onStatus((s) => {
+      get().setStatus(s);
+    });
 
-  function stopUptime() {
-    if (uptimeInterval) {
-      clearInterval(uptimeInterval)
-      uptimeInterval = null
-    }
-  }
+    window.mcss.server.onOutput((entry) => {
+      get().addLog(entry);
+      const msg = entry.message;
+      const join = msg.match(/(\w+) joined the game/);
+      if (join && !get().players.includes(join[1])) set({ players: [...get().players, join[1]] });
+      const left = msg.match(/(\w+) left the game/);
+      if (left) set({ players: get().players.filter((p) => p !== left[1]) });
+      const tps = msg.match(/Overall TPS: ([\d.]+)/);
+      if (tps) set({ tps: parseFloat(tps[1]) });
+    });
 
-  function setServerStatus(s: string) {
-    if (s === 'running') {
-      if (status.value === 'running') return // already running
-      status.value = 'running'
-      uptime.value = 0
-      startUptime()
-    } else if (s === 'starting') {
-      if (status.value === 'starting') return
-      status.value = 'starting'
-      stopUptime()
-      uptime.value = 0
-    } else {
-      if (status.value === 'stopped') return // already stopped
-      status.value = 'stopped'
-      stopUptime()
-      uptime.value = 0
-    }
-  }
+    window.mcss.server.status().then((s) => get().setStatus(s)).catch(() => {});
+  },
 
-  // Wire up IPC events
-  if (window.electronAPI) {
-    window.electronAPI.onServerOutput((entry: LogEntry) => {
-      addLog(entry)
+  setStatus(s) {
+    const prev = get().status;
+    if (prev === s) return;
+    set({
+      status: s,
+      startedAt: s === "running" ? Date.now() : s === "stopped" ? null : get().startedAt,
+      players: s === "stopped" ? [] : get().players,
+    });
+  },
 
-      // Parse online players from log
-      const joinMatch = entry.message.match(/(\w+) joined the game/)
-      if (joinMatch && !onlinePlayers.value.includes(joinMatch[1])) {
-        onlinePlayers.value.push(joinMatch[1])
-      }
-      const leaveMatch = entry.message.match(/(\w+) left the game/)
-      if (leaveMatch) {
-        onlinePlayers.value = onlinePlayers.value.filter(p => p !== leaveMatch[1])
-      }
+  addLog(entry) {
+    const logs = get().logs;
+    const next = [...logs, { ...entry, id: nextId++ }];
+    set({ logs: next.length > get().maxLogs ? next.slice(-get().maxLogs) : next });
+  },
 
-      // Parse TPS
-      const tpsMatch = entry.message.match(/Overall TPS: ([\d.]+)/)
-      if (tpsMatch) tps.value = parseFloat(tpsMatch[1])
+  clear() {
+    set({ logs: [] });
+  },
 
-      // Track server running
-      if (entry.message.includes('Done (') && entry.message.includes(')!')) {
-        setServerStatus('running')
-      }
-    })
-
-    window.electronAPI.onServerStatus((s: string) => {
-      setServerStatus(s)
-    })
-
-    // Check initial status
-    window.electronAPI.getServerStatus().then((s: string) => {
-      if (s !== 'stopped') setServerStatus(s)
-    }).catch(() => {})
-  }
-
-  return { status, logs, maxLogs, tps, onlinePlayers, maxPlayers, uptime, memoryUsage, addLog, clearLogs, setServerStatus }
-})
+  setMemory(used) {
+    set({ memoryUsed: used });
+  },
+}));

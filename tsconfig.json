@@ -4,16 +4,17 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "noEmit": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/*"]
     }
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/renderer/**/*.d.ts"]
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/renderer/**/*.d.ts"]
 }

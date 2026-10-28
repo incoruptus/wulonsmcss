@@ -1,7 +1,7 @@
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
-import vue from '@vitejs/plugin-vue'
-import UnoCSS from 'unocss/vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
@@ -46,15 +46,9 @@ export default defineConfig({
     },
     resolve: {
       alias: {
-        '@': resolve('src/renderer')
+        '@': resolve(__dirname, 'src/renderer')
       }
     },
-    plugins: [vue({
-      template: {
-        compilerOptions: {
-          isCustomElement: (tag) => tag.startsWith('md-')
-        }
-      }
-    }), UnoCSS()]
+    plugins: [react(), tailwindcss()]
   }
 })
