@@ -63,7 +63,10 @@ function createWindow() {
 
   mainWindow.on("ready-to-show", () => {
     mainWindow?.show();
-    if (!app.isPackaged) mainWindow?.webContents.openDevTools({ mode: "detach" });
+    // 默认不开 DevTools（打包版本来就不开）；需要时设 MCSS_DEVTOOLS=1
+    if (!app.isPackaged && process.env.MCSS_DEVTOOLS === "1") {
+      mainWindow?.webContents.openDevTools({ mode: "detach" });
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
