@@ -108,6 +108,11 @@ export function applyAppearance(cfg: Pick<AppConfig, "theme" | "accent">) {
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
   const dark = cfg.theme === "dark" || (cfg.theme === "system" && prefersDark);
   root.classList.toggle("dark", dark);
+  // 记住上次的外观：启动时在配置读回来之前就先按它画，
+  // 避免"先闪一下白 / 出错页变成亮色"这类跳变（main.tsx 会读这个值）
+  try {
+    localStorage.setItem("mcss.dark", dark ? "1" : "0");
+  } catch (e) {}
   if (cfg.accent) {
     root.setAttribute("data-accent", "custom");
     root.style.setProperty("--ui-accent-hex", cfg.accent);

@@ -1901,7 +1901,8 @@ fn versions_minecraft() -> Result<Json, String> {
     Ok(Json::Arr(out))
 }
 
-fn fabric_loaders(mc: &str) -> Result<Json, String> {
+/// Fabric Loader 列表（内部形状：{version, stable}，stable 排前面）
+fn fabric_loader_list(mc: &str) -> Result<Json, String> {
     let url = format!("{FABRIC_META}/versions/loader/{}", urlencode(mc));
     let json = get_json(&url)?;
     let list = json.arr().ok_or("Fabric 返回格式不对")?;
@@ -1919,6 +1920,23 @@ fn fabric_loaders(mc: &str) -> Result<Json, String> {
     // stable 排前面
     out.sort_by_key(|v| !v.get("stable").and_then(|x| x.bool()).unwrap_or(false));
     Ok(Json::Arr(out))
+}
+
+/// 对外（IPC）形状：**字符串数组**，契约与桌面版 versions.js、渲染层 api.ts 一致。
+/// 曾经这里吐的是 {version, stable} 对象，渲染层当字符串塞进 <option>，
+/// React #31（对象不能当子节点）→ 整棵树卸载 → 黑屏。
+fn fabric_loaders(mc: &str) -> Result<Json, String> {
+    let list = fabric_loader_list(mc)?;
+    let versions: Vec<Json> = list
+        .arr()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|v| v.get("version").and_then(|x| x.str()).map(Json::s))
+                .collect::<Vec<Json>>()
+        })
+        .unwrap_or_default();
+    Ok(Json::Arr(versions))
 }
 
 /// 下载到 dest：先写 .part，成功后再改名，避免半截文件被当成可用
@@ -2040,7 +2058,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
 
     if loader == "fabric" {
         progress("解析 Fabric Loader", 2, "");
-        let loaders = fabric_loaders(mc)?;
+        let loaders = fabric_loader_list(mc)?;
         let chosen = if !loader_version.is_empty() {
             loader_version.to_string()
         } else {

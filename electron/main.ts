@@ -27,6 +27,57 @@ const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 let mainWindow = null;
 let configStore = null;
 let activeInstanceId = null;
+
+/* ------------------------------ 渲染进程诊断 ------------------------------ */
+
+/**
+ * 黑屏没有任何信息，这一点必须改掉。
+ * 渲染进程的报错、崩溃、加载失败全部落到 renderer.log，
+ * 用户只要说"黑屏了"，我们就能直接从磁盘上读到原因。
+ */
+function rendererLogFile() {
+  try {
+    return path.join(app.getPath("userData"), "renderer.log");
+  } catch (e) {
+    return null;
+  }
+}
+
+function logLine(tag, text) {
+  const file = rendererLogFile();
+  const line = `[${new Date().toISOString()}] ${tag} ${text}\n`;
+  try {
+    if (file) {
+      // 只留最近 1 MB，避免长期运行把盘写满
+      if (fs.existsSync(file) && fs.statSync(file).size > 1024 * 1024) fs.writeFileSync(file, "");
+      fs.appendFileSync(file, line);
+    }
+  } catch (e) {
+    /* 写日志失败不能影响主流程 */
+  }
+  if (process.env.MCSS_LOG_STDOUT === "1") process.stdout.write(line);
+}
+
+/** 页面加载不出来时，宁可给一页能读懂的错误，也不要留一面黑屏 */
+function showFatalPage(title, detail) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+<style>
+  html,body{height:100%;margin:0;background:#141414;color:#e8e8e8;
+    font:14px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  .wrap{max-width:680px;margin:0 auto;padding:14vh 24px}
+  h1{font-size:18px;margin:0 0 12px}
+  pre{white-space:pre-wrap;word-break:break-all;background:#1f1f1f;border:1px solid #2e2e2e;
+    border-radius:8px;padding:12px;color:#b8b8b8;font-size:12px;max-height:40vh;overflow:auto}
+  button{margin-top:16px;padding:8px 16px;border-radius:8px;border:0;background:#3b82f6;color:#fff;font:inherit;cursor:pointer}
+  p{color:#9a9a9a;margin:0 0 16px}
+</style>
+<div class="wrap"><h1>${title}</h1><p>界面没能正常加载。可以点下面的按钮重试；如果一直不行，日志在：<br>
+${String(rendererLogFile() || "").replace(/</g, "&lt;")}</p>
+<pre>${String(detail).replace(/</g, "&lt;")}</pre>
+<button onclick="location.reload()">重试</button></div>`;
+  mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => {});
+}
 /** 定时重启：等服务器停稳后再拉起来 */
 let restartPending = null;
 /** 定时任务的内存态：上次执行时间（重启按天记） */
@@ -74,8 +125,45 @@ function createWindow() {
     }
   });
 
+  const wc = mainWindow.webContents;
+  let revives = 0;
+
+  wc.on("render-process-gone", (_e, details) => {
+    logLine("renderer-gone", `${details.reason} exitCode=${details.exitCode}`);
+    // 渲染进程被打死（OOM / 驱动）时自动救一次，别把黑屏留给用户
+    if (revives++ < 2 && mainWindow && !mainWindow.isDestroyed()) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+      }, 800);
+    }
+  });
+  wc.on("unresponsive", () => logLine("renderer-unresponsive", "渲染进程无响应"));
+  wc.on("responsive", () => logLine("renderer-responsive", "渲染进程恢复响应"));
+  wc.on("preload-error", (_e, preloadPath, err) => logLine("preload-error", `${preloadPath} ${err?.message || err}`));
+  wc.on("console-message", (_e, level, message, line, sourceId) => {
+    if (level >= 2) logLine(level >= 3 ? "console-error" : "console-warn", `${message} @${sourceId}:${line}`);
+  });
+  wc.on("did-fail-load", (_e, code, desc, url, isMainFrame) => {
+    if (!isMainFrame) return;
+    if (code === -3) return; // ERR_ABORTED：只是被下一次加载取代，不是失败
+    logLine("did-fail-load", `${code} ${desc} ${url}`);
+    showFatalPage("页面加载失败", `错误码 ${code}：${desc}\n${url}`);
+  });
+
   mainWindow.on("ready-to-show", () => {
     mainWindow?.show();
+
+    // 界面自检钩子：MCSS_ACT="<js>" 在窗口显示后执行一段脚本（点按钮、切标签页）
+    if (process.env.MCSS_ACT) {
+      setTimeout(async () => {
+        try {
+          const r = await mainWindow?.webContents.executeJavaScript(process.env.MCSS_ACT!);
+          logLine("act", String(r).slice(0, 800));
+        } catch (err) {
+          logLine("act-error", String(err?.message || err));
+        }
+      }, Number(process.env.MCSS_ACT_DELAY || 1800));
+    }
     // 默认不开 DevTools（打包版本来就不开）；需要时设 MCSS_DEVTOOLS=1
     if (!app.isPackaged && process.env.MCSS_DEVTOOLS === "1") {
       mainWindow?.webContents.openDevTools({ mode: "detach" });
@@ -539,6 +627,17 @@ frp.onLog((line) => send("frp:log", line));
 frp.onStatus((state) => send("frp:status", state));
 
 /* ---------------------------------- 生命周期 ------------------------------ */
+
+// 主进程自己也别悄悄死：记下来，继续跑（退出 = 用户看到黑屏，比留痕更糟）
+process.on("uncaughtException", (err) => {
+  logLine("main-uncaught", `${err?.stack || err}`);
+});
+process.on("unhandledRejection", (reason) => {
+  logLine("main-unhandled-rejection", `${(reason as any)?.stack || reason}`);
+});
+app.on("child-process-gone", (_e, details) => {
+  logLine("child-process-gone", `${details.type} ${details.reason}`);
+});
 
 app.whenReady().then(() => {
   configStore = createConfigStore(getConfigPath());

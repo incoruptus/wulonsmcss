@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import type { JavaInfo, Loader, McVersion } from "@/lib/types";
 import { safeName } from "@/lib/utils";
+import { normalizeLoaders, pickLoader } from "@/lib/loaders";
 
 interface Props {
   open: boolean;
@@ -64,13 +65,19 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open || !mcVersion || loader !== "fabric") return;
     let alive = true;
-    window.mcss.versions.fabricLoaders(mcVersion).then((l) => {
-      if (!alive) return;
-      setLoaders(l);
-      setLoaderVersion((v) => (l.includes(v) ? v : (l[0] ?? "")));
-    }).catch(() => {
-      if (alive) setLoaders([]);
-    });
+    window.mcss.versions
+      .fabricLoaders(mcVersion)
+      .then((raw) => {
+        if (!alive) return;
+        const list = normalizeLoaders(raw);
+        setLoaders(list);
+        setLoaderVersion((v) => pickLoader(v, list));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setLoaders([]);
+        setLoaderVersion("");
+      });
     return () => {
       alive = false;
     };

@@ -1,6 +1,6 @@
 {
   "name": "wulons-mcss",
-  "version": "27.0.0",
+  "version": "27.0.1",
   "description": "Wulon's MCSS · 乌龙味MC开服茶",
   "main": "./out/main/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js electron/ipc/slp.test.js electron/ipc/backups.test.js && node scripts/check-parity.cjs --strict && node scripts/check-download-contract.cjs",
+    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js electron/ipc/slp.test.js electron/ipc/backups.test.js electron/ipc/versions.test.js && node scripts/check-parity.cjs --strict && node scripts/check-download-contract.cjs",
     "dist": "electron-builder --config electron-builder.yml",
     "build:web": "vite build --config vite.web.config.mts",
     "dev:web": "vite --config vite.web.config.mts",

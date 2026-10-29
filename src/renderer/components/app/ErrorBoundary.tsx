@@ -1,0 +1,86 @@
+import React from "react";
+import { RefreshCw, RotateCcw } from "lucide-react";
+import { reportError } from "@/lib/report";
+
+interface Props {
+  children: React.ReactNode;
+}
+
+interface State {
+  error: Error | null;
+  stack: string;
+}
+
+/**
+ * 最后一层防线
+ * ------------------------------------------------------------
+ * React 的默认行为是：渲染期抛错 → 卸载整棵树 → 页面上什么都不剩。
+ * 配上窗口的深色背景，用户看到的就是一面纯黑窗口，毫无信息（27.0.0 的事故）。
+ *
+ * 有这层边界以后，最坏情况是一张「界面出错了 + 原因 + 重载按钮」的卡片。
+ */
+export class ErrorBoundary extends React.Component<Props, State> {
+  state: State = { error: null, stack: "" };
+
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    const stack = `${error.message}\n${error.stack ?? ""}\n--- component stack ---\n${info.componentStack ?? ""}`;
+    this.setState({ stack });
+    reportError("error-boundary", stack);
+  }
+
+  private reload = () => {
+    location.reload();
+  };
+
+  private reset = () => {
+    // 不刷新也要能继续用：清掉错误状态，回到首页
+    this.setState({ error: null, stack: "" });
+    location.hash = "#/";
+  };
+
+  render() {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+
+    return (
+      <div className="grid h-dvh place-items-center bg-background-200 p-6 text-gray-1000">
+        <div className="w-full max-w-2xl rounded-xl bg-background-100 p-6 shadow-geist-border">
+          <h1 className="t-h-20">界面出了点问题</h1>
+          <p className="t-label-13 mt-1 text-gray-800">
+            这不影响你机器上的服务器和存档——只是这一屏没能画出来。可以先点「重新加载」。
+          </p>
+
+          <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-100 p-3 t-mono-12 text-gray-900 scroll-thin">
+            {error.message}
+            {this.state.stack ? `\n\n${this.state.stack}` : ""}
+          </pre>
+
+          <div className="mt-5 flex items-center gap-2">
+            <button
+              onClick={this.reload}
+              className="inline-flex h-9 items-center gap-2 rounded-md bg-gray-1000 px-4 text-sm text-background-100 transition-opacity hover:opacity-90"
+            >
+              <RefreshCw className="size-4" />
+              重新加载
+            </button>
+            <button
+              onClick={this.reset}
+              className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm text-gray-900 shadow-geist-border transition-colors hover:bg-gray-100"
+            >
+              <RotateCcw className="size-4" />
+              回到首页
+            </button>
+          </div>
+
+          <p className="mt-4 t-label-12 text-gray-700">
+            日志：<span className="t-mono-12">%APPDATA%\wulons-mcss\renderer.log</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+}

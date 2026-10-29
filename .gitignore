@@ -22,3 +22,7 @@ tsc.log
 
 # 日志
 *.log
+
+# UI probe screenshots
+_probe*.png
+_shot*.png

@@ -5,12 +5,24 @@
 ## 1. 本地自检
 
 ```bash
-pnpm test          # 109 vitest + 20 node:test + 能力一致性 + 下载契约
+pnpm test          # 116 vitest + 24 node:test + 能力一致性 + 下载契约
 pnpm typecheck     # tsc --noEmit
 pnpm build         # 桌面版三端
 pnpm build:web     # 静态网页 → dist-web/
 pnpm release:check # 网页产物：挂载点、相对路径、JS 是否齐全
 ```
+
+### 界面自检（黑屏回归）
+
+```bash
+node scripts/ui-probe.cjs --route "#/settings"                    # 逐页打开，截图 + 抓文本
+node scripts/ui-probe.cjs --click "[aria-label='新建实例']" --delay 12000
+node scripts/ui-probe.cjs --route "#/join" --expect "加入房间"    # 断言某段文字在
+```
+
+探针判定「页面文本长度 < 20」即为黑屏/白屏，退出码非 0，可直接串进发布前检查。
+黑屏时先看 `%APPDATA%\wulons-mcss\renderer.log`：渲染进程的 console.error、
+未捕获异常、`render-process-gone` 都会记在里面。
 
 ## 2. 出包
 

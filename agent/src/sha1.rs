@@ -122,6 +122,8 @@ pub fn hex(bytes: &[u8]) -> String {
     out
 }
 
+/// 一步算完整串的 SHA-1。只有测试用它做交叉验证，所以不进发布产物。
+#[cfg(test)]
 pub fn sha1_hex(data: &[u8]) -> String {
     let mut hasher = Sha1::new();
     hasher.update(data);

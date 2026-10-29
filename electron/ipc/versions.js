@@ -40,12 +40,27 @@ async function listMinecraft() {
   return manifestCache;
 }
 
-async function fabricLoaders(mc) {
+/**
+ * Fabric Loader 列表（带 stable 标记，内部用）
+ * 排序：稳定版在前，其余按 Fabric 返回顺序
+ */
+async function fabricLoaderList(mc) {
   const list = await getJson(`${FABRIC_META}/versions/loader/${encodeURIComponent(mc)}`);
   return list
     .map((l) => ({ version: l.loader?.version, stable: Boolean(l.loader?.stable) }))
     .filter((l) => l.version)
     .sort((a, b) => (a.stable === b.stable ? 0 : a.stable ? -1 : 1));
+}
+
+/**
+ * 对外（IPC）形状：**字符串数组**。
+ * 契约见 src/renderer/lib/api.ts `fabricLoaders: Promise<string[]>`。
+ * 之前这里直接吐 {version, stable} 对象，渲染层当字符串用，
+ * 结果 <option> 收到对象 → React #31 → 整棵组件树卸载 → 黑屏。
+ * 需要 stable 信息的调用方请用 fabricLoaderList。
+ */
+async function fabricLoaders(mc) {
+  return (await fabricLoaderList(mc)).map((l) => l.version);
 }
 
 async function fabricInstallerVersion() {
@@ -130,7 +145,7 @@ async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
 
   if (loader === "fabric") {
     onProgress?.({ stage: "解析 Fabric Loader", percent: 2 });
-    const loaders = await fabricLoaders(mc);
+    const loaders = await fabricLoaderList(mc);
     const chosen = loaderVersion || loaders.find((l) => l.stable)?.version || loaders[0]?.version;
     if (!chosen) throw new Error(`Fabric 没有适配 ${mc} 的 Loader`);
     const installer = await fabricInstallerVersion();
@@ -160,4 +175,4 @@ async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
   return { ok: true };
 }
 
-module.exports = { listMinecraft, fabricLoaders, installServer, download, getJson, GITHUB_MIRRORS };
+module.exports = { listMinecraft, fabricLoaders, fabricLoaderList, installServer, download, getJson, GITHUB_MIRRORS };
