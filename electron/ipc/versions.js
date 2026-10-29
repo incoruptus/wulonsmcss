@@ -146,6 +146,38 @@ async function installPurpur({ dir, mc, build, onProgress }) {
   return { ok: true, build: ver };
 }
 
+/** Forge 支持哪些 loader 版本（promotions_slim 的 <mc>-latest） */
+async function forgeBuilds(mc) {
+  const promos = await getJson("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json");
+  const v = promos?.promos?.[`${mc}-latest`] ?? promos?.promos?.[`${mc}-recommended`];
+  return v ? [String(v)] : [];
+}
+
+/** NeoForge 的版本要读 maven-metadata；本机网络可能拿不到，拿不到就当没有 */
+async function neoforgeBuilds(mc) {
+  try {
+    const xml = await getText("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
+    const all = [...String(xml).matchAll(/<version>([^<]+)<\/version>/g)].map((m) => m[1]);
+    // NeoForge 的版本号跟 MC 走：26.1.x 或 21.5.x
+    const prefix = mc.startsWith("1.") ? mc.split(".").slice(0, 2).join(".") : mc;
+    return all.filter((v) => v.startsWith(`${prefix}.`)).reverse().slice(0, 50);
+  } catch (e) {
+    return [];
+  }
+}
+
+async function getText(url, timeoutMs = 20000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "WulonsMCSS/27" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status} · ${url}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /* --------------------------------- 核心探测 -------------------------------- */
 
 function readMarker(dir) {
@@ -333,6 +365,8 @@ module.exports = {
   paperBuilds,
   purpurVersions,
   purpurBuilds,
+  forgeBuilds,
+  neoforgeBuilds,
   // 核心探测
   detectServer,
   readMarker,

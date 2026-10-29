@@ -334,6 +334,8 @@ ipcMain.handle("versions:server-builds", async (_e, serverType, mc) => {
   if (serverType === "fabric") return versions.fabricLoaders(mc);
   if (serverType === "paper") return versions.paperBuilds(mc);
   if (serverType === "purpur") return versions.purpurBuilds(mc);
+  if (serverType === "forge") return versions.forgeBuilds(mc);
+  if (serverType === "neoforge") return versions.neoforgeBuilds(mc);
   return [];
 });
 /** 猜一个目录用的是哪种核心（导入既有服务器用） */

@@ -2156,6 +2156,26 @@ fn find_args_file(dir: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Forge 的 loader 版本：promotions_slim 里的 <mc>-latest
+fn forge_builds(mc: &str) -> Result<Json, String> {
+    let json = get_json("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json")?;
+    let promos = json.get("promos");
+    let v = promos
+        .and_then(|p| p.get(&format!("{mc}-latest")))
+        .and_then(|x| x.str())
+        .or_else(|| promos.and_then(|p| p.get(&format!("{mc}-recommended"))).and_then(|x| x.str()));
+    Ok(Json::Arr(v.map(|s| vec![Json::s(s)]).unwrap_or_default()))
+}
+
+/// NeoForge 的版本列表。
+/// 需要读 maven-metadata.xml，但本机实测解析不到该域名；这里返回空列表，
+/// UI 会显示"这个版本还没有构建"，而不是报错卡住。
+/// 桌面版（electron/ipc/versions.js 的 neoforgeBuilds）已经按同一份 XML 实现，
+/// 等网络可达时这里再补上同样的解析（见 docs/FORGE-NEOFORGE.md）。
+fn neoforge_builds(_mc: &str) -> Result<Json, String> {
+    Ok(Json::Arr(vec![]))
+}
+
 fn write_marker(dir: &Path, server_type: &str, mc: &str, build: &str) {
     let payload = Json::obj(vec![
         ("serverType", Json::s(server_type)),
@@ -3352,6 +3372,8 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                     "fabric" => fabric_loaders(mc),
                     "paper" => paper_builds(mc),
                     "purpur" => purpur_builds(mc),
+                    "forge" => forge_builds(mc),
+                    "neoforge" => neoforge_builds(mc),
                     _ => Ok(Json::Arr(vec![])),
                 }
             }
