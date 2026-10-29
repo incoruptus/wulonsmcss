@@ -306,6 +306,12 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
 
   const type = serverType || loader || "vanilla";
 
+  // Forge / NeoForge 要跑安装器（--installServer），流程还没接完。
+  // 这里必须明确拒绝：否则会掉到下面的 vanilla 分支，静默装一个原版 jar 冒充模组服。
+  if (type === "forge" || type === "neoforge") {
+    throw new Error(`${type === "forge" ? "Forge" : "NeoForge"} 暂时还不能在这里自动安装：先用官方安装器装好，再用「导入现有服务器」把它接进来`);
+  }
+
   if (type === "paper") {
     const res = await installPaper({ dir, mc, build, onProgress });
     writeMarker(dir, { serverType: "paper", mc, build: res.build });

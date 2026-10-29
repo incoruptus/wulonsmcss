@@ -2364,6 +2364,15 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         );
     };
 
+    if loader == "forge" || loader == "neoforge" {
+        // 这两家要跑安装器（--installServer），流程还没接完。
+        // 必须明确拒绝，否则会掉到 vanilla 分支，静默装一个原版 jar 冒充模组服。
+        return Err(format!(
+            "{} 暂时还不能在这里自动安装：先用官方安装器装好，再用「导入现有服务器」把它接进来",
+            if loader == "forge" { "Forge" } else { "NeoForge" }
+        ));
+    }
+
     if loader == "paper" {
         progress("下载 Paper", 5, "");
         let chosen = install_paper(mc, build, &dir_path, &progress)?;

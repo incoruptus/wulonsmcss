@@ -163,3 +163,17 @@ test("探测：空目录返回 null，不抛错", () => {
   assert.strictEqual(versions.detectServer(path.join(dir, "nope")), null);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("Forge/NeoForge 没有自动安装：必须明确拒绝，不能静默退回原版", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-install-"));
+  for (const t of ["forge", "neoforge"]) {
+    await assert.rejects(
+      () => versions.installServer({ dir, mc: "26.1.2", serverType: t }),
+      /导入现有服务器/,
+      `${t} 应该明确拒绝`,
+    );
+  }
+  // 目录里不该出现任何 jar
+  assert.deepStrictEqual(fs.readdirSync(dir), []);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
