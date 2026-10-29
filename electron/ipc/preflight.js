@@ -18,11 +18,31 @@ function checkJava(p) {
   return null;
 }
 
+/** Forge 1.17+ / NeoForge 没有 server.jar，启动参数在 libraries/.../win_args.txt */
+function hasArgsFile(dir) {
+  for (const ns of [["neoforged", "neoforge"], ["minecraftforge", "forge"]]) {
+    const base = path.join(dir, "libraries", "net", ns[0], ns[1]);
+    try {
+      for (const ver of fs.readdirSync(base)) {
+        if (fs.existsSync(path.join(base, ver, "win_args.txt"))) return true;
+      }
+    } catch (e) {}
+  }
+  return false;
+}
+
 function checkJar(dir) {
+  if (hasArgsFile(dir)) return null; // Forge/NeoForge：有 argsfile 就能启动
   for (const name of ["fabric-server-launch.jar", "server.jar"]) {
     if (fs.existsSync(path.join(dir, name))) return null;
   }
-  return { id: "jar-missing", level: "error", title: "找不到服务端 jar", detail: `在 ${dir} 下既没有 fabric-server-launch.jar 也没有 server.jar`, fix: "reinstall" };
+  return {
+    id: "jar-missing",
+    level: "error",
+    title: "找不到服务端 jar",
+    detail: `在 ${dir} 下既没有 Forge/NeoForge 的启动参数文件，也没有 fabric-server-launch.jar / server.jar`,
+    fix: "reinstall",
+  };
 }
 
 function checkEula(dir) {
@@ -157,4 +177,4 @@ async function run(instance) {
   };
 }
 
-module.exports = { run, checkDatapacks, checkPort, checkEula };
+module.exports = { run, checkDatapacks, checkPort, checkEula, checkJar, hasArgsFile };

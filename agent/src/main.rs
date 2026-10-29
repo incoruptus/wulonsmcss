@@ -1844,13 +1844,17 @@ fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
         issues.push(issue("java-path", "error", "Java 路径不存在", java, Some("set-java")));
     }
 
-    // 服务端 jar
-    if !dir_path.join("fabric-server-launch.jar").exists() && !dir_path.join("server.jar").exists() {
+    // 服务端 jar：Forge 1.17+ / NeoForge 没有 server.jar，
+    // 启动参数在 libraries/.../win_args.txt，有它就能启动
+    if find_args_file(&dir_path).is_none()
+        && !dir_path.join("fabric-server-launch.jar").exists()
+        && !dir_path.join("server.jar").exists()
+    {
         issues.push(issue(
             "jar-missing",
             "error",
             "找不到服务端 jar",
-            &format!("在 {dir} 下既没有 fabric-server-launch.jar 也没有 server.jar"),
+            &format!("在 {dir} 下既没有 Forge/NeoForge 的启动参数文件，也没有 fabric-server-launch.jar / server.jar"),
             Some("reinstall"),
         ));
     }
@@ -3549,7 +3553,8 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             })
         }
         "server:memory" => Ok(Json::n(0.0)),
-        other => Err(format!("UNSUPPORTED:{other}")),
+        // 给个能读的错误：网页版会把它直接显示给用户
+        other => Err(format!("这个功能还没有实现：{other}")),
     }
 }
 
