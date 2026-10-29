@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
 import { checkClient, defaultClientDir, type CheckupResult } from "@/lib/checkup";
+import { planFromDisk, type DiskPlan } from "@/lib/launch";
 import { copyText, cx, safeName } from "@/lib/utils";
 
 interface Exported {
@@ -44,6 +45,7 @@ export default function Join() {
   const [clientDir, setClientDir] = useState<string>("");
   const [checkup, setCheckup] = useState<CheckupResult | null>(null);
   const [lan, setLan] = useState<{ ok: boolean; ms: number } | null>(null);
+  const [plan, setPlan] = useState<DiskPlan | null>(null);
   const [status, setStatus] = useState<{
     ok: boolean;
     online: boolean;
@@ -121,6 +123,40 @@ export default function Join() {
       setCheckup(null);
       setClientDir(picked);
     }
+  }
+
+  // 体检通过时再算一份「直接进游戏」的计划（复用玩家启动器已装好的版本）
+  useEffect(() => {
+    if (!room || !checkup || checkup.verdict !== "ready" || !clientDir) {
+      setPlan(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const javas = await window.mcss.app.detectJava().catch(() => []);
+      const javaPath = javas[0]?.path ?? "java";
+      const result = await planFromDisk({
+        mcDir: clientDir,
+        room: { mc: room.mc, loader: room.loader, addr: effectiveAddr },
+        username: "Steve",
+        javaPath,
+        memoryGb: { min: 2, max: 4 },
+      }).catch(() => null);
+      if (alive) setPlan(result);
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, checkup, clientDir, effectiveAddr]);
+
+  const canLaunch = Boolean(plan && plan.command.length > 0 && plan.missing.length === 0);
+
+  async function launchNow() {
+    if (!plan?.command.length) return;
+    const res = await window.mcss.client.launch({ command: plan.command, cwd: clientDir });
+    if (res.ok) toast.success("游戏已启动，正在连接服务器…");
+    else toast.error(res.error || "启动失败");
   }
 
   // 一键准备好：从 mcss://install/<code> 进来的，体检一出来就自己动手，不再让人找按钮
@@ -390,15 +426,25 @@ export default function Join() {
             {/* 主路径 */}
             <div className="rounded-xl bg-background-100 p-3 shadow-geist-border">
               <div className="flex flex-wrap items-center gap-3">
-                <Button size="lg" onClick={prepareAndPlay} loading={busy} disabled={busy}>
-                  {room.mods.length ? <Package className="size-4" /> : <Play className="size-4" />}
-                  {room.mods.length ? "准备进游戏" : "复制地址并打开启动器"}
-                  <ArrowRight className="size-4" />
-                </Button>
+                {canLaunch ? (
+                  <Button size="lg" onClick={launchNow}>
+                    <Play className="size-4" />
+                    直接进游戏
+                    <ArrowRight className="size-4" />
+                  </Button>
+                ) : (
+                  <Button size="lg" onClick={prepareAndPlay} loading={busy} disabled={busy}>
+                    {room.mods.length ? <Package className="size-4" /> : <Play className="size-4" />}
+                    {room.mods.length ? "准备进游戏" : "复制地址并打开启动器"}
+                    <ArrowRight className="size-4" />
+                  </Button>
+                )}
                 <span className="t-label-12 text-gray-700">
-                  {room.mods.length
-                    ? "生成一个进服包并打开启动器，导入后服务器已在列表里"
-                    : "这个房间不需要额外 Mod，进游戏加地址即可"}
+                  {canLaunch
+                    ? `用你已装的 ${plan?.versionId} 启动，直接连 ${effectiveAddr}`
+                    : room.mods.length
+                      ? "生成一个进服包并打开启动器，导入后服务器已在列表里"
+                      : "这个房间不需要额外 Mod，进游戏加地址即可"}
                 </span>
               </div>
 

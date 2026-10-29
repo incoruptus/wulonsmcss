@@ -163,6 +163,7 @@ export interface McssApi {
       results?: { ok: boolean; name: string; file?: string; skipped?: boolean; error?: string }[];
     }>;
     addServer: (opts: { mcDir: string; name: string; ip: string }) => Promise<{ ok: boolean; file?: string; count?: number; error?: string }>;
+    launch: (opts: { command: string[]; cwd?: string }) => Promise<{ ok: boolean; pid?: number | null; error?: string }>;
     exportMrpack: (opts: { outFile: string; room: unknown }) => Promise<{ ok: boolean; file?: string; size?: number; mods?: number; error?: string }>;
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };

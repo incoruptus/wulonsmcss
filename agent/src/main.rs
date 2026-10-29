@@ -2937,6 +2937,36 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "fs:mkdir" => std::fs::create_dir_all(arg0)
             .map(|_| Json::Null)
             .map_err(|e| format!("创建目录失败：{e}")),
+        "client:launch" => {
+            let opts = args.first().ok_or("缺少参数")?;
+            let command: Vec<String> = opts
+                .get("command")
+                .and_then(|v| v.arr())
+                .map(|list| list.iter().filter_map(|v| v.str().map(String::from)).collect())
+                .unwrap_or_default();
+            if command.is_empty() {
+                return Err("没有可执行的启动命令".into());
+            }
+            let mut cmd = Command::new(&command[0]);
+            cmd.args(&command[1..]);
+            if let Some(cwd) = opts.get("cwd").and_then(|v| v.str()) {
+                if !cwd.is_empty() {
+                    cmd.current_dir(cwd);
+                }
+            }
+            // 游戏是独立进程：不接 stdin/stdout，用户关掉网页也不影响它
+            cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+            match cmd.spawn() {
+                Ok(child) => Ok(Json::obj(vec![
+                    ("ok", Json::Bool(true)),
+                    ("pid", Json::n(child.id() as f64)),
+                ])),
+                Err(e) => Ok(Json::obj(vec![
+                    ("ok", Json::Bool(false)),
+                    ("error", Json::s(&format!("启动失败：{e}"))),
+                ])),
+            }
+        }
         "client:add-server" => add_server(args.first().ok_or("缺少参数")?),
         "client:prepare" => prepare_client(shared, args.first().ok_or("缺少参数")?),
         "client:export-mrpack" => export_mrpack(shared, args.first().ok_or("缺少参数")?),

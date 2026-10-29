@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const { spawn } = require("child_process");
 const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require("electron");
 
 // electron/ipc 下的模块按运行时路径加载（不进 bundle，打包时随 electron/ipc/** 一起进 asar）
@@ -473,6 +474,27 @@ ipcMain.handle("client:export-mrpack", async (_e, opts) => {
       onProgress: (p) => send("client:progress", p),
     });
     return res;
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+/**
+ * 直接启动游戏：命令由渲染层的计划生成器拼好，这里只负责 spawn。
+ * detached + unref：应用退出后游戏窗口不受影响。
+ */
+ipcMain.handle("client:launch", (_e, opts) => {
+  const command: string[] = Array.isArray(opts?.command) ? opts.command : [];
+  if (!command.length) return { ok: false, error: "没有可执行的启动命令" };
+  try {
+    const child = spawn(command[0], command.slice(1), {
+      cwd: opts?.cwd || undefined,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: false,
+    });
+    child.unref();
+    return { ok: true, pid: child.pid ?? null };
   } catch (err) {
     return { ok: false, error: err.message };
   }
