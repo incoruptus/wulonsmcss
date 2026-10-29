@@ -121,6 +121,21 @@ if (fs.existsSync(agentExe)) {
 fs.writeFileSync(path.join(OUT_DIR, 'version'), pkg.version)
 fs.writeFileSync(path.join(OUT_DIR, 'LICENSE'), 'ISC License\nCopyright (c) 2026 隐刻INCO')
 
+// 出包信息：版本 / 提交 / 时间 / agent，排查「这个包到底是哪次构建」
+const buildInfo = {
+  version: pkg.version,
+  commit: (() => {
+    try {
+      return execSync('git rev-parse --short HEAD', { cwd: APP_DIR }).toString().trim()
+    } catch {
+      return 'unknown'
+    }
+  })(),
+  builtAt: new Date().toISOString(),
+  agent: fs.existsSync(path.join(RESOURCES_DIR, 'agent', 'mcss-agent.exe')) ? pkg.version : null
+}
+fs.writeFileSync(path.join(OUT_DIR, 'build-info.json'), JSON.stringify(buildInfo, null, 2))
+
 const size = (getDirSize(OUT_DIR) / 1024 / 1024).toFixed(1)
 console.log(`\n===== Done =====\nOutput: ${OUT_DIR}\nSize: ${size} MB`)
 

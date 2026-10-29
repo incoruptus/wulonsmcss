@@ -11,6 +11,9 @@ mod json;
 mod nbt;
 mod sha1;
 
+/// 版本号来自 package.json（由 build.rs 注入），保证三处一致
+const PRODUCT_VERSION: &str = env!("MCSS_VERSION");
+
 use json::Json;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream, UdpSocket};
@@ -1195,69 +1198,92 @@ fn fallback_meta(file: &str) -> (String, String, String) {
     (base.clone(), String::new(), base.to_lowercase().replace(' ', "-"))
 }
 
+/// 单个 jar 的元数据（每读一个 jar 要起一次 bsdtar，所以扫描时要并发）
+fn mod_meta_of(path: &Path, name: &str) -> Json {
+    let meta = std::fs::metadata(path);
+    let size = meta.as_ref().map(|m| m.len() as f64).unwrap_or(0.0);
+    let mtime = meta
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0);
+
+    let (id, display, version, env, depends) = match read_fabric_meta(path) {
+        Some(meta) => {
+            let dep_names: Vec<Json> = match meta.get("depends") {
+                Some(Json::Obj(items)) => items.iter().map(|(k, _)| Json::s(k)).collect(),
+                _ => Vec::new(),
+            };
+            (
+                meta.get("id").and_then(|v| v.str()).unwrap_or("").to_string(),
+                meta.get("name")
+                    .and_then(|v| v.str())
+                    .or_else(|| meta.get("id").and_then(|v| v.str()))
+                    .unwrap_or(name)
+                    .to_string(),
+                meta.get("version").and_then(|v| v.str()).unwrap_or("").to_string(),
+                match meta.get("environment").and_then(|v| v.str()) {
+                    Some("client") => "client".to_string(),
+                    Some("server") => "server".to_string(),
+                    _ => "*".to_string(),
+                },
+                dep_names,
+            )
+        }
+        None => {
+            let (display, version, id) = fallback_meta(name);
+            (id, display, version, "*".to_string(), Vec::new())
+        }
+    };
+
+    Json::obj(vec![
+        ("file", Json::s(name)),
+        ("path", Json::s(&path.to_string_lossy())),
+        ("id", Json::s(&id)),
+        ("name", Json::s(&display)),
+        ("version", Json::s(&version)),
+        ("environment", Json::s(&env)),
+        ("depends", Json::Arr(depends)),
+        ("size", Json::n(size)),
+        ("mtime", Json::n(mtime)),
+    ])
+}
+
 fn scan_mods(dir: &str) -> Result<Json, String> {
     let rd = std::fs::read_dir(dir).map_err(|e| format!("读取目录失败：{e}"))?;
-    let mut out = Vec::new();
 
+    let mut targets: Vec<(String, PathBuf)> = Vec::new();
     for entry in rd.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        let lower = name.to_lowercase();
-        if !lower.ends_with(".jar") {
+        if !name.to_lowercase().ends_with(".jar") {
             continue;
         }
         let path = entry.path();
-        let meta = std::fs::metadata(&path);
-        if meta.as_ref().map(|m| !m.is_file()).unwrap_or(true) {
-            continue;
+        if path.is_file() {
+            targets.push((name, path));
         }
-        let size = meta.as_ref().map(|m| m.len() as f64).unwrap_or(0.0);
-        let mtime = meta
-            .and_then(|m| m.modified())
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as f64)
-            .unwrap_or(0.0);
-
-        let (id, display, version, env, depends) = match read_fabric_meta(&path) {
-            Some(meta) => {
-                let dep_names: Vec<Json> = match meta.get("depends") {
-                    Some(Json::Obj(items)) => items.iter().map(|(k, _)| Json::s(k)).collect(),
-                    _ => Vec::new(),
-                };
-                (
-                    meta.get("id").and_then(|v| v.str()).unwrap_or("").to_string(),
-                    meta.get("name")
-                        .and_then(|v| v.str())
-                        .or_else(|| meta.get("id").and_then(|v| v.str()))
-                        .unwrap_or(&name)
-                        .to_string(),
-                    meta.get("version").and_then(|v| v.str()).unwrap_or("").to_string(),
-                    match meta.get("environment").and_then(|v| v.str()) {
-                        Some("client") => "client".to_string(),
-                        Some("server") => "server".to_string(),
-                        _ => "*".to_string(),
-                    },
-                    dep_names,
-                )
-            }
-            None => {
-                let (display, version, id) = fallback_meta(&name);
-                (id, display, version, "*".to_string(), Vec::new())
-            }
-        };
-
-        out.push(Json::obj(vec![
-            ("file", Json::s(&name)),
-            ("path", Json::s(&path.to_string_lossy())),
-            ("id", Json::s(&id)),
-            ("name", Json::s(&display)),
-            ("version", Json::s(&version)),
-            ("environment", Json::s(&env)),
-            ("depends", Json::Arr(depends)),
-            ("size", Json::n(size)),
-            ("mtime", Json::n(mtime)),
-        ]));
     }
+
+    // 每个 jar 都要起一次 bsdtar；串行时 25 个约 0.6 秒，并发后降到 0.1~0.2 秒
+    let workers = targets.len().clamp(1, 6);
+    let chunk = targets.len().div_ceil(workers);
+    let mut out: Vec<Json> = Vec::with_capacity(targets.len());
+    std::thread::scope(|scope| {
+        let mut handles = Vec::new();
+        for part in targets.chunks(chunk.max(1)) {
+            handles.push(scope.spawn(move || {
+                part.iter()
+                    .map(|(name, path)| mod_meta_of(path, name))
+                    .collect::<Vec<Json>>()
+            }));
+        }
+        for handle in handles {
+            if let Ok(items) = handle.join() {
+                out.extend(items);
+            }
+        }
+    });
 
     out.sort_by(|a, b| {
         a.get("name")
@@ -2788,7 +2814,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             let profile = std::env::var("USERPROFILE").unwrap_or_default();
             let appdata = std::env::var("APPDATA").unwrap_or_default();
             Ok(Json::obj(vec![
-                ("version", Json::s(env!("CARGO_PKG_VERSION"))),
+                ("version", Json::s(PRODUCT_VERSION)),
                 ("isPackaged", Json::Bool(true)),
                 ("appData", Json::s(&appdata)),
                 ("documents", Json::s(&Path::new(&profile).join("Documents").to_string_lossy())),
@@ -3115,7 +3141,7 @@ fn main() {
     let path = config_path();
     let config = load_config(&path);
 
-    println!("mcss-agent {} 启动", env!("CARGO_PKG_VERSION"));
+    println!("mcss-agent {} 启动", PRODUCT_VERSION);
     println!("  配置: {}", path.display());
     println!("  监听: http://127.0.0.1:{port}");
 

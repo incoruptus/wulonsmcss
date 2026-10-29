@@ -48,6 +48,10 @@ jobs:
       - name: Build web
         run: pnpm build:web
 
+      # 产物自检：挂载点、相对路径、JS 产物齐全（防止发出一个白页）
+      - name: Check release artifacts
+        run: pnpm release:check
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist-web

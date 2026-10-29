@@ -14,7 +14,9 @@
     "dev:web": "vite --config vite.web.config.mts",
     "build:agent": "cargo build --release --manifest-path agent/Cargo.toml",
     "agent": "agent/target/release/mcss-agent.exe",
-    "test:parity": "node scripts/check-parity.cjs"
+    "test:parity": "node scripts/check-parity.cjs",
+    "release:check": "node scripts/check-release.cjs",
+    "release:agent": "node scripts/make-release.cjs --build"
   },
   "dependencies": {
     "@fontsource/sora": "^5.0.0",

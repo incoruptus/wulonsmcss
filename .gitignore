@@ -8,6 +8,7 @@ _asar_tmp/
 .gradle/
 build/
 agent/target/
+release/
 
 # 打包产物与历史备份（体积大，不入库）
 *.tgz
