@@ -4,6 +4,7 @@ import {
   Boxes,
   Check,
   ChevronsUpDown,
+  FolderInput,
   Gamepad2,
   Globe2,
   LayoutDashboard,
@@ -29,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/overlay";
 import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog";
+import { ImportInstanceDialog } from "@/components/instance/ImportInstanceDialog";
 
 /** 服主模式：导航全是「当前实例的某个面」+ 三个全局入口 */
 const HOST_NAV = [
@@ -62,6 +64,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const host = mode === "host";
   const nav = host ? HOST_NAV : PLAYER_NAV;
@@ -120,6 +123,9 @@ export function Sidebar() {
               <DropdownMenuItem onSelect={() => setCreating(true)}>
                 <Plus className="size-3.5" /> 新建服务器
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setImporting(true)}>
+                <FolderInput className="size-3.5" /> 导入现有服务器
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate("/instances")}>
                 <Boxes className="size-3.5" /> 全部实例
               </DropdownMenuItem>
@@ -170,6 +176,7 @@ export function Sidebar() {
       </div>
 
       <CreateInstanceDialog open={creating} onOpenChange={setCreating} />
+      <ImportInstanceDialog open={importing} onOpenChange={setImporting} />
     </nav>
   );
 }

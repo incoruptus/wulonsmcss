@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Server, Trash2, FolderOpen, Play } from "lucide-react";
+import { FolderInput, Plus, Server, Trash2, FolderOpen, Play } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button, IconButton } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog";
+import { ImportInstanceDialog } from "@/components/instance/ImportInstanceDialog";
 import { useConfig } from "@/stores/config";
 import { timeAgo } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ export default function Instances() {
   const removeInstance = useConfig((s) => s.removeInstance);
   const updateInstance = useConfig((s) => s.updateInstance);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const target = instances.find((i) => i.id === pendingDelete);
@@ -24,12 +26,18 @@ export default function Instances() {
     <>
       <PageHeader
         title="服务器实例"
-        desc="每个实例有独立的版本、Mod、配置与存档，互不干扰。"
+        desc="每个实例有独立的版本、核心、内容与存档，互不干扰。"
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" />
-            新建实例
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setImporting(true)}>
+              <FolderInput className="size-4" />
+              导入现有服务器
+            </Button>
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              新建实例
+            </Button>
+          </div>
         }
       />
       <PageBody>
@@ -114,6 +122,7 @@ export default function Instances() {
       </PageBody>
 
       <CreateInstanceDialog open={creating} onOpenChange={setCreating} />
+      <ImportInstanceDialog open={importing} onOpenChange={setImporting} />
 
       <Dialog open={Boolean(target)} onOpenChange={(v) => !v && setPendingDelete(null)}>
         <DialogHeader title="删除实例？" desc="只从列表里移除，不会删除磁盘上的服务器文件。" />

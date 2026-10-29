@@ -11,22 +11,29 @@ import { InstanceOverview } from "@/components/instance/InstanceOverview";
 import { ConsoleTab } from "@/components/instance/ConsoleTab";
 import { ConfigTab } from "@/components/instance/ConfigTab";
 import { ModsTab } from "@/components/instance/ModsTab";
+import { PluginsTab } from "@/components/instance/PluginsTab";
 import { WorldsTab } from "@/components/instance/WorldsTab";
 import { PlayersTab } from "@/components/instance/PlayersTab";
 import { InstanceSettingsDialog } from "@/components/instance/InstanceSettingsDialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { InviteDialog } from "@/components/instance/InviteDialog";
+import { contentKindOf, serverTypeOf } from "@/lib/config-model";
 
-const TABS = [
-  { id: "overview", label: "概览" },
-  { id: "console", label: "控制台" },
-  { id: "config", label: "配置" },
-  { id: "mods", label: "Mod" },
-  { id: "worlds", label: "世界" },
-  { id: "players", label: "玩家" },
-] as const;
+/** 标签页随核心类型变：插件服叫「插件」，模组服叫「模组」，原版叫「数据包」 */
+function tabsFor(instance: { serverType?: string; loader?: string }) {
+  const kind = contentKindOf(serverTypeOf(instance as never));
+  const contentLabel = kind === "plugin" ? "插件" : kind === "datapack" ? "数据包" : "模组";
+  return [
+    { id: "overview", label: "概览" },
+    { id: "console", label: "控制台" },
+    { id: "config", label: "配置" },
+    { id: "mods", label: contentLabel },
+    { id: "worlds", label: "世界" },
+    { id: "players", label: "玩家" },
+  ] as const;
+}
 
-type TabId = (typeof TABS)[number]["id"];
+type TabId = ReturnType<typeof tabsFor>[number]["id"];
 
 export default function InstanceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,8 +47,9 @@ export default function InstanceDetail() {
   const [inviteOpen, setInviteOpen] = useState(false);
 
   // Tab 记在 URL 上：刷新/返回不丢，也能直接分享到某个 Tab
+  const tabs = tabsFor(instance ?? {});
   const tabParam = searchParams.get("tab");
-  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
+  const tab: TabId = tabs.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
   const setTab = (next: TabId) => {
     const params = new URLSearchParams(searchParams);
     if (next === "overview") params.delete("tab");
@@ -110,7 +118,7 @@ export default function InstanceDetail() {
         </div>
 
         <div className="flex gap-1 px-5">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -130,7 +138,13 @@ export default function InstanceDetail() {
         {tab === "overview" ? <InstanceOverview instance={instance} onEdit={() => setEditing(true)} /> : null}
         {tab === "console" ? <ConsoleTab instance={instance} /> : null}
         {tab === "config" ? <ConfigTab instance={instance} /> : null}
-        {tab === "mods" ? <ModsTab instance={instance} /> : null}
+        {tab === "mods" ? (
+          contentKindOf(serverTypeOf(instance)) === "plugin" ? (
+            <PluginsTab instance={instance} />
+          ) : (
+            <ModsTab instance={instance} />
+          )
+        ) : null}
         {tab === "worlds" ? <WorldsTab instance={instance} /> : null}
         {tab === "players" ? <PlayersTab instance={instance} /> : null}
       </div>
