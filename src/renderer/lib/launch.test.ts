@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { findMatchingVersion, planFromDisk, resolveVersionJson } from "./launch";
+import { findMatchingVersion, mcVersionOf, planFromDisk, resolveVersionJson } from "./launch";
 
 const files = new Map<string, string>();
 const key = (p: string) => p.replace(/\//g, "\\");
@@ -69,6 +69,30 @@ describe("版本解析", () => {
 
   it("没有 .minecraft 时返回 null 而不是抛错", async () => {
     expect(await findMatchingVersion("C:\\nothing", { mc: "26.1", loader: "fabric" })).toBeNull();
+  });
+
+  it("PCL2 风格的合并版（id 里带加载器、没有 inheritsFrom）也能匹配", async () => {
+    // 真机实测：D:\Games\Minecraft\.minecraft\versions\26.1-Fabric 0.19.3
+    // 它的 json 没有 inheritsFrom，id 就是 "26.1-Fabric 0.19.3"
+    addVersion("26.1-Fabric 0.19.3", {
+      id: "26.1-Fabric 0.19.3",
+      mainClass: "net.fabricmc.loader.impl.launch.knot.KnotClient",
+      libraries: [{ name: "net.fabricmc:fabric-loader:0.19.3" }],
+    });
+
+    const found = await findMatchingVersion(mcDir, { mc: "26.1", loader: "fabric" });
+    expect(found?.id).toBe("26.1-Fabric 0.19.3");
+
+    // 别的 MC 版本不能误匹配
+    expect(await findMatchingVersion(mcDir, { mc: "1.21.1", loader: "fabric" })).toBeNull();
+  });
+
+  it("mcVersionOf：继承优先，其次从 id 前缀取，取不到就是 null", () => {
+    expect(mcVersionOf({ inheritsFrom: "1.21.1", id: "fabric-loader-0.16-1.21.1" })).toBe("1.21.1");
+    expect(mcVersionOf({ id: "26.1-Fabric 0.19.3" })).toBe("26.1");
+    expect(mcVersionOf({ id: "1.21.1-Fabric_0.16.1" })).toBe("1.21.1");
+    expect(mcVersionOf({ id: "Slimes Adventure" })).toBeNull();
+    expect(mcVersionOf({ id: "" })).toBeNull();
   });
 });
 

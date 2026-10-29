@@ -42,6 +42,21 @@ function hasLoader(version: VersionJson, loader: string): boolean {
   return (version.libraries ?? []).some((lib) => lib.name.includes(`:${loader}-loader:`) || lib.name.includes(`:${loader}:`));
 }
 
+/**
+ * 这份版本 JSON 对应的「原版版本号」。
+ * ------------------------------------------------------------
+ * 官方启动器/HMCL 的写法是「原版 1.21.1」+「fabric-loader-… 继承 1.21.1」，
+ * 但 PCL2 生成的是**合并版**目录：id 就叫 `26.1-Fabric 0.19.3`，没有 inheritsFrom。
+ * 早期实现只认 inheritsFrom 或整个 id 相等，于是 PCL2 装的版本**永远匹配不上**——
+ * 而 PCL2 恰好是国内最常用的启动器，等于「直接进游戏」对大多数玩家直接失效。
+ * 这里退一步从 id 前缀里取版本号。
+ */
+export function mcVersionOf(version: VersionJson & { id?: string }): string | null {
+  if (version.inheritsFrom) return version.inheritsFrom;
+  const m = String(version.id ?? "").match(/^(\d+\.\d+(?:\.\d+)?)/);
+  return m ? m[1] : null;
+}
+
 export interface ResolvedVersion {
   id: string;
   dir: string;
@@ -56,9 +71,8 @@ export async function findMatchingVersion(
   for (const entry of await listVersions(mcDir)) {
     const json = await resolveVersionJson(mcDir, entry.id);
     if (!json) continue;
-    // 原版版本号：继承自谁，或者它自己
-    const mcVersion = json.inheritsFrom ? undefined : json.id;
-    const original = (await readJson<VersionJson>(join(mcDir, "versions", entry.id, `${entry.id}.json`)))?.inheritsFrom ?? mcVersion;
+    // 原版版本号：继承自谁，或者从合并版 id 的前缀里取（PCL2 风格）
+    const original = mcVersionOf({ ...json, id: entry.id });
     if (original !== room.mc) continue;
     if (!hasLoader(json, room.loader)) continue;
     return { id: entry.id, dir: entry.dir, json };
