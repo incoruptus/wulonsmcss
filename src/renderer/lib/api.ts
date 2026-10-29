@@ -141,8 +141,17 @@ export interface McssApi {
   versions: {
     minecraft: () => Promise<McVersion[]>;
     fabricLoaders: (mc: string) => Promise<string[]>;
-    /** 列某个核心在某个 MC 版本下可用的构建（Paper 的 build、Forge/NeoForge 的 loader 版本） */
-    serverBuilds?: (serverType: string, mc: string) => Promise<string[]>;
+    /** 某个核心在某个 MC 版本下的构建列表（Paper/Purpur 的 build、Fabric 的 loader） */
+    serverBuilds: (serverType: ServerType, mc: string) => Promise<string[]>;
+    /** 猜目录里装的是哪种核心（导入既有服务器） */
+    detectServer: (dir: string) => Promise<{
+      serverType: ServerType;
+      mc?: string;
+      build?: string;
+      loaderVersion?: string;
+      source: string;
+      confidence: "high" | "medium" | "guess";
+    } | null>;
     install: (opts: {
       dir: string;
       mc: string;
@@ -151,7 +160,9 @@ export interface McssApi {
       /** @deprecated 旧名字 */
       loader?: ServerType;
       loaderVersion?: string;
-    }) => Promise<{ ok: boolean; error?: string }>;
+      /** Paper/Purpur 的构建号 */
+      build?: string;
+    }) => Promise<{ ok: boolean; error?: string; build?: string; loaderVersion?: string }>;
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };
   modrinth: {

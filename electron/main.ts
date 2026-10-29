@@ -327,6 +327,16 @@ ipcMain.handle("mods:enable", (_e, jarPath) => {
 
 ipcMain.handle("versions:minecraft", () => versions.listMinecraft());
 ipcMain.handle("versions:fabric-loaders", (_e, mc) => versions.fabricLoaders(mc));
+/** 某个核心在某个 MC 版本下的构建列表（Paper 的 build / Purpur 的 build / Fabric 的 loader） */
+ipcMain.handle("versions:server-builds", async (_e, serverType, mc) => {
+  if (!mc) return [];
+  if (serverType === "fabric") return versions.fabricLoaders(mc);
+  if (serverType === "paper") return versions.paperBuilds(mc);
+  if (serverType === "purpur") return versions.purpurBuilds(mc);
+  return [];
+});
+/** 猜一个目录用的是哪种核心（导入既有服务器用） */
+ipcMain.handle("versions:detect-server", (_e, dir) => versions.detectServer(dir));
 ipcMain.handle("versions:install", async (_e, opts) => {
   try {
     const res = await versions.installServer({

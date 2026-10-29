@@ -191,6 +191,8 @@ export function createHttpClient(base: string, token: string): McssApi {
     versions: {
       minecraft: () => invoke("versions:minecraft"),
       fabricLoaders: (mc) => invoke("versions:fabric-loaders", mc),
+      serverBuilds: (serverType, mc) => invoke("versions:server-builds", serverType, mc),
+      detectServer: (dir) => invoke("versions:detect-server", dir),
       install: (opts) => invoke("versions:install", opts),
       onProgress: (cb) => on("versions:progress", (p) => cb(p as never)),
     },

@@ -81,6 +81,8 @@ contextBridge.exposeInMainWorld("mcss", {
   versions: {
     minecraft: () => invoke("versions:minecraft"),
     fabricLoaders: (mc: string) => invoke("versions:fabric-loaders", mc),
+    serverBuilds: (serverType: string, mc: string) => invoke("versions:server-builds", serverType, mc),
+    detectServer: (dir: string) => invoke("versions:detect-server", dir),
     install: (opts: any) => invoke("versions:install", opts),
     onProgress: (cb: (p: any) => void) => subscribe("versions:progress", "versionsProgress", cb)
   },

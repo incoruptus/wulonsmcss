@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Download, FolderOpen, Sparkles } from "lucide-react";
+import { Download, FolderOpen } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Slider } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
-import { SegmentedControl } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
-import type { JavaInfo, Loader, McVersion } from "@/lib/types";
+import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
 import { safeName } from "@/lib/utils";
+import { contentKindOf, serverTypeLabel } from "@/lib/config-model";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
 
 interface Props {
@@ -17,21 +17,29 @@ interface Props {
   onOpenChange: (v: boolean) => void;
 }
 
+/** 现在真正支持安装的核心（NeoForge / Forge 要走 installer，还没接） */
+const CORES: { value: ServerType; hint: string }[] = [
+  { value: "fabric", hint: "轻量模组服，性能模组首选" },
+  { value: "paper", hint: "插件服（水桶系），玩家用原版客户端就能进" },
+  { value: "purpur", hint: "Paper 的增强版，多几百个玩法开关" },
+  { value: "vanilla", hint: "原版服务端，不装任何东西" },
+];
+
 export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const addInstance = useConfig((s) => s.addInstance);
 
   const [name, setName] = useState("");
   const [mcVersion, setMcVersion] = useState("");
-  const [loader, setLoader] = useState<Loader>("fabric");
-  const [loaderVersion, setLoaderVersion] = useState("");
+  const [serverType, setServerType] = useState<ServerType>("paper");
+  const [build, setBuild] = useState("");
   const [dir, setDir] = useState("");
   const [memoryMin, setMemoryMin] = useState(2);
   const [memoryMax, setMemoryMax] = useState(4);
   const [javaPath, setJavaPath] = useState("");
 
   const [versions, setVersions] = useState<McVersion[]>([]);
-  const [loaders, setLoaders] = useState<string[]>([]);
+  const [builds, setBuilds] = useState<string[]>([]);
   const [javas, setJavas] = useState<JavaInfo[]>([]);
   const [baseDir, setBaseDir] = useState("");
 
@@ -61,33 +69,33 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
     };
   }, [open]);
 
-  // 版本/加载器联动
+  // 版本/核心联动：拉该核心在这个 MC 版本下的构建列表
   useEffect(() => {
-    if (!open || !mcVersion || loader !== "fabric") return;
+    if (!open || !mcVersion) return;
     let alive = true;
     window.mcss.versions
-      .fabricLoaders(mcVersion)
+      .serverBuilds(serverType, mcVersion)
       .then((raw) => {
         if (!alive) return;
         const list = normalizeLoaders(raw);
-        setLoaders(list);
-        setLoaderVersion((v) => pickLoader(v, list));
+        setBuilds(list);
+        setBuild((v) => pickLoader(v, list));
       })
       .catch(() => {
         if (!alive) return;
-        setLoaders([]);
-        setLoaderVersion("");
+        setBuilds([]);
+        setBuild("");
       });
     return () => {
       alive = false;
     };
-  }, [open, mcVersion, loader]);
+  }, [open, mcVersion, serverType]);
 
   const finalDir = useMemo(() => {
     if (dir) return dir;
-    const leaf = safeName(name || `${mcVersion}-${loader}`);
+    const leaf = safeName(name || `${mcVersion}-${serverType}`);
     return baseDir ? `${baseDir}\\${leaf}` : "";
-  }, [dir, name, mcVersion, loader, baseDir]);
+  }, [dir, name, mcVersion, serverType, baseDir]);
 
   const releaseOptions = useMemo(
     () =>
@@ -100,6 +108,8 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         })),
     [versions],
   );
+
+  const kind = contentKindOf(serverType);
 
   async function browseDir() {
     const picked = await window.mcss.dialog.openDirectory();
@@ -118,23 +128,27 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
       const res = await window.mcss.versions.install({
         dir: finalDir,
         mc: mcVersion,
-        loader,
-        loaderVersion: loader === "fabric" ? loaderVersion : undefined,
+        serverType,
+        loaderVersion: serverType === "fabric" ? build : undefined,
+        build: kind === "plugin" ? build : undefined,
       });
       if (!res.ok) throw new Error(res.error || "安装失败");
       const inst = makeInstance({
         name: name.trim(),
         dir: finalDir,
         mcVersion,
-        loader,
-        loaderVersion: loader === "fabric" ? loaderVersion : undefined,
+        serverType,
+        loaderVersion: serverType === "fabric" ? build : undefined,
+        buildNumber: kind === "plugin" && res.build ? Number(res.build) : undefined,
         javaPath,
         memoryMin,
         memoryMax,
         port: 25565,
       });
       await addInstance(inst);
-      toast.success("服务器装好了", { description: `${inst.mcVersion} · ${inst.loader}${inst.loaderVersion ? ` ${inst.loaderVersion}` : ""}` });
+      toast.success("服务器装好了", {
+        description: `${inst.mcVersion} · ${serverTypeLabel(serverType)}${build ? ` ${build}` : ""}`,
+      });
       onOpenChange(false);
       reset();
       navigate(`/instances/${inst.id}`);
@@ -150,7 +164,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   function reset() {
     setName("");
     setDir("");
-    setLoaderVersion("");
+    setBuild("");
     setMemoryMin(2);
     setMemoryMax(4);
     setProgress(null);
@@ -160,7 +174,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={(v) => !installing && onOpenChange(v)} widthClass="max-w-2xl">
       <DialogHeader
         title="新建服务器实例"
-        desc="选版本 → 选加载器 → 下载服务端，装好即可开服。Mod 可以在创建后从「资源库」加。"
+        desc="选版本 → 选核心 → 下载服务端，装好即可开服。插件服用 Paper/Purpur，模组服用 Fabric。"
       />
       <DialogBody className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -177,23 +191,32 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="服务端核心">
-            <SegmentedControl
-              grow
-              value={loader}
-              onValueChange={(v) => setLoader(v as Loader)}
-              options={[
-                { value: "fabric", label: "Fabric（支持 Mod）" },
-                { value: "vanilla", label: "原版" },
-              ]}
+          <Field label="服务端核心" hint={CORES.find((c) => c.value === serverType)?.hint}>
+            <Select
+              value={serverType}
+              onChange={(e) => setServerType(e.target.value as ServerType)}
+              options={CORES.map((c) => ({ value: c.value, label: serverTypeLabel(c.value) }))}
             />
           </Field>
-          <Field label="Fabric Loader" hint={loader === "fabric" ? "默认已选稳定版" : "原版服务端不需要"}>
+          <Field
+            label={kind === "plugin" ? "构建号" : "Fabric Loader"}
+            hint={
+              kind === "plugin"
+                ? build
+                  ? `Paper/Purpur 的构建，越新越好`
+                  : builds.length
+                    ? "选一个构建"
+                    : "这个版本还没有构建"
+                : serverType === "vanilla"
+                  ? "原版服务端不需要"
+                  : "默认已选稳定版"
+            }
+          >
             <Select
-              disabled={loader !== "fabric" || loaders.length === 0}
-              value={loaderVersion}
-              onChange={(e) => setLoaderVersion(e.target.value)}
-              options={loaders.length ? loaders.map((l) => ({ value: l, label: l })) : [{ value: "", label: "—" }]}
+              disabled={serverType === "vanilla" || builds.length === 0}
+              value={build}
+              onChange={(e) => setBuild(e.target.value)}
+              options={builds.length ? builds.map((l) => ({ value: l, label: l })) : [{ value: "", label: "—" }]}
             />
           </Field>
         </div>

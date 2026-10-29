@@ -10,6 +10,9 @@
  */
 const test = require("node:test");
 const assert = require("node:assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const versions = require("./versions.js");
 
 const FABRIC_PAYLOAD = [
@@ -75,4 +78,88 @@ test("Fabric 接口挂了要抛错，而不是返回 undefined 让 UI 崩", asyn
   } finally {
     restore();
   }
+});
+
+/* ------------------------- 插件服（Paper / Purpur） ------------------------- */
+
+test("Paper 构建列表是字符串数组，且跳过没有服务端 jar 的构建", async () => {
+  const restore = stubFetch(null);
+  global.fetch = async (url) => {
+    if (String(url).includes("/projects/paper/versions/")) {
+      return {
+        ok: true,
+        json: async () => [
+          { id: 74, downloads: { "server:default": { url: "https://x/paper.jar" } } },
+          { id: 73, downloads: {} },
+          { id: 72, downloads: { "server:default": { url: "https://x/paper.jar" } } },
+        ],
+      };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+  try {
+    const builds = await versions.paperBuilds("26.1.2");
+    assert.deepStrictEqual(builds, ["74", "72"]);
+    for (const b of builds) assert.strictEqual(typeof b, "string");
+  } finally {
+    restore();
+  }
+});
+
+test("Purpur 构建列表倒序（最新在前）", async () => {
+  const restore = stubFetch(null);
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ builds: { all: [10, 11, 12] } }),
+  });
+  try {
+    assert.deepStrictEqual(await versions.purpurBuilds("26.1.2"), ["12", "11", "10"]);
+  } finally {
+    restore();
+  }
+});
+
+/* ------------------------------- 核心探测 ------------------------------- */
+
+test("探测：自家标记最高优先", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-detect-"));
+  fs.writeFileSync(path.join(dir, ".mcss-server.json"), JSON.stringify({ serverType: "purpur", mc: "26.1.2", build: "2592" }));
+  fs.mkdirSync(path.join(dir, "plugins"));
+  const res = versions.detectServer(dir);
+  assert.strictEqual(res.serverType, "purpur");
+  assert.strictEqual(res.confidence, "high");
+  assert.strictEqual(res.mc, "26.1.2");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("探测：没有标记时按目录特征判断", () => {
+  const cases = [
+    { files: ["libraries/net/neoforged"], want: "neoforge" },
+    { files: ["libraries/net/minecraftforge"], want: "forge" },
+    { files: ["purpur.yml"], want: "purpur" },
+    { files: ["config/paper-global.yml"], want: "paper" },
+    { files: ["fabric-server-launch.jar"], want: "fabric" },
+    { files: ["plugins"], want: "paper" },
+    { files: ["mods"], want: "fabric" },
+    { files: ["server.jar"], want: "vanilla" },
+  ];
+  for (const c of cases) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-detect-"));
+    for (const f of c.files) {
+      fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      if (f.includes(".")) fs.writeFileSync(path.join(dir, f), "");
+      else fs.mkdirSync(path.join(dir, f), { recursive: true });
+    }
+    const res = versions.detectServer(dir);
+    assert.strictEqual(res && res.serverType, c.want, `${c.files.join(",")} 应该判成 ${c.want}`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("探测：空目录返回 null，不抛错", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-detect-"));
+  assert.strictEqual(versions.detectServer(dir), null);
+  assert.strictEqual(versions.detectServer(""), null);
+  assert.strictEqual(versions.detectServer(path.join(dir, "nope")), null);
+  fs.rmSync(dir, { recursive: true, force: true });
 });

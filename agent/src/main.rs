@@ -1880,6 +1880,10 @@ fn now_ms() -> f64 {
 
 const MC_MANIFEST: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const FABRIC_META: &str = "https://meta.fabricmc.net/v2";
+const PAPER_API: &str = "https://fill.papermc.io/v3";
+const PURPUR_API: &str = "https://api.purpurmc.org/v2";
+/// 装了哪个核心写在这里，导入别人的服务器时不用靠猜
+const MARKER: &str = ".mcss-server.json";
 /// GitHub 直连在国内常不通，按顺序回退；空串表示直连
 const MIRRORS: [&str; 4] = ["", "https://gh-proxy.com/", "https://ghfast.top/", "https://ghproxy.net/"];
 
@@ -1937,6 +1941,174 @@ fn fabric_loaders(mc: &str) -> Result<Json, String> {
         })
         .unwrap_or_default();
     Ok(Json::Arr(versions))
+}
+
+/* --------------------------- Paper / Purpur（插件服） --------------------------- */
+
+fn paper_builds(mc: &str) -> Result<Json, String> {
+    let url = format!("{PAPER_API}/projects/paper/versions/{}/builds", urlencode(mc));
+    let json = get_json(&url)?;
+    let list = json.arr().ok_or("Paper 返回格式不对")?;
+    let mut out: Vec<Json> = Vec::new();
+    for b in list {
+        if b.get("downloads").and_then(|d| d.get("server:default")).is_none() {
+            continue;
+        }
+        if let Some(id) = b.get("id").and_then(|v| v.num()) {
+            out.push(Json::s(&format!("{}", id as i64)));
+        }
+    }
+    Ok(Json::Arr(out))
+}
+
+fn purpur_builds(mc: &str) -> Result<Json, String> {
+    let url = format!("{PURPUR_API}/purpur/{}", urlencode(mc));
+    let json = get_json(&url)?;
+    let all = json
+        .get("builds")
+        .and_then(|b| b.get("all"))
+        .and_then(|a| a.arr())
+        .cloned()
+        .unwrap_or_default();
+    // Purpur 给的是升序，倒过来让最新的在前
+    let out: Vec<Json> = all
+        .iter()
+        .rev()
+        .map(|v| Json::s(&format!("{}", v.num().unwrap_or(0.0) as i64)))
+        .collect();
+    Ok(Json::Arr(out))
+}
+
+fn install_paper(
+    mc: &str,
+    build: &str,
+    dir: &Path,
+    progress: &dyn Fn(&str, i32, &str),
+) -> Result<String, String> {
+    let url = format!("{PAPER_API}/projects/paper/versions/{}/builds", urlencode(mc));
+    let json = get_json(&url)?;
+    let list = json.arr().ok_or("Paper 返回格式不对")?;
+    let usable: Vec<&Json> = list
+        .iter()
+        .filter(|b| b.get("downloads").and_then(|d| d.get("server:default")).is_some())
+        .collect();
+    if usable.is_empty() {
+        return Err(format!("Paper 还没有 {mc} 的构建"));
+    }
+    let chosen = if build.is_empty() {
+        usable[0]
+    } else {
+        *usable
+            .iter()
+            .find(|b| {
+                b.get("id")
+                    .and_then(|v| v.num())
+                    .map(|n| format!("{}", n as i64))
+                    .as_deref()
+                    == Some(build)
+            })
+            .ok_or_else(|| format!("Paper {mc} 没有 build {build}"))?
+    };
+
+    let id = chosen
+        .get("id")
+        .and_then(|v| v.num())
+        .map(|n| format!("{}", n as i64))
+        .unwrap_or_else(|| "unknown".to_string());
+    let dl = chosen
+        .get("downloads")
+        .and_then(|d| d.get("server:default"))
+        .ok_or("Paper 这个构建没有服务端 jar")?;
+    let file = dl.get("url").and_then(|v| v.str()).ok_or("Paper 缺少下载地址")?;
+
+    progress("下载 Paper", 20, "");
+    download_to(file, &dir.join("server.jar"), &[], None)?;
+    Ok(id)
+}
+
+fn install_purpur(
+    mc: &str,
+    build: &str,
+    dir: &Path,
+    progress: &dyn Fn(&str, i32, &str),
+) -> Result<String, String> {
+    let ver = if build.is_empty() {
+        purpur_builds(mc)
+            .ok()
+            .and_then(|j| j.arr().and_then(|a| a.first()).and_then(|v| v.str()).map(String::from))
+            .unwrap_or_else(|| "latest".to_string())
+    } else {
+        build.to_string()
+    };
+    let url = format!("{PURPUR_API}/purpur/{}/{}/download", urlencode(mc), urlencode(&ver));
+    progress("下载 Purpur", 20, "");
+    download_to(&url, &dir.join("server.jar"), &[], None)?;
+    Ok(ver)
+}
+
+fn write_marker(dir: &Path, server_type: &str, mc: &str, build: &str) {
+    let payload = Json::obj(vec![
+        ("serverType", Json::s(server_type)),
+        ("mc", Json::s(mc)),
+        ("build", Json::s(build)),
+    ]);
+    let _ = std::fs::create_dir_all(dir);
+    let _ = std::fs::write(dir.join(MARKER), payload.to_string());
+}
+
+/// 猜一个目录用的是哪种服务端：自家标记 → 加载器痕迹 → 插件服痕迹 → 单 jar
+fn detect_server(dir: &str) -> Result<Json, String> {
+    let root = Path::new(dir);
+    if dir.is_empty() || !root.exists() {
+        return Ok(Json::Null);
+    }
+    let has = |rel: &str| root.join(rel).exists();
+
+    if let Ok(text) = std::fs::read_to_string(root.join(MARKER)) {
+        if let Ok(m) = Json::parse(&text) {
+            if let Some(t) = m.get("serverType").and_then(|v| v.str()) {
+                if !t.is_empty() {
+                    return Ok(Json::obj(vec![
+                        ("serverType", Json::s(t)),
+                        ("mc", m.get("mc").cloned().unwrap_or(Json::Null)),
+                        ("build", m.get("build").cloned().unwrap_or(Json::Null)),
+                        ("source", Json::s("marker")),
+                        ("confidence", Json::s("high")),
+                    ]));
+                }
+            }
+        }
+    }
+
+    let hit = |server_type: &str, source: &str, confidence: &str| {
+        Some(Json::obj(vec![
+            ("serverType", Json::s(server_type)),
+            ("source", Json::s(source)),
+            ("confidence", Json::s(confidence)),
+        ]))
+    };
+
+    let found = if has("libraries/net/neoforged") {
+        hit("neoforge", "libraries", "high")
+    } else if has("libraries/net/minecraftforge") {
+        hit("forge", "libraries", "high")
+    } else if has("purpur.yml") {
+        hit("purpur", "purpur.yml", "medium")
+    } else if has("config/paper-global.yml") || has("paper.yml") || has("version_history.json") {
+        hit("paper", "paper-config", "medium")
+    } else if has("fabric-server-launch.jar") || has(".fabric") {
+        hit("fabric", "fabric", "high")
+    } else if has("plugins") {
+        hit("paper", "plugins/", "guess")
+    } else if has("mods") {
+        hit("fabric", "mods/", "guess")
+    } else if has("server.jar") {
+        hit("vanilla", "server.jar", "guess")
+    } else {
+        None
+    };
+
+    Ok(found.unwrap_or(Json::Null))
 }
 
 /// 下载到 dest：先写 .part，成功后再改名，避免半截文件被当成可用
@@ -2035,8 +2207,14 @@ fn download_to(url: &str, dest: &Path, mirrors: &[String], expected_sha1: Option
 fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
     let dir = opts.get("dir").and_then(|v| v.str()).unwrap_or("");
     let mc = opts.get("mc").and_then(|v| v.str()).unwrap_or("");
-    let loader = opts.get("loader").and_then(|v| v.str()).unwrap_or("vanilla");
+    // v28 起用 serverType；老 UI 送的还是 loader
+    let loader = opts
+        .get("serverType")
+        .and_then(|v| v.str())
+        .or_else(|| opts.get("loader").and_then(|v| v.str()))
+        .unwrap_or("vanilla");
     let loader_version = opts.get("loaderVersion").and_then(|v| v.str()).unwrap_or("");
+    let build = opts.get("build").and_then(|v| v.str()).unwrap_or("");
     if dir.is_empty() || mc.is_empty() {
         return Err("缺少安装参数".into());
     }
@@ -2055,6 +2233,22 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
             ]),
         );
     };
+
+    if loader == "paper" {
+        progress("下载 Paper", 5, "");
+        let chosen = install_paper(mc, build, &dir_path, &progress)?;
+        write_marker(&dir_path, "paper", mc, &chosen);
+        progress("完成", 100, "");
+        return Ok(Json::obj(vec![("ok", Json::Bool(true)), ("build", Json::s(&chosen))]));
+    }
+
+    if loader == "purpur" {
+        progress("下载 Purpur", 5, "");
+        let chosen = install_purpur(mc, build, &dir_path, &progress)?;
+        write_marker(&dir_path, "purpur", mc, &chosen);
+        progress("完成", 100, "");
+        return Ok(Json::obj(vec![("ok", Json::Bool(true)), ("build", Json::s(&chosen))]));
+    }
 
     if loader == "fabric" {
         progress("解析 Fabric Loader", 2, "");
@@ -3038,6 +3232,21 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "frp:status" => Ok(frp_status_live(shared)),
         "versions:minecraft" => versions_minecraft(),
         "versions:fabric-loaders" => fabric_loaders(arg0),
+        "versions:server-builds" => {
+            let server_type = args.first().and_then(|v| v.str()).unwrap_or("");
+            let mc = args.get(1).and_then(|v| v.str()).unwrap_or("");
+            if mc.is_empty() {
+                Ok(Json::Arr(vec![]))
+            } else {
+                match server_type {
+                    "fabric" => fabric_loaders(mc),
+                    "paper" => paper_builds(mc),
+                    "purpur" => purpur_builds(mc),
+                    _ => Ok(Json::Arr(vec![])),
+                }
+            }
+        }
+        "versions:detect-server" => detect_server(arg0),
         "versions:install" => install_server(shared, args.first().ok_or("缺少参数")?),
         "server:preflight" => preflight(shared, arg0),
         "modrinth:search" => modrinth_search(arg0, args.get(1)),

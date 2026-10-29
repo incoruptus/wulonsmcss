@@ -2,6 +2,7 @@
  * 版本与下载链路
  * - Minecraft 版本清单（Mojang piston-meta）
  * - Fabric Loader 版本与「开箱即用服务端 jar」（meta.fabricmc.net 预构建）
+ * - Paper / Purpur（插件服，水桶系）—— Plugins 目录，玩家用原版客户端即进
  * - 统一流式下载 + 进度事件，先写 .part 再原子改名
  */
 
@@ -11,6 +12,11 @@ const { download: robustDownload } = require("./download");
 
 const MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const FABRIC_META = "https://meta.fabricmc.net/v2";
+const PAPER_API = "https://fill.papermc.io/v3";
+const PURPUR_API = "https://api.purpurmc.org/v2";
+
+/** 服务端类型标记文件名：装了哪个核心、哪个版本，写在这里，导入时不用猜 */
+const MARKER = ".mcss-server.json";
 
 let manifestCache = null;
 let manifestAt = 0;
@@ -67,6 +73,128 @@ async function fabricInstallerVersion() {
   const list = await getJson(`${FABRIC_META}/versions/installer`);
   return list?.[0]?.version || "1.0.1";
 }
+
+/* --------------------------- Paper / Purpur（插件服） --------------------------- */
+
+/** Paper 支持哪些 MC 版本（Fill v3 的 keys 就是可用版本） */
+async function paperVersions() {
+  const data = await getJson(`${PAPER_API}/projects/paper`);
+  return Object.keys(data?.versions ?? {}).flatMap((k) => data.versions[k] ?? []);
+}
+
+/** Paper 的 build 列表（最新的在前，和接口顺序一致） */
+async function paperBuilds(mc) {
+  const list = await getJson(`${PAPER_API}/projects/paper/versions/${encodeURIComponent(mc)}/builds`);
+  return (Array.isArray(list) ? list : [])
+    .filter((b) => b?.downloads?.["server:default"])
+    .map((b) => String(b.id));
+}
+
+async function installPaper({ dir, mc, build, onProgress }) {
+  const list = await getJson(`${PAPER_API}/projects/paper/versions/${encodeURIComponent(mc)}/builds`);
+  const usable = (Array.isArray(list) ? list : []).filter((b) => b?.downloads?.["server:default"]);
+  if (!usable.length) throw new Error(`Paper 还没有 ${mc} 的构建`);
+  const chosen = build ? usable.find((b) => String(b.id) === String(build)) : usable[0];
+  if (!chosen) throw new Error(`Paper ${mc} 没有 build ${build}`);
+
+  const dl = chosen.downloads["server:default"];
+  onProgress?.({ stage: "下载 Paper", percent: 5 });
+  await download(
+    dl.url,
+    path.join(dir, "server.jar"),
+    (got, total) => {
+      const pct = total ? 5 + Math.round((got / total) * 90) : 50;
+      onProgress?.({
+        stage: "下载 Paper",
+        percent: pct,
+        detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "",
+      });
+    },
+    // Fill v3 直接给 sha256，比 sha1 更稳
+    { hash: dl.checksums?.sha256 ? { sha256: dl.checksums.sha256 } : undefined },
+  );
+  onProgress?.({ stage: "完成", percent: 100 });
+  return { ok: true, build: String(chosen.id) };
+}
+
+/** Purpur 支持哪些 MC 版本 */
+async function purpurVersions() {
+  const data = await getJson(`${PURPUR_API}/purpur`);
+  return Array.isArray(data?.versions) ? data.versions : [];
+}
+
+/** Purpur 的 build 列表（数字，倒序） */
+async function purpurBuilds(mc) {
+  const data = await getJson(`${PURPUR_API}/purpur/${encodeURIComponent(mc)}`);
+  const all = data?.builds?.all ?? [];
+  return all.map((b) => String(b)).reverse();
+}
+
+async function installPurpur({ dir, mc, build, onProgress }) {
+  const usable = await purpurBuilds(mc).catch(() => []);
+  const ver = build || usable[0] || "latest";
+  onProgress?.({ stage: "下载 Purpur", percent: 5 });
+  await download(`${PURPUR_API}/purpur/${encodeURIComponent(mc)}/${encodeURIComponent(ver)}/download`, path.join(dir, "server.jar"), (got, total) => {
+    const pct = total ? 5 + Math.round((got / total) * 90) : 50;
+    onProgress?.({
+      stage: "下载 Purpur",
+      percent: pct,
+      detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "",
+    });
+  });
+  onProgress?.({ stage: "完成", percent: 100 });
+  return { ok: true, build: ver };
+}
+
+/* --------------------------------- 核心探测 -------------------------------- */
+
+function readMarker(dir) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(dir, MARKER), "utf-8"));
+    if (raw && typeof raw.serverType === "string") return raw;
+  } catch (e) {}
+  return null;
+}
+
+function writeMarker(dir, meta) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, MARKER), JSON.stringify({ ...meta, installedAt: Date.now() }, null, 2), "utf-8");
+  } catch (e) {}
+}
+
+/**
+ * 猜测一个目录用的是哪种服务端。
+ * 顺序：自家标记 → 加载器痕迹 → 插件服痕迹 → 单 jar
+ * 置信度：marker(high) / 特征文件(medium) / 只有目录(guess)
+ */
+function detectServer(dir) {
+  if (!dir || !fs.existsSync(dir)) return null;
+  const exists = (rel) => fs.existsSync(path.join(dir, rel));
+
+  const marker = readMarker(dir);
+  if (marker) return { ...marker, source: "marker", confidence: "high" };
+
+  if (exists("libraries/net/neoforged")) return { serverType: "neoforge", source: "libraries", confidence: "high" };
+  if (exists("libraries/net/minecraftforge")) return { serverType: "forge", source: "libraries", confidence: "high" };
+  if (exists("purpur.yml")) return { serverType: "purpur", source: "purpur.yml", confidence: "medium" };
+  if (exists("config/paper-global.yml") || exists("paper.yml") || exists("version_history.json")) {
+    return { serverType: "paper", source: "paper-config", confidence: "medium" };
+  }
+  if (exists("fabric-server-launch.jar") || exists(".fabric")) return { serverType: "fabric", source: "fabric", confidence: "high" };
+
+  const jars = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".jar"));
+  const paperJar = jars.find((f) => /^paper(-|\.)/i.test(f));
+  if (paperJar) return { serverType: "paper", source: paperJar, confidence: "medium" };
+  const purpurJar = jars.find((f) => /^purpur(-|\.)/i.test(f));
+  if (purpurJar) return { serverType: "purpur", source: purpurJar, confidence: "medium" };
+
+  if (exists("plugins")) return { serverType: "paper", source: "plugins/", confidence: "guess" };
+  if (exists("mods")) return { serverType: "fabric", source: "mods/", confidence: "guess" };
+  if (exists("server.jar")) return { serverType: "vanilla", source: "server.jar", confidence: "guess" };
+  return null;
+}
+
 
 /** 流式下载，onProgress(已下载字节, 总字节) —— 单次尝试；20 秒无数据视为卡死并中止 */
 async function downloadOnce(url, dest, onProgress, opts = {}) {
@@ -138,12 +266,27 @@ async function download(url, dest, onProgress, opts = {}) {
  * 安装服务端到 dir：
  * - fabric：直接取 Fabric 预构建的 server launcher jar（免装 installer）
  * - vanilla：从版本清单拿 server.jar
+ * - paper / purpur：插件服（水桶系），同一个 server.jar，玩家用原版客户端即进
  */
-async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
+async function installServer({ dir, mc, serverType, loader, loaderVersion, build, onProgress }) {
   if (!dir || !mc) throw new Error("缺少安装参数");
   fs.mkdirSync(dir, { recursive: true });
 
-  if (loader === "fabric") {
+  const type = serverType || loader || "vanilla";
+
+  if (type === "paper") {
+    const res = await installPaper({ dir, mc, build, onProgress });
+    writeMarker(dir, { serverType: "paper", mc, build: res.build });
+    return res;
+  }
+
+  if (type === "purpur") {
+    const res = await installPurpur({ dir, mc, build, onProgress });
+    writeMarker(dir, { serverType: "purpur", mc, build: res.build });
+    return res;
+  }
+
+  if (type === "fabric") {
     onProgress?.({ stage: "解析 Fabric Loader", percent: 2 });
     const loaders = await fabricLoaderList(mc);
     const chosen = loaderVersion || loaders.find((l) => l.stable)?.version || loaders[0]?.version;
@@ -155,6 +298,7 @@ async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
       const pct = total ? 5 + Math.round((got / total) * 90) : 50;
       onProgress?.({ stage: "下载 Fabric 服务端", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
     });
+    writeMarker(dir, { serverType: "fabric", mc, loaderVersion: chosen });
     onProgress?.({ stage: "完成", percent: 100 });
     return { ok: true, loaderVersion: chosen };
   }
@@ -171,8 +315,28 @@ async function installServer({ dir, mc, loader, loaderVersion, onProgress }) {
     const pct = total ? 6 + Math.round((got / total) * 90) : 50;
     onProgress?.({ stage: "下载原版服务端", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
   }, { hash: { sha1: detail?.downloads?.server?.sha1 } });
+  writeMarker(dir, { serverType: "vanilla", mc });
   onProgress?.({ stage: "完成", percent: 100 });
   return { ok: true };
 }
 
-module.exports = { listMinecraft, fabricLoaders, fabricLoaderList, installServer, download, getJson, GITHUB_MIRRORS };
+module.exports = {
+  listMinecraft,
+  fabricLoaders,
+  fabricLoaderList,
+  installServer,
+  download,
+  getJson,
+  GITHUB_MIRRORS,
+  // 插件服（水桶系）
+  paperVersions,
+  paperBuilds,
+  purpurVersions,
+  purpurBuilds,
+  // 核心探测
+  detectServer,
+  readMarker,
+  writeMarker,
+  MARKER,
+};
+
