@@ -33,6 +33,14 @@ MCSS_CONFIG=./config.json ./agent/target/release/mcss-agent.exe
 node package-win.js   # → wulons-mcss-b27.0.0/WulonsMCSS-win32-x64
 ```
 
+发布前自检与 agent 资产：
+
+```bash
+pnpm release:check            # 网页产物自检（CI 也跑）
+pnpm release:check --package  # 连打包目录一起查：版本一致 / build-info / 新功能字符串
+pnpm release:agent            # 编译 agent 并打成 Release 资产 + SHA256
+```
+
 ## 它能做什么
 
 **服主**
