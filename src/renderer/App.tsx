@@ -12,6 +12,7 @@ import Library from "@/pages/Library";
 import Network from "@/pages/Network";
 import Join from "@/pages/Join";
 import MyServers from "@/pages/MyServers";
+import Client from "@/pages/Client";
 import Settings from "@/pages/Settings";
 import { ModePicker } from "@/components/app/ModePicker";
 import { useConfig } from "@/stores/config";
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/library" element={<Library />} />
             <Route path="/network" element={<Network />} />
             <Route path="/mine" element={<MyServers />} />
+            <Route path="/client" element={<Client />} />
             <Route path="/join" element={<Join />} />
             <Route path="/join/:code" element={<Join />} />
             <Route path="/settings" element={<Settings />} />

@@ -21,6 +21,7 @@ const TITLES: Record<string, string> = {
 const PLAYER_TITLES: Record<string, string> = {
   "/": "加入游戏",
   "/mine": "我的服务器",
+  "/client": "我的客户端",
   "/join": "加入游戏",
   "/settings": "设置",
 };

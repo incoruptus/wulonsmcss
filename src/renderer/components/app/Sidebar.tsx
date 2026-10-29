@@ -41,10 +41,11 @@ const HOST_NAV = [
   { to: "/settings", label: "设置", icon: SettingsIcon, end: false },
 ];
 
-/** 玩家模式：只有三件事 —— 去玩、我去过哪、设置 */
+/** 玩家模式：只有四件事 —— 去玩、我去过哪、我自己的客户端、设置 */
 const PLAYER_NAV = [
   { to: "/", label: "加入游戏", icon: Gamepad2, end: true },
   { to: "/mine", label: "我的服务器", icon: Globe2, end: false },
+  { to: "/client", label: "我的客户端", icon: Server, end: false },
   { to: "/settings", label: "设置", icon: SettingsIcon, end: false },
 ];
 
