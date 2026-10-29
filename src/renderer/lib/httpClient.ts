@@ -215,5 +215,8 @@ export function createHttpClient(base: string, token: string): McssApi {
       onLog: (cb) => on("frp:log", (p) => cb(p as never)),
       onStatus: (cb) => on("frp:status", (p) => cb(p as never)),
     },
+    proc: {
+      run: (opts) => invoke("proc:run", opts),
+    },
   };
 }

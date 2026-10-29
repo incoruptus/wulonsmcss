@@ -21,6 +21,7 @@ const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
 const schedule = require(path.join(IPC_DIR, "schedule.js"));
 const aidiag = require(path.join(IPC_DIR, "aidiag.js"));
 const slp = require(path.join(IPC_DIR, "slp.js"));
+const proc = require(path.join(IPC_DIR, "proc.js"));
 const backups = require(path.join(IPC_DIR, "backups.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
@@ -337,6 +338,9 @@ ipcMain.handle("versions:server-builds", async (_e, serverType, mc) => {
 });
 /** 猜一个目录用的是哪种核心（导入既有服务器用） */
 ipcMain.handle("versions:detect-server", (_e, dir) => versions.detectServer(dir));
+
+/** 跑一个子进程并等它结束（Forge/NeoForge 安装器要用） */
+ipcMain.handle("proc:run", (_e, opts) => proc.run(opts || {}));
 ipcMain.handle("versions:install", async (_e, opts) => {
   try {
     const res = await versions.installServer({

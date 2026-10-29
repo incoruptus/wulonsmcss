@@ -2055,6 +2055,69 @@ fn install_purpur(
     Ok(ver)
 }
 
+/// 跑一个子进程并等它结束（Forge/NeoForge 安装器要用）。
+/// 输出走临时文件而不是管道：安装器动辄打印几 MB，管道写满子进程就会卡死。
+fn proc_run(opts: Json) -> Result<Json, String> {
+    let command: Vec<String> = opts
+        .get("command")
+        .and_then(|v| v.arr())
+        .map(|a| a.iter().filter_map(|v| v.str().map(String::from)).collect())
+        .unwrap_or_default();
+    if command.is_empty() {
+        return Err("没有可执行的命令".into());
+    }
+    let cwd = opts.get("cwd").and_then(|v| v.str()).unwrap_or("");
+    let timeout_ms = opts.get("timeoutMs").and_then(|v| v.num()).unwrap_or(1_800_000.0) as u128;
+
+    let log_path = std::env::temp_dir().join(format!("mcss-proc-{}.log", std::process::id()));
+    let log_file = std::fs::File::create(&log_path).map_err(|e| format!("无法创建临时日志：{e}"))?;
+
+    let mut cmd = std::process::Command::new(&command[0]);
+    cmd.args(&command[1..]);
+    if !cwd.is_empty() {
+        cmd.current_dir(cwd);
+    }
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(log_file.try_clone().map_err(|e| e.to_string())?)
+        .stderr(log_file);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    let mut child = cmd.spawn().map_err(|e| format!("启动失败：{e}"))?;
+    let started = std::time::Instant::now();
+    let mut timed_out = false;
+    let code = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.code(),
+            Ok(None) => {
+                if started.elapsed().as_millis() > timeout_ms {
+                    timed_out = true;
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            Err(e) => return Err(format!("等待进程失败：{e}")),
+        }
+    };
+
+    let text = std::fs::read_to_string(&log_path).unwrap_or_default();
+    let _ = std::fs::remove_file(&log_path);
+    let tail: Vec<&str> = text.lines().rev().take(200).collect();
+    let tail_text = tail.into_iter().rev().collect::<Vec<_>>().join("\n");
+
+    Ok(Json::obj(vec![
+        ("code", code.map(|c| Json::n(c as f64)).unwrap_or(Json::Null)),
+        ("stdoutTail", Json::s(&tail_text)),
+        ("stderrTail", Json::s("")),
+        ("timedOut", Json::Bool(timed_out)),
+    ]))
+}
+
 fn write_marker(dir: &Path, server_type: &str, mc: &str, build: &str) {
     let payload = Json::obj(vec![
         ("serverType", Json::s(server_type)),
@@ -3256,6 +3319,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             }
         }
         "versions:detect-server" => detect_server(arg0),
+        "proc:run" => proc_run(args.first().cloned().unwrap_or(Json::Null)),
         "versions:install" => install_server(shared, args.first().ok_or("缺少参数")?),
         "server:preflight" => preflight(shared, arg0),
         "modrinth:search" => modrinth_search(arg0, args.get(1)),

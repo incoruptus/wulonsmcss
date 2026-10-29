@@ -204,6 +204,15 @@ export interface McssApi {
     onLog: (cb: (line: string) => void) => () => void;
     onStatus: (cb: (s: { running: boolean; address?: string; error?: string }) => void) => () => void;
   };
+  proc: {
+    /** 跑一个子进程并等它结束；只回尾部输出（Forge/NeoForge 安装器要用） */
+    run: (opts: { command: string[]; cwd?: string; timeoutMs?: number }) => Promise<{
+      code: number | null;
+      stdoutTail: string;
+      stderrTail: string;
+      timedOut: boolean;
+    }>;
+  };
 }
 
 declare global {

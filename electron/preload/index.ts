@@ -122,5 +122,9 @@ contextBridge.exposeInMainWorld("mcss", {
     detectLaunchers: () => invoke("app:detect-launchers"),
     aiDocs: () => invoke("app:ai-docs"),
     lanAddress: () => invoke("app:lan-address")
+  },
+  proc: {
+    /** 跑一个子进程并等它结束（结果只带尾部输出） */
+    run: (opts: { command: string[]; cwd?: string; timeoutMs?: number }) => invoke("proc:run", opts)
   }
 });
