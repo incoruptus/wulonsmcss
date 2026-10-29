@@ -1924,7 +1924,7 @@ fn fabric_loaders(mc: &str) -> Result<Json, String> {
 /// 下载到 dest：先写 .part，成功后再改名，避免半截文件被当成可用
 /// 下载到 dest：断点续传（curl -C -）+ 多源回退 + 可选 sha1 校验
 /// 下完先落到 .part，校验通过才改名，半截文件永远不会被当成可用文件。
-fn download_to(url: &str, dest: &Path, mirrors: bool, expected_sha1: Option<&str>) -> Result<u64, String> {
+fn download_to(url: &str, dest: &Path, mirrors: &[String], expected_sha1: Option<&str>) -> Result<u64, String> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败：{e}"))?;
     }
@@ -1936,10 +1936,10 @@ fn download_to(url: &str, dest: &Path, mirrors: bool, expected_sha1: Option<&str
             .unwrap_or_default()
     ));
 
-    let candidates: Vec<String> = if mirrors {
-        MIRRORS.iter().map(|p| format!("{p}{url}")).collect()
-    } else {
+    let candidates: Vec<String> = if mirrors.is_empty() {
         vec![url.to_string()]
+    } else {
+        mirrors.iter().map(|p| format!("{p}{url}")).collect()
     };
 
     let mut last_error = String::from("下载失败");
@@ -2065,7 +2065,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
             urlencode(&installer)
         );
         progress("下载 Fabric 服务端", 5, "");
-        let size = download_to(&url, &dir_path.join("fabric-server-launch.jar"), false, None)?;
+        let size = download_to(&url, &dir_path.join("fabric-server-launch.jar"), &[], None)?;
         progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
         return Ok(Json::obj(vec![
             ("ok", Json::Bool(true)),
@@ -2099,7 +2099,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         .map(String::from);
 
     progress("下载原版服务端", 6, "");
-    let size = download_to(&server_url, &dir_path.join("server.jar"), false, server_sha1.as_deref())?;
+    let size = download_to(&server_url, &dir_path.join("server.jar"), &[], server_sha1.as_deref())?;
     progress("完成", 100, &format!("{:.1} MB", size as f64 / 1048576.0));
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
 }
@@ -2225,7 +2225,8 @@ fn ensure_frpc(shared: &Shared) -> Result<PathBuf, String> {
     // 上次可能已经把包下好了，别重复下
     let need_download = !zip.exists() || std::fs::metadata(&zip).map(|m| m.len()).unwrap_or(0) < 1024 * 1024;
     if need_download {
-        download_to(&download_url, &zip, true, None)?;
+        let mirror_prefixes: Vec<String> = MIRRORS.iter().map(|p| p.to_string()).collect();
+    download_to(&download_url, &zip, &mirror_prefixes, None)?;
     } else {
         let mut state = shared.lock().unwrap();
         frp_push_log(&mut state, "使用已下载的安装包");
@@ -2873,20 +2874,6 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "app:open-external" => open_path(arg0),
         "app:detect-java" => detect_java(),
         // 与桌面版保持一致：目前只做「探测并回报」，真正的自动安装是后续版本的事
-        "app:install-java" => {
-            let list = detect_java()?;
-            let first = list.arr().and_then(|a| a.first()).cloned();
-            Ok(match first {
-                Some(found) => Json::obj(vec![
-                    ("ok", Json::Bool(true)),
-                    ("path", found.get("path").cloned().unwrap_or(Json::Null)),
-                ]),
-                None => Json::obj(vec![
-                    ("ok", Json::Bool(false)),
-                    ("error", Json::s("没有找到可用的 Java，请手动指定")),
-                ]),
-            })
-        }
         "app:ai-docs" => ai_docs_path(),
         "ai:docs-path" => ai_docs_path(),
         "config:reset" => config_reset(shared),
@@ -3185,3 +3172,159 @@ fn main() {
     }
 }
 
+
+/* ============================ 下载行为契约 ============================ */
+// 与 electron/ipc/download.test.ts 一一对应（见 docs/DOWNLOAD-CONTRACT.md）：
+//   [fresh] 正常下载并通过哈希校验
+//   [resume] 有 .part 时用 Range 续传
+//   [norange] 服务端不支持 Range 时从头重下
+//   [bad-hash] 校验不过时换下一个源
+//   [all-fail] 全部失败时不留半成品
+#[cfg(test)]
+mod download_contract {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    fn body() -> Vec<u8> {
+        vec![7u8; 64 * 1024]
+    }
+
+    struct Server {
+        port: u16,
+        hits: Arc<AtomicUsize>,
+        saw_range: Arc<AtomicBool>,
+        _handle: std::thread::JoinHandle<()>,
+    }
+
+    /// mode: "range" | "norange" | "bad" | "fail"
+    fn serve(mode: &'static str) -> Server {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let hits = Arc::new(AtomicUsize::new(0));
+        let saw_range = Arc::new(AtomicBool::new(false));
+        let hits2 = Arc::clone(&hits);
+        let range2 = Arc::clone(&saw_range);
+
+        let handle = std::thread::spawn(move || {
+            let payload = body();
+            for _ in 0..8 {
+                let Ok((mut stream, _)) = listener.accept() else { break };
+                let mut buf = [0u8; 2048];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let req = String::from_utf8_lossy(&buf[..n]).to_string();
+                hits2.fetch_add(1, Ordering::SeqCst);
+
+                let lower = req.to_lowercase();
+                let start = lower.find("range: bytes=").map(|i| {
+                    let rest = &lower[i + "range: bytes=".len()..];
+                    rest.split('-').next().unwrap_or("0").trim().parse::<usize>().unwrap_or(0)
+                });
+                if start.is_some() {
+                    range2.store(true, Ordering::SeqCst);
+                }
+
+                let (status, data, content_range): (&str, Vec<u8>, Option<String>) = match mode {
+                    "range" => match start {
+                        Some(offset) if offset < payload.len() => (
+                            "206 Partial Content",
+                            payload[offset..].to_vec(),
+                            // curl 续传需要 Content-Range，否则会认为响应不完整
+                            Some(format!("bytes {}-{}/{}", offset, payload.len() - 1, payload.len())),
+                        ),
+                        _ => ("200 OK", payload.clone(), None),
+                    },
+                    "norange" => ("200 OK", payload.clone(), None),
+                    "bad" => ("200 OK", vec![9u8; payload.len()], None),
+                    _ => ("500 Internal Server Error", b"nope".to_vec(), None),
+                };
+
+                let mut head = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n",
+                    data.len()
+                );
+                if let Some(range) = content_range {
+                    head.push_str(&format!("Content-Range: {range}\r\n"));
+                }
+                head.push_str("\r\n");
+                let _ = stream.write_all(head.as_bytes());
+                let _ = stream.write_all(&data);
+            }
+        });
+
+        Server { port, hits, saw_range, _handle: handle }
+    }
+
+    fn tmp_dest() -> PathBuf {
+        // cargo test 并行跑用例：只按秒命名会让多个用例共用同一个目录，互相删文件
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("mcss-dl-{}-{}-{}", std::process::id(), now_stamp(), n));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join("file.bin")
+    }
+
+    #[test]
+    fn fresh() {
+        let server = serve("range");
+        let dest = tmp_dest();
+        let expected = sha1::sha1_hex(&body());
+        let size = download_to(&format!("http://127.0.0.1:{}/f", server.port), &dest, &[], Some(&expected)).unwrap();
+        assert_eq!(size as usize, body().len());
+        assert_eq!(sha1::sha1_hex(&std::fs::read(&dest).unwrap()), expected);
+        let _ = std::fs::remove_dir_all(dest.parent().unwrap());
+    }
+
+    #[test]
+    fn resume() {
+        let server = serve("range");
+        let dest = tmp_dest();
+        let half = body().len() / 2;
+        std::fs::write(dest.with_extension("bin.part"), &body()[..half]).unwrap();
+        let expected = sha1::sha1_hex(&body());
+        download_to(&format!("http://127.0.0.1:{}/f", server.port), &dest, &[], Some(&expected)).unwrap();
+        assert!(server.saw_range.load(Ordering::SeqCst), "应带 Range 头");
+        assert_eq!(std::fs::read(&dest).unwrap().len(), body().len());
+        let _ = std::fs::remove_dir_all(dest.parent().unwrap());
+    }
+
+    #[test]
+    fn supports_no_range() {
+        let server = serve("norange");
+        let dest = tmp_dest();
+        std::fs::write(dest.with_extension("bin.part"), vec![0u8; 1024]).unwrap();
+        let expected = sha1::sha1_hex(&body());
+        download_to(&format!("http://127.0.0.1:{}/f", server.port), &dest, &[], Some(&expected)).unwrap();
+        assert_eq!(std::fs::read(&dest).unwrap().len(), body().len());
+        let _ = std::fs::remove_dir_all(dest.parent().unwrap());
+    }
+
+    #[test]
+    fn bad_hash() {
+        let bad = serve("bad");
+        let good = serve("range");
+        let dest = tmp_dest();
+        let expected = sha1::sha1_hex(&body());
+        let mirrors = vec![
+            format!("http://127.0.0.1:{}/", bad.port),
+            format!("http://127.0.0.1:{}/", good.port),
+        ];
+        download_to("f", &dest, &mirrors, Some(&expected)).unwrap();
+        assert_eq!(sha1::sha1_hex(&std::fs::read(&dest).unwrap()), expected);
+        assert!(bad.hits.load(Ordering::SeqCst) >= 1);
+        assert!(good.hits.load(Ordering::SeqCst) >= 1);
+        let _ = std::fs::remove_dir_all(dest.parent().unwrap());
+    }
+
+    #[test]
+    fn all_fail() {
+        let server = serve("fail");
+        let dest = tmp_dest();
+        let result = download_to(&format!("http://127.0.0.1:{}/f", server.port), &dest, &[], None);
+        assert!(result.is_err(), "应报错");
+        assert!(!dest.exists(), "目标路径不应留下半成品");
+        let _ = std::fs::remove_dir_all(dest.parent().unwrap());
+    }
+}

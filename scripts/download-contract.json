@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "description": "下载器行为契约：electron/ipc/download.js 与 agent 的 download_to 必须同时满足",
+  "scenarios": [
+    { "id": "fresh", "rule": "正常下载，结束时校验 sha1 并与内容一致" },
+    { "id": "resume", "rule": "目标旁存在 .part 时带 Range 续传，最终文件完整" },
+    { "id": "norange", "rule": "服务端不支持 Range（回 200）时从头重下，不产生重复内容" },
+    { "id": "bad-hash", "rule": "某个源内容校验不过时丢弃半成品，改用下一个源" },
+    { "id": "all-fail", "rule": "所有源都失败时抛错，且目标路径不留下半成品" }
+  ]
+}

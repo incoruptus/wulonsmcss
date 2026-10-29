@@ -51,7 +51,7 @@ afterAll(() => {
 });
 
 describe("下载器", () => {
-  it("正常下载并通过哈希校验", async () => {
+  it("[fresh] 正常下载并通过哈希校验", async () => {
     const { port } = await serve(rangeAware);
     const dest = tmpFile();
     const res = await download({ url: `http://127.0.0.1:${port}/f`, dest, hash: { sha1: SHA1 } });
@@ -73,7 +73,7 @@ describe("下载器", () => {
     expect(hits).toBe(1);
   });
 
-  it("有 .part 时用 Range 续传", async () => {
+  it("[resume] 有 .part 时用 Range 续传", async () => {
     let sawRange: string | null = null;
     const { port } = await serve((req, res) => {
       sawRange = (req.headers.range as string) ?? null;
@@ -88,7 +88,7 @@ describe("下载器", () => {
     expect(fs.readFileSync(dest).length).toBe(PAYLOAD.length);
   });
 
-  it("服务端不支持 Range 时从头重下", async () => {
+  it("[norange] 服务端不支持 Range 时从头重下", async () => {
     let sawRange: string | null = null;
     const { port } = await serve((req, res) => {
       sawRange = (req.headers.range as string) ?? null;
@@ -103,7 +103,7 @@ describe("下载器", () => {
     expect(fs.readFileSync(dest).length).toBe(PAYLOAD.length);
   });
 
-  it("第一个源内容损坏时自动换下一个源", async () => {
+  it("[bad-hash] 第一个源内容损坏时自动换下一个源", async () => {
     const bad = await serve((_req, res) => {
       const wrong = Buffer.alloc(PAYLOAD.length, 9);
       res.writeHead(200, { "content-length": wrong.length });
@@ -126,7 +126,7 @@ describe("下载器", () => {
     expect(res.ok).toBe(true);
   });
 
-  it("全部源都失败时抛错且不留半成品在目标路径", async () => {
+  it("[all-fail] 全部源都失败时抛错且不留半成品在目标路径", async () => {
     const bad = await serve((_req, res) => {
       res.writeHead(500);
       res.end("nope");

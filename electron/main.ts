@@ -260,12 +260,7 @@ ipcMain.handle("app:pick-java", async () => {
   return res.filePaths[0];
 });
 
-ipcMain.handle("app:install-java", async () => {
-  // 目前只做「探测并回报」，真正的自动安装链路在后续版本接入
-  const list = javaIpc.detectJava();
-  return list.length ? { ok: true, path: list[0].path } : { ok: false, error: "没有找到可用的 Java，请手动指定" };
-});
-
+// 自动安装 Java 还没做：宁可没有这个入口，也不留一个「点了只是探测一下」的假按钮
 ipcMain.handle("app:detect-java", () => javaIpc.detectJava());
 
 ipcMain.handle("ai:export-bundle", async (_e, opts) => {

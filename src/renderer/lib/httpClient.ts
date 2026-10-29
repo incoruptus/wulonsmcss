@@ -137,7 +137,6 @@ export function createHttpClient(base: string, token: string): McssApi {
       detectLaunchers: () => invoke("app:detect-launchers"),
       aiDocs: () => invoke("app:ai-docs"),
       lanAddress: () => invoke("app:lan-address"),
-      installJava: () => invoke("app:install-java"),
     },
     config: {
       read: () => invoke("config:read"),
