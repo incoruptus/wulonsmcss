@@ -683,8 +683,21 @@ fn prepare_client(shared: &Shared, opts: &Json) -> Result<Json, String> {    let
             let dest = mods_dir.join(&filename);
 
             if let Ok(meta) = std::fs::metadata(&dest) {
-                let expected = file.get("size").and_then(|v| v.num()).unwrap_or(-1.0);
-                if expected >= 0.0 && meta.len() as f64 == expected {
+                // 已有同名文件：按哈希判断是不是同一份。
+                // 只看大小会把"大小相同但内容不同"的构建留下来，
+                // 结果是玩家进服时 Mod 不匹配，还查不出原因。
+                let expected_sha1 = file
+                    .get("hashes")
+                    .and_then(|h| h.get("sha1"))
+                    .and_then(|v| v.str())
+                    .unwrap_or("");
+                let same = if !expected_sha1.is_empty() {
+                    hash_file(&dest).map(|h| h.eq_ignore_ascii_case(expected_sha1)).unwrap_or(false)
+                } else {
+                    let expected = file.get("size").and_then(|v| v.num()).unwrap_or(-1.0);
+                    expected >= 0.0 && meta.len() as f64 == expected
+                };
+                if same {
                     return Ok(Json::obj(vec![
                         ("ok", Json::Bool(true)),
                         ("name", Json::s(&label)),

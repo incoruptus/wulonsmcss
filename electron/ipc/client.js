@@ -8,6 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const { download } = require("./versions");
+const { matches } = require("./download");
 
 const API = "https://api.modrinth.com/v2";
 const UA = "WulonsMCSS/27.0.0 (github.com/wulons)";
@@ -34,6 +35,22 @@ async function resolveFile(versionId) {
 }
 
 /**
+ * 目标位置已有的文件，要不要用服务器指定的版本覆盖？
+ * ------------------------------------------------------------
+ * 只看大小是不够的：不同构建/被手工换过的文件常常大小相同，
+ * 跳过它 = 玩家进服时 Mod 不匹配，而且报错看不出原因。
+ * 有哈希就按哈希判，没有哈希才退回大小比较。
+ */
+async function needsReplace(destPath, file) {
+  if (!fs.existsSync(destPath)) return false;
+  const same =
+    file.sha1 || file.sha512
+      ? await matches(destPath, { sha1: file.sha1, sha512: file.sha512 })
+      : fs.statSync(destPath).size === file.size;
+  return !same;
+}
+
+/**
  * 准备客户端目录：
  * - mods[]: 房间码里的 { p, v, n }
  * - 返回每个 Mod 的结果，单个失败不影响其它
@@ -52,7 +69,8 @@ async function prepare({ dir, mods = [], onProgress }) {
     try {
       const file = await resolveFile(mod.v);
       const dest = path.join(modsDir, file.filename);
-      if (fs.existsSync(dest) && fs.statSync(dest).size === file.size) {
+      const existed = fs.existsSync(dest);
+      if (existed && !(await needsReplace(dest, file))) {
         results.push({ ok: true, name: label, file: file.filename, skipped: true });
         continue;
       }
@@ -60,7 +78,7 @@ async function prepare({ dir, mods = [], onProgress }) {
         mirrors: ["", "https://gh-proxy.com/"],
         hash: { sha1: file.sha1, sha512: file.sha512 },
       });
-      results.push({ ok: true, name: label, file: file.filename });
+      results.push({ ok: true, name: label, file: file.filename, replaced: existed || undefined });
     } catch (e) {
       results.push({ ok: false, name: label, error: e.message });
     }
@@ -70,4 +88,4 @@ async function prepare({ dir, mods = [], onProgress }) {
   return { ok: results.every((r) => r.ok), dir, modsDir, results };
 }
 
-module.exports = { prepare, resolveFile };
+module.exports = { prepare, resolveFile, needsReplace };
