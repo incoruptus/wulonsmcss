@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes,
@@ -66,6 +66,15 @@ export function Sidebar() {
   const location = useLocation();
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [version, setVersion] = useState("");
+
+  // 版本号别写死：以前这里固定是 "v27"，而配置是 v28、包是 27.1.0，三处互相矛盾
+  useEffect(() => {
+    void window.mcss.app
+      .info()
+      .then((info) => setVersion(info.version))
+      .catch(() => {});
+  }, []);
 
   const host = mode === "host";
   const nav = host ? HOST_NAV : PLAYER_NAV;
@@ -167,7 +176,7 @@ export function Sidebar() {
           ]}
         />
         <div className="flex items-center justify-between px-1">
-          <span className="t-label-12 text-gray-700">v27 · 重构版</span>
+          <span className="t-label-12 text-gray-700">v{version || "—"} · 重构版</span>
           {running ? (
             <span className="inline-flex items-center gap-1 t-label-12 text-green-900">
               <Square className="size-2.5 fill-current" /> 运行中

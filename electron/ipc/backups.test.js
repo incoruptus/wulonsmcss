@@ -91,3 +91,78 @@ test("没有 world 目录时不打空快照", async () => {
   assert.match(res.error, /world/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+/* --------------------------- 对抗性：manifest 是数据 --------------------------- */
+
+/** 手写一份带穿越路径的 manifest（模拟快照被拷贝/同步/手改过） */
+function writeEvilManifest(dir, name, relPath) {
+  const payload = Buffer.from("pwned");
+  const hash = require("crypto").createHash("sha1").update(payload).digest("hex");
+  fs.mkdirSync(objectsDir(dir), { recursive: true });
+  fs.writeFileSync(path.join(objectsDir(dir), hash), payload);
+  fs.mkdirSync(path.join(dir, "backups", "snapshots", name), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "backups", "snapshots", name, "manifest.json"),
+    JSON.stringify({ version: 1, at: Date.now(), files: 1, bytesTotal: 5, bytesNew: 5, entries: [{ path: relPath, size: 5, hash }] }),
+  );
+}
+
+test("恢复会拒绝穿越路径的 manifest，且一个字节都不写出去", () => {
+  const dir = tmp();
+  makeWorld(dir);
+  writeEvilManifest(dir, "snap-evil", "../escaped.txt");
+
+  const res = restoreSnapshot(dir, "snap-evil");
+  assert.equal(res.ok, false);
+  assert.match(res.error, /不合法/);
+  // 关键：world 还在原位，存档没被移走，外面也没多出文件
+  assert.equal(fs.readFileSync(path.join(dir, "world", "level.dat"), "utf8"), "LEVEL");
+  assert.equal(fs.existsSync(path.join(dir, "escaped.txt")), false);
+  assert.equal(fs.existsSync(path.join(path.dirname(dir), "escaped.txt")), false);
+  assert.deepEqual(
+    fs.readdirSync(dir).filter((n) => n.startsWith("world.before-restore")),
+    [],
+    "拒绝时不应该把旧存档挪走",
+  );
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("恢复会拒绝绝对路径与盘符形式的 manifest", () => {
+  for (const bad of ["/abs.txt", "C:\\abs.txt", "a/../../b.txt", "..", "a/..", ""]) {
+    const dir = tmp();
+    makeWorld(dir);
+    writeEvilManifest(dir, "snap-evil", bad);
+    const res = restoreSnapshot(dir, "snap-evil");
+    assert.equal(res.ok, false, `${JSON.stringify(bad)} 应被拒绝`);
+    assert.ok(fs.existsSync(path.join(dir, "world", "level.dat")));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("空快照与非法快照名都拒绝", () => {
+  const dir = tmp();
+  makeWorld(dir);
+  const name = "snap-empty";
+  fs.mkdirSync(path.join(dir, "backups", "snapshots", name), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "backups", "snapshots", name, "manifest.json"),
+    JSON.stringify({ version: 1, at: Date.now(), files: 0, entries: [] }),
+  );
+  assert.equal(restoreSnapshot(dir, name).ok, false);
+  for (const badName of ["..", "../x", "a/b", ""]) {
+    assert.equal(restoreSnapshot(dir, badName).ok, false, `${JSON.stringify(badName)} 应被拒绝`);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("整包恢复同样拒绝穿越文件名（不能指向备份目录之外的 zip）", async () => {
+  const { restore } = require("./backup.js");
+  const dir = tmp();
+  makeWorld(dir);
+  const stopped = { getStatus: () => "stopped" };
+  const res = await restore(dir, "..\\..\\evil.zip", stopped);
+  assert.equal(res.ok, false);
+  assert.match(res.error, /不合法/);
+  assert.ok(fs.existsSync(path.join(dir, "world", "level.dat")));
+  fs.rmSync(dir, { recursive: true, force: true });
+});

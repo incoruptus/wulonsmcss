@@ -7,7 +7,22 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execFileSync } = require("child_process");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
+
+const execFileAsync = promisify(execFile);
+
+/** 备份/恢复都要跑 tar：用异步版，别把主进程卡住（卡住时窗口按钮都不响应） */
+function untarZip(file, cwd) {
+  return execFileAsync("tar", ["-a", "-c", "-f", file, "world"], { cwd, timeout: 10 * 60 * 1000 });
+}
+
+function extractZip(file, cwd) {
+  return execFileAsync("tar", ["-x", "-f", file], { cwd, timeout: 10 * 60 * 1000 });
+}
+
+/** 等 ms 毫秒（不用忙等：忙等会冻住主进程的事件循环） */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function backupDir(serverDir) {
   return path.join(serverDir, "backups");
@@ -39,7 +54,7 @@ function stamp() {
 /**
  * 打一个 zip。server 传进来是为了在跑的时候先停写。
  */
-function create(serverDir, server) {
+async function create(serverDir, server) {
   const worldDir = path.join(serverDir, "world");
   if (!fs.existsSync(worldDir)) return { ok: false, error: "还没有 world 目录，先启动一次服务器" };
 
@@ -53,13 +68,10 @@ function create(serverDir, server) {
     if (running) {
       server.sendCommand("save-off");
       server.sendCommand("save-all flush");
-      // 给服务器一点时间落盘
-      const until = Date.now() + 2500;
-      while (Date.now() < until) {
-        // 忙等 2.5s，备份是低频操作，简单可预期
-      }
+      // 给服务器一点时间落盘（异步等，别忙等）
+      await sleep(2500);
     }
-    execFileSync("tar", ["-a", "-c", "-f", file, "world"], { cwd: serverDir, timeout: 10 * 60 * 1000 });
+    await untarZip(file, serverDir);
     if (running) {
       server.sendCommand("save-on");
       resumed = true;
@@ -80,10 +92,12 @@ function create(serverDir, server) {
 }
 
 /** 恢复：先把现有 world 改名留底，再解压。要求服务器已停止。 */
-function restore(serverDir, name, server) {
+async function restore(serverDir, name, server) {
   if (server && server.getStatus() !== "stopped") {
     return { ok: false, error: "先把服务器停掉再恢复，否则会写坏存档" };
   }
+  // 和 remove 用同一套白名单：否则 `..\..\x.zip` 能指向任意 zip
+  if (!/^[\w.-]+\.zip$/.test(name)) return { ok: false, error: "文件名不合法" };
   const file = path.join(backupDir(serverDir), name);
   if (!fs.existsSync(file)) return { ok: false, error: "备份文件不存在" };
 
@@ -91,7 +105,7 @@ function restore(serverDir, name, server) {
   const parked = path.join(serverDir, `world.before-restore-${stamp()}`);
   try {
     if (fs.existsSync(worldDir)) fs.renameSync(worldDir, parked);
-    execFileSync("tar", ["-x", "-f", file], { cwd: serverDir, timeout: 10 * 60 * 1000 });
+    await extractZip(file, serverDir);
     return { ok: true, parked: path.basename(parked) };
   } catch (e) {
     // 解压失败就把原来的世界放回去

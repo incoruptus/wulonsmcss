@@ -61,7 +61,14 @@ function start(java, dir, jvmArgs) {
   if (serverProcess) return { ok: false, error: '服务器已在运行' }
 
   javaPath = java || 'java'
-  serverDir = dir || process.cwd()
+  // 目录为空时绝不能落到 process.cwd()：那会在应用自己的目录里起一个服务器，
+  // 生成 world/logs/crash-reports，而用户以为开的是他那台服。
+  if (!dir) {
+    emitOutput('ERROR', '实例没有配置服务器目录，请先在实例设置里指定')
+    emitStatus('stopped')
+    return { ok: false, error: '实例目录为空' }
+  }
+  serverDir = dir
 
   // Forge 1.17+ / NeoForge 不能用 -jar：真实参数在 libraries/.../win_args.txt 里，
   // 内存要写进 user_jvm_args.txt。判据是产物文件，不是猜核心类型。

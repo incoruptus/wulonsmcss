@@ -60,6 +60,29 @@ function hashFile(file) {
 }
 
 /**
+ * 快照名 / 条目路径的安全校验
+ * ------------------------------------------------------------
+ * manifest 是"数据"，不是"代码"：它可以被拷贝、同步、手改。
+ * 如果一个 entry 写着 `../x`，path.join 会把它拼到 world 目录之外——
+ * 实测后果是「写到了服务器根目录、world 根本没被创建，却返回 ok:true」，
+ * 也就是**谎报恢复成功，而玩家的存档已经不在了**。
+ * 所以：动手前先把整份 manifest 校验完，有任何一条不合法就整体拒绝。
+ */
+function isSafeRelPath(p) {
+  if (typeof p !== "string" || !p) return false;
+  if (p.includes("\0")) return false;
+  if (/^[\\/]/.test(p)) return false; // 绝对路径
+  if (/^[A-Za-z]:/.test(p)) return false; // 盘符
+  const parts = p.split(/[\\/]+/);
+  return parts.every((seg) => seg && seg !== "." && seg !== "..");
+}
+
+/** 快照目录名：只允许字母数字与 ._- */
+function isSafeName(name) {
+  return typeof name === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(name) && name !== "." && name !== "..";
+}
+
+/**
  * 打一个快照。
  * @returns {Promise<{ok:boolean, name?:string, files?:number, bytesTotal?:number, bytesNew?:number, error?:string}>}
  */
@@ -126,6 +149,7 @@ function objectsSize(serverDir) {
 }
 
 function readManifest(serverDir, name) {
+  if (!isSafeName(name)) return null;
   try {
     return JSON.parse(fs.readFileSync(path.join(snapshotsDir(serverDir), name, "manifest.json"), "utf8"));
   } catch {
@@ -167,6 +191,12 @@ function restoreSnapshot(serverDir, name) {
   const manifest = readManifest(serverDir, name);
   if (!manifest) return { ok: false, error: "快照不存在或已损坏" };
 
+  // 先整份校验，再动磁盘：任何一条路径不合法都整体拒绝，绝不留半截状态
+  const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
+  if (!entries.length) return { ok: false, error: "这个快照是空的，不能恢复" };
+  const bad = entries.find((e) => !e || !isSafeRelPath(e.path));
+  if (bad) return { ok: false, error: `快照内容不合法（路径 ${String(bad.path ?? "?").slice(0, 40)}），已拒绝恢复` };
+
   const worldDir = path.join(serverDir, "world");
   const parked = path.join(serverDir, `world.before-restore-${stamp()}`);
 
@@ -178,14 +208,16 @@ function restoreSnapshot(serverDir, name) {
 
   let restored = 0;
   try {
-    for (const entry of manifest.entries) {
+    for (const entry of entries) {
       const source = path.join(objectsDir(serverDir), entry.hash);
       const target = path.join(worldDir, ...entry.path.split("/"));
-      if (!fs.existsSync(source)) throw new Error(`快照缺少对象 ${entry.hash.slice(0, 8)}`);
+      if (!fs.existsSync(source)) throw new Error(`快照缺少对象 ${String(entry.hash).slice(0, 8)}`);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.copyFileSync(source, target);
       restored += 1;
     }
+    // 兜底：一条都没落进 world 就不是成功
+    if (!fs.existsSync(worldDir)) throw new Error("恢复后 world 目录没有生成");
   } catch (e) {
     // 回滚
     try {
@@ -198,4 +230,14 @@ function restoreSnapshot(serverDir, name) {
   return { ok: true, restored, parked: path.basename(parked) };
 }
 
-module.exports = { createSnapshot, listSnapshots, restoreSnapshot, objectsSize, backupsRoot, snapshotsDir, objectsDir };
+module.exports = {
+  createSnapshot,
+  listSnapshots,
+  restoreSnapshot,
+  objectsSize,
+  backupsRoot,
+  snapshotsDir,
+  objectsDir,
+  isSafeRelPath,
+  isSafeName,
+};

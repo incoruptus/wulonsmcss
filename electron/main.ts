@@ -525,13 +525,17 @@ server.onStatus((status) => {
     if (cfg.autoBackupOnStop) {
       const inst = findInstance(activeInstanceId);
       if (inst) {
-        try {
-          const res = backup.create(inst.dir, null);
-          if (res.ok) {
-            backup.prune(inst.dir, cfg.backupKeep ?? 5);
-            send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `已自动备份 ${res.name}` });
-          }
-        } catch (e) {}
+        // 备份现在是异步的：不能在第 528 行的同步 try 里 await，
+        // 而且失败也不能影响停服流程
+        void backup
+          .create(inst.dir, null)
+          .then((res) => {
+            if (res.ok) {
+              backup.prune(inst.dir, cfg.backupKeep ?? 5);
+              send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `已自动备份 ${res.name}` });
+            }
+          })
+          .catch(() => {});
       }
     }
   }
@@ -697,11 +701,15 @@ function startScheduler() {
         } else if (action.type === "broadcast") {
           server.sendCommand(`say ${action.text}`);
         } else if (action.type === "backup") {
-          const res = backup.create(inst.dir, server);
-          if (res.ok) {
-            backup.prune(inst.dir, cfg.backupKeep ?? 5);
-            send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `定时备份完成：${res.name}` });
-          }
+          void backup
+            .create(inst.dir, server)
+            .then((res) => {
+              if (res.ok) {
+                backup.prune(inst.dir, cfg.backupKeep ?? 5);
+                send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `定时备份完成：${res.name}` });
+              }
+            })
+            .catch(() => {});
         }
       }
     } catch (e) {

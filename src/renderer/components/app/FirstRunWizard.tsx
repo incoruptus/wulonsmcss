@@ -8,9 +8,28 @@ import { Field, Input, Slider } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { Badge, SegmentedControl } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
-import type { JavaInfo, Loader, McVersion } from "@/lib/types";
+import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
 import { cx, safeName } from "@/lib/utils";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
+
+/** 和「新建实例」对话框保持同一份核心列表，别让首次向导比它少东西 */
+const CORE_OPTIONS: { value: ServerType; label: string }[] = [
+  { value: "paper", label: "Paper（插件服·推荐）" },
+  { value: "purpur", label: "Purpur" },
+  { value: "fabric", label: "Fabric（模组服）" },
+  { value: "neoforge", label: "NeoForge" },
+  { value: "forge", label: "Forge" },
+  { value: "vanilla", label: "原版" },
+];
+
+const CORE_HINTS: Record<ServerType, string> = {
+  paper: "插件服（水桶系）：玩家用原版客户端就能进",
+  purpur: "Paper 的增强版，多几百个玩法开关",
+  fabric: "轻量模组服，性能模组首选",
+  neoforge: "现代整合包的标准，装的时候要跑官方安装器",
+  forge: "老整合包用得多（1.12–1.19）",
+  vanilla: "原版服务端，不装任何东西",
+};
 
 const STEPS = ["运行环境", "服务器版本", "开服"] as const;
 
@@ -25,7 +44,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
 
   const [versions, setVersions] = useState<McVersion[]>([]);
   const [mcVersion, setMcVersion] = useState("");
-  const [loader, setLoader] = useState<Loader>("fabric");
+  const [loader, setLoader] = useState<ServerType>("paper");
   const [loaders, setLoaders] = useState<string[]>([]);
   const [loaderVersion, setLoaderVersion] = useState("");
   const [name, setName] = useState("");
@@ -63,10 +82,10 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
   }, [open]);
 
   useEffect(() => {
-    if (!open || !mcVersion || loader !== "fabric") return;
+    if (!open || !mcVersion) return;
     let alive = true;
     window.mcss.versions
-      .fabricLoaders(mcVersion)
+      .serverBuilds(loader, mcVersion)
       .then((raw) => {
         if (!alive) return;
         const list = normalizeLoaders(raw);
@@ -106,15 +125,17 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
       const res = await window.mcss.versions.install({
         dir: finalDir,
         mc: mcVersion,
-        loader,
+        serverType: loader,
         loaderVersion: loader === "fabric" ? loaderVersion : undefined,
+        build: loader === "paper" || loader === "purpur" || loader === "forge" || loader === "neoforge" ? loaderVersion : undefined,
+        javaPath,
       });
       if (!res.ok) throw new Error(res.error || "安装失败");
       const inst = makeInstance({
         name: name.trim(),
         dir: finalDir,
         mcVersion,
-        loader,
+        serverType: loader,
         loaderVersion: loader === "fabric" ? loaderVersion : undefined,
         javaPath,
         memoryMin: Math.min(2, memoryMax),
@@ -242,20 +263,16 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
               </Field>
             </div>
 
-            <Field label="服务端核心">
-              <SegmentedControl
-                grow
+            <Field label="服务端核心" hint={CORE_HINTS[loader]}>
+              <Select
                 value={loader}
-                onValueChange={(v) => setLoader(v as Loader)}
-                options={[
-                  { value: "fabric", label: "Fabric（能装 Mod）" },
-                  { value: "vanilla", label: "原版" },
-                ]}
+                onChange={(e) => setLoader(e.target.value as ServerType)}
+                options={CORE_OPTIONS}
               />
             </Field>
 
-            {loader === "fabric" ? (
-              <Field label="Fabric Loader">
+            {loader !== "vanilla" ? (
+              <Field label={loader === "fabric" ? "Fabric Loader" : "核心版本"}>
                 <Select
                   value={loaderVersion}
                   onChange={(e) => setLoaderVersion(e.target.value)}

@@ -3136,6 +3136,30 @@ fn backup_snapshots(server_dir: &str) -> Result<Json, String> {
     Ok(Json::Arr(items.into_iter().map(|(_, v)| v).collect()))
 }
 
+/// manifest 里的相对路径是否安全：不许 ..、不许绝对路径、不许盘符。
+/// manifest 是数据不是代码，它可以被拷贝/同步/手改；一条 `../x` 就能把文件
+/// 写到存档目录之外（实测：world 根本没被创建，却返回成功）。
+fn is_safe_rel_path(p: &str) -> bool {
+    if p.is_empty() || p.contains('\0') {
+        return false;
+    }
+    if p.starts_with('/') || p.starts_with('\\') {
+        return false;
+    }
+    if p.len() > 1 && p.as_bytes()[1] == b':' {
+        return false;
+    }
+    p.split(['/', '\\']).all(|seg| !seg.is_empty() && seg != "." && seg != "..")
+}
+
+fn is_safe_snapshot_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name != "."
+        && name != ".."
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
+}
+
 fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Result<Json, String> {
     {
         let state = shared.lock().unwrap();
@@ -3143,9 +3167,30 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
             return Err("先把服务器停掉再恢复，否则会写坏存档".into());
         }
     }
+    if !is_safe_snapshot_name(name) {
+        return Err("快照名不合法".into());
+    }
     let Some(manifest) = read_manifest(server_dir, name) else {
         return Err("快照不存在或已损坏".into());
     };
+
+    // 先整份校验，再动磁盘
+    let entries = manifest.get("entries").and_then(|v| v.arr()).cloned().unwrap_or_default();
+    if entries.is_empty() {
+        return Err("这个快照是空的，不能恢复".into());
+    }
+    if let Some(bad) = entries.iter().find(|e| {
+        !is_safe_rel_path(e.get("path").and_then(|v| v.str()).unwrap_or(""))
+    }) {
+        let shown: String = bad
+            .get("path")
+            .and_then(|v| v.str())
+            .unwrap_or("?")
+            .chars()
+            .take(40)
+            .collect();
+        return Err(format!("快照内容不合法（路径 {shown}），已拒绝恢复"));
+    }
 
     let world = Path::new(server_dir).join("world");
     let parked = Path::new(server_dir).join(format!("world.before-restore-{}", now_stamp()));
@@ -3153,7 +3198,6 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
         std::fs::rename(&world, &parked).map_err(|e| format!("移走旧存档失败：{e}"))?;
     }
 
-    let entries = manifest.get("entries").and_then(|v| v.arr()).cloned().unwrap_or_default();
     let mut restored = 0;
     for entry in &entries {
         let hash = entry.get("hash").and_then(|v| v.str()).unwrap_or("");
