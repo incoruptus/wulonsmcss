@@ -70,7 +70,7 @@ if (process.argv.includes("--package")) {
     if (fs.existsSync(asar)) {
       const text = fs.readFileSync(asar).toString("utf8");
       // 抽查几个「新功能」字符串，确认包不是旧的
-      for (const marker of ["时间机", "同 WiFi 直连", "AI 配置助手", "你的客户端可以直接进"]) {
+      for (const marker of ["时间机", "同 WiFi 直连", "AI 配置助手", "你的客户端可以直接进", "直接进游戏", "client:launch"]) {
         check(`包内含新功能：${marker}`, text.includes(marker));
       }
     }
