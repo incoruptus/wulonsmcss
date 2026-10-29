@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { agentBaseUrl, detectShell } from "@/lib/shell";
+import { agentDownloadReady, agentDownloadUrl } from "@/lib/links";
 
 /**
  * Web 形态下的「助手未连接」提示条。
@@ -45,15 +46,30 @@ export function WebAgentBanner() {
           <RefreshCw className="size-3" />
           重试
         </Button>
-        <Button
-          size="xs"
-          variant="ghost"
-          className="text-amber-900"
-          onClick={() => window.open("https://github.com/", "_blank", "noopener,noreferrer")}
-        >
-          <Download className="size-3" />
-          下载助手
-        </Button>
+        {agentDownloadReady() ? (
+          <Button
+            size="xs"
+            variant="ghost"
+            className="text-amber-900"
+            title="下载后双击运行，这里会自动连上"
+            onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}
+          >
+            <Download className="size-3" />
+            下载助手
+          </Button>
+        ) : (
+          <Button
+            size="xs"
+            variant="ghost"
+            className="text-amber-900"
+            title="发布时要先把仓库地址填进 src/renderer/lib/links.ts 的 REPO"
+            onClick={() => {}}
+            disabled
+          >
+            <Download className="size-3" />
+            助手下载地址待配置
+          </Button>
+        )}
       </div>
     </div>
   );

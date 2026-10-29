@@ -39,13 +39,20 @@ if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 execSync(`tar -a -c -f "${zipPath}" mcss-agent.exe README.md`, { cwd: stage, stdio: "inherit" });
 fs.rmSync(stage, { recursive: true, force: true });
 
+// 再放一份**不带版本号**的稳定名：网页上的下载按钮用它，
+// 否则每次发版链接都会失效（releases/latest/download/<带版本号的名字>）
+const stableName = "mcss-agent-win64.zip";
+const stablePath = path.join(RELEASE_DIR, stableName);
+fs.copyFileSync(zipPath, stablePath);
+
 const buf = fs.readFileSync(zipPath);
 const sha256 = crypto.createHash("sha256").update(buf).digest("hex");
 const sumsPath = path.join(RELEASE_DIR, "SHA256SUMS.txt");
-fs.writeFileSync(sumsPath, `${sha256}  ${zipName}\n`);
+fs.writeFileSync(sumsPath, `${sha256}  ${zipName}\n${sha256}  ${stableName}\n`);
 
 console.log(`\n产物：${zipPath}`);
+console.log(`稳定名：${stablePath}（网页按钮用这个，发版不会失效）`);
 console.log(`大小：${(buf.length / 1024).toFixed(0)} KB`);
 console.log(`SHA256：${sha256}`);
 console.log(`列表：${sumsPath}`);
-console.log(`\n上传到 Release 后，官网按钮指向：<repo>/releases/latest/download/${zipName}`);
+console.log(`\n上传到 Release 后，两个名字都要传；网页按钮指向：<repo>/releases/latest/download/${stableName}`);
