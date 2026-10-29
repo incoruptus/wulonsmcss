@@ -81,13 +81,21 @@ async function waitHealth(timeoutMs = 8000) {
   const url = `http://127.0.0.1:${WEB_PORT}/?agent=http://127.0.0.1:${AGENT_PORT}&t=${TOKEN}#${hash}`;
 
   const exe = path.join(ROOT, "node_modules", ".pnpm", "electron@33.4.11", "node_modules", "electron", "dist", "electron.exe");
-  const env = { ...process.env, MCSS_URL: url, MCSS_SHOT: OUT, MCSS_SHOT_EXIT: "1", MCSS_SHOT_DELAY: "4000" };
+  const env = {
+    ...process.env,
+    MCSS_URL: url,
+    MCSS_SHOT: OUT,
+    MCSS_SHOT_EXIT: "1",
+    MCSS_SHOT_DELAY: process.env.MCSS_SHOT_DELAY || "4000",
+    // 同时抓页面文本：只截图看不出"页面是空的只是背景黑"
+    MCSS_DUMP: "1",
+  };
   delete env.ELECTRON_RUN_AS_NODE;
 
   const child = spawn(exe, ["."], { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"] });
   child.stdout.on("data", (d) => {
     const s = String(d);
-    if (s.includes("screenshot saved")) console.log(s.trim());
+    if (s.includes("screenshot saved") || s.includes("DUMP>>>")) console.log(s.trim());
   });
   child.stderr.on("data", (d) => {
     const s = String(d);

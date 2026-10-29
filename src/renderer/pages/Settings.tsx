@@ -136,13 +136,13 @@ export default function Settings() {
             <div className="mb-3 flex items-center gap-2">
               <Globe className="size-4 text-gray-800" />
               <h3 className="t-h-14 text-gray-1000">网页版能力</h3>
-              <Badge variant="blue" size="sm">桌面版更全</Badge>
+              <Badge variant="green" size="sm">与桌面版一致</Badge>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <div className="t-label-12 mb-1 text-gray-700">已支持</div>
+                <div className="t-label-12 mb-1 text-gray-700">已支持（靠本机助手）</div>
                 <ul className="space-y-1 t-label-13 text-gray-1000">
-                  {["开服 / 停服 / 控制台 / 命令", "加入房间、准备客户端、进服包", "世界备份与恢复", "Mod 扫描 / 禁用 / 资源库安装", "AI 现场包导出"].map((t) => (
+                  {["开服 / 停服 / 控制台 / 命令", "新建实例 / 下载服务端（Paper、Purpur、Forge、NeoForge）", "加入房间、准备客户端、进服包", "世界备份与恢复、时间机快照", "Mod / 插件扫描、资源库安装", "内网穿透（FRP）", "多世界数据包生成", "Java 运行时探测", "AI 现场包导出"].map((t) => (
                     <li key={t} className="flex items-center gap-1.5">
                       <Check className="size-3.5 text-green-900" />
                       {t}
@@ -151,9 +151,9 @@ export default function Settings() {
                 </ul>
               </div>
               <div>
-                <div className="t-label-12 mb-1 text-gray-700">需要桌面版</div>
+                <div className="t-label-12 mb-1 text-gray-700">只有桌面版有</div>
                 <ul className="space-y-1 t-label-13 text-gray-700">
-                  {["新建实例 / 下载服务端", "内网穿透（FRP）", "多世界数据包生成", "Java 运行时探测"].map((t) => (
+                  {["窗口按钮（最小化 / 最大化 / 关闭）", "不用装助手，双击即用"].map((t) => (
                     <li key={t} className="flex items-center gap-1.5">
                       <Minus className="size-3.5" />
                       {t}
@@ -163,7 +163,8 @@ export default function Settings() {
               </div>
             </div>
             <p className="t-label-12 mt-3 text-gray-700">
-              网页版靠本机助手干活（只监听 127.0.0.1，令牌配对）。需要上面那些功能时装桌面版即可。
+              网页版靠本机助手干活（只监听 127.0.0.1，令牌配对）。功能与桌面版一致，
+              差别只有「窗口按钮」和「要不要装那个 261KB 的助手」。
             </p>
           </Card>
         ) : null}
