@@ -14,11 +14,13 @@ const AGENT_DEFAULT = "http://127.0.0.1:28471";
 const TOKEN_KEY = "mcss.agent.token";
 
 export function detectShell(): ShellKind {
+  // SSR / 单测环境没有 window：按桌面处理，避免把渲染回归测试误判成网页版
+  if (typeof window === "undefined") return "electron";
   // 启动时已经判定过一次并记在 window 上：之后 window.mcss 可能被 httpClient 填充，
   // 再靠「有没有 mcss」判断就会误判成 electron
   const stored = (window as unknown as { __MCSS_SHELL?: string }).__MCSS_SHELL;
   if (stored === "web" || stored === "electron") return stored;
-  if (typeof window !== "undefined" && (window as unknown as { mcss?: unknown }).mcss) return "electron";
+  if ((window as unknown as { mcss?: unknown }).mcss) return "electron";
   return "web";
 }
 

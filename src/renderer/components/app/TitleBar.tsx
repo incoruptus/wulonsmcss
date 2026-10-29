@@ -13,6 +13,15 @@ const TITLES: Record<string, string> = {
   "/library": "资源库",
   "/network": "联机",
   "/join": "加入房间",
+  "/mine": "我的服务器",
+  "/settings": "设置",
+};
+
+/** 玩家模式里 "/" 不是"概览"，是"加入游戏" */
+const PLAYER_TITLES: Record<string, string> = {
+  "/": "加入游戏",
+  "/mine": "我的服务器",
+  "/join": "加入游戏",
   "/settings": "设置",
 };
 
@@ -22,11 +31,13 @@ export function TitleBar() {
   const [maximized, setMaximized] = useState(false);
   const instances = useConfig((s) => s.cfg.instances);
   const activeId = useConfig((s) => s.cfg.activeInstanceId);
+  const mode = useConfig((s) => s.cfg.mode);
   const status = useServer((s) => s.status);
 
   const active = instances.find((i) => i.id === activeId);
+  const table = mode === "player" ? PLAYER_TITLES : TITLES;
   const section =
-    TITLES[location.pathname] ??
+    table[location.pathname] ??
     (location.pathname.startsWith("/instances/")
       ? active?.name ?? "实例"
       : location.pathname.startsWith("/join/")
@@ -58,17 +69,21 @@ export function TitleBar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          onClick={() => navigate("/join")}
-          className="no-drag inline-flex h-6 items-center gap-1 rounded-full bg-gray-100 px-2.5 t-label-12 text-gray-1000 transition-colors hover:bg-gray-200"
-          title="朋友发来的房间码，粘进来就能进服"
-        >
-          <Users className="size-3" />
-          加入房间
-        </button>
-        <Badge variant={statusMeta.variant} size="sm">
-          {statusMeta.label}
-        </Badge>
+        {mode === "host" ? (
+          <>
+            <button
+              onClick={() => navigate("/join")}
+              className="no-drag inline-flex h-6 items-center gap-1 rounded-full bg-gray-100 px-2.5 t-label-12 text-gray-1000 transition-colors hover:bg-gray-200"
+              title="朋友发来的房间码，粘进来就能进服"
+            >
+              <Users className="size-3" />
+              加入房间
+            </button>
+            <Badge variant={statusMeta.variant} size="sm">
+              {statusMeta.label}
+            </Badge>
+          </>
+        ) : null}
         {isDesktopVisual() ? (
           <div className="no-drag flex items-center">
           <button

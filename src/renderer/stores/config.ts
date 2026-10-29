@@ -1,32 +1,29 @@
 import { create } from "zustand";
-import type { AppConfig, Instance } from "@/lib/types";
+import type { AppConfig, AppMode, ClientProfile, Instance, SavedServer, ServerType } from "@/lib/types";
 import { uid } from "@/lib/utils";
+import { CONFIG_VERSION, normalizeConfig } from "@/lib/config-model";
+import { detectShell } from "@/lib/shell";
 
-const EMPTY: AppConfig = {
-  version: 27,
-  theme: "dark",
-  accent: "#2f6feb",
-  instances: [],
-  activeInstanceId: null,
-  consoleViewMode: "code",
-  maxLogLines: 1000,
-  animationsEnabled: true,
-  setupComplete: false,
-  quickActions: [],
-  frpProfiles: [],
-  sync: null,
-  detectedJava: null,
-};
+/** 默认模式：网页=玩家（"打开网页就能玩"），桌面=服主（开服器） */
+function defaultMode(): AppMode {
+  return detectShell() === "web" ? "player" : "host";
+}
+
+const EMPTY: AppConfig = normalizeConfig(null, { defaultMode: defaultMode() }).cfg;
 
 interface ConfigState {
   loaded: boolean;
   cfg: AppConfig;
   load: () => Promise<void>;
   patch: (patch: Partial<AppConfig>) => Promise<AppConfig>;
+  setMode: (mode: AppMode) => Promise<void>;
   setActiveInstance: (id: string | null) => Promise<void>;
   addInstance: (inst: Instance) => Promise<void>;
   updateInstance: (id: string, patch: Partial<Instance>) => Promise<void>;
   removeInstance: (id: string) => Promise<void>;
+  saveServer: (server: Omit<SavedServer, "id"> & { id?: string }) => Promise<void>;
+  removeSavedServer: (id: string) => Promise<void>;
+  upsertClientProfile: (profile: Omit<ClientProfile, "updatedAt">) => Promise<void>;
 }
 
 export const useConfig = create<ConfigState>((set, get) => ({
@@ -35,12 +32,26 @@ export const useConfig = create<ConfigState>((set, get) => ({
 
   async load() {
     try {
-      const cfg = await window.mcss.config.read();
+      const raw = await window.mcss.config.read();
+      const { cfg, changed } = normalizeConfig(raw, { defaultMode: defaultMode() });
       set({ cfg, loaded: true });
       applyAppearance(cfg);
+      // 迁移过的配置立刻落盘一次，别每次启动都重算
+      if (changed) {
+        try {
+          const saved = await window.mcss.config.write(cfg);
+          set({ cfg: normalizeConfig(saved, { defaultMode: defaultMode() }).cfg });
+        } catch (e) {
+          /* 只读环境（安装目录）下不阻断使用 */
+        }
+      }
     } catch (e) {
       set({ loaded: true });
     }
+  },
+
+  async setMode(mode) {
+    await get().patch({ mode, modeAsked: true });
   },
 
   async patch(patch) {
@@ -50,7 +61,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
     applyAppearance(optimistic);
     try {
       const saved = await window.mcss.config.write(patch);
-      set({ cfg: saved });
+      set({ cfg: normalizeConfig(saved, { defaultMode: defaultMode() }).cfg });
       return saved;
     } catch (e) {
       return optimistic;
@@ -81,15 +92,37 @@ export const useConfig = create<ConfigState>((set, get) => ({
     const activeInstanceId = cfg.activeInstanceId === id ? (instances[0]?.id ?? null) : cfg.activeInstanceId;
     await get().patch({ instances, activeInstanceId });
   },
+
+  async saveServer(server) {
+    const cfg = get().cfg;
+    const id = server.id || `s-${uid()}`;
+    const existing = cfg.savedServers.find((s) => s.id === id);
+    const next: SavedServer = { ...existing, ...server, id, lastJoinedAt: Date.now() };
+    const list = existing ? cfg.savedServers.map((s) => (s.id === id ? next : s)) : [...cfg.savedServers, next];
+    await get().patch({ savedServers: list });
+  },
+
+  async removeSavedServer(id) {
+    await get().patch({ savedServers: get().cfg.savedServers.filter((s) => s.id !== id) });
+  },
+
+  async upsertClientProfile(profile) {
+    const cfg = get().cfg;
+    const next: ClientProfile = { ...profile, updatedAt: Date.now() };
+    const exists = cfg.clientProfiles.some((p) => p.id === next.id);
+    await get().patch({
+      clientProfiles: exists ? cfg.clientProfiles.map((p) => (p.id === next.id ? next : p)) : [...cfg.clientProfiles, next],
+    });
+  },
 }));
 
 /** 实例工厂：默认值集中在一处，向导与「新建」共用 */
 export function makeInstance(partial: Partial<Instance> & { name: string; dir: string }): Instance {
   const now = Date.now();
+  const serverType: ServerType = partial.serverType ?? (partial.loader as ServerType) ?? "fabric";
   return {
     id: uid(),
     mcVersion: "26.1",
-    loader: "fabric",
     javaPath: "",
     memoryMin: 2,
     memoryMax: 4,
@@ -98,8 +131,13 @@ export function makeInstance(partial: Partial<Instance> & { name: string; dir: s
     createdAt: now,
     updatedAt: now,
     ...partial,
+    // 核心类型是权威字段，loader 只是它的别名（两种写法永远一致）
+    serverType,
+    loader: serverType,
   };
 }
+
+export const CONFIG_SCHEMA = CONFIG_VERSION;
 
 /** 主题 / 强调色 → <html> 上的 class 与 CSS 变量 */
 export function applyAppearance(cfg: Pick<AppConfig, "theme" | "accent">) {

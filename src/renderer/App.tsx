@@ -11,7 +11,9 @@ import InstanceDetail from "@/pages/InstanceDetail";
 import Library from "@/pages/Library";
 import Network from "@/pages/Network";
 import Join from "@/pages/Join";
+import MyServers from "@/pages/MyServers";
 import Settings from "@/pages/Settings";
+import { ModePicker } from "@/components/app/ModePicker";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { buildDeps, runSync } from "@/lib/sync/engine";
@@ -22,6 +24,8 @@ export default function App() {
   const loaded = useConfig((s) => s.loaded);
   const patch = useConfig((s) => s.patch);
   const setupComplete = useConfig((s) => s.cfg.setupComplete);
+  const mode = useConfig((s) => s.cfg.mode);
+  const modeAsked = useConfig((s) => s.cfg.modeAsked);
   const bind = useServer((s) => s.bind);
   const theme = useConfig((s) => s.cfg.theme);
 
@@ -72,12 +76,13 @@ export default function App() {
         <Sidebar />
         <main className="min-w-0 flex-1 overflow-y-auto scroll-thin">
           <Routes>
-            {/* Web 形态没有本地实例，首页直接给「加入房间」 */}
-            <Route path="/" element={detectShell() === "web" ? <Join /> : <Overview />} />
+            {/* 两个模式各自的首页：服主=实例仪表盘，玩家=加入游戏 */}
+            <Route path="/" element={mode === "player" ? <Join /> : <Overview />} />
             <Route path="/instances" element={<Instances />} />
             <Route path="/instances/:id" element={<InstanceDetail />} />
             <Route path="/library" element={<Library />} />
             <Route path="/network" element={<Network />} />
+            <Route path="/mine" element={<MyServers />} />
             <Route path="/join" element={<Join />} />
             <Route path="/join/:code" element={<Join />} />
             <Route path="/settings" element={<Settings />} />
@@ -89,7 +94,9 @@ export default function App() {
         theme={theme === "light" ? "light" : "dark"}
         toastOptions={{ style: { fontFamily: "inherit" } }}
       />
-      <FirstRunWizard open={!setupComplete} onDone={() => patch({ setupComplete: true })} />
+      {/* 第一次打开问一次「你是来开服的，还是来玩的」。之后随时能在侧栏切。 */}
+      <ModePicker open={!modeAsked} />
+      {mode === "host" ? <FirstRunWizard open={!setupComplete && modeAsked} onDone={() => patch({ setupComplete: true })} /> : null}
     </div>
   );
 }

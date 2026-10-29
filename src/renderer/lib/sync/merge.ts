@@ -10,6 +10,7 @@
 
 import type { FrpProfile, Instance, QuickAction } from "../types";
 import type { SyncInstance, SyncPayloadV1, SyncTombstone } from "./types";
+import { serverTypeOf } from "../config-model";
 
 export const TOMBSTONE_TTL = 180 * 24 * 3600 * 1000;
 
@@ -38,11 +39,14 @@ export interface MergeResult {
 }
 
 export function toSyncInstance(inst: Instance, mods: SyncInstance["mods"]): SyncInstance {
+  const serverType = serverTypeOf(inst);
   return {
     id: inst.id,
     name: inst.name,
     mcVersion: inst.mcVersion,
-    loader: inst.loader,
+    serverType,
+    // 老设备只认 fabric/vanilla：插件服与模组服都按"客户端要不要改"折算
+    loader: serverType === "vanilla" || serverType === "paper" || serverType === "purpur" ? "vanilla" : "fabric",
     loaderVersion: inst.loaderVersion,
     port: inst.port,
     memoryMin: inst.memoryMin,

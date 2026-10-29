@@ -4,7 +4,48 @@ import type { RemoteCatalog, SyncConfig } from "./sync/types";
 
 export type { SyncConfig } from "./sync/types";
 
-export type Loader = "fabric" | "vanilla";
+/** 服务端核心：决定内容目录（plugins/mod）、启动方式、玩家要不要装东西 */
+export type ServerType = "vanilla" | "fabric" | "forge" | "neoforge" | "paper" | "purpur";
+
+/** @deprecated 旧名字，等价于 ServerType；新代码直接用 ServerType */
+export type Loader = ServerType;
+
+/** 这个核心能装什么 —— 资源库、内容页都按它分流 */
+export type ContentKind = "none" | "datapack" | "plugin" | "mod";
+
+/** 使用模式：决定首页与导航，不决定能力 */
+export type AppMode = "host" | "player";
+
+export type ClientLoader = "vanilla" | "fabric" | "forge" | "neoforge";
+
+/** 玩家自己的客户端配置（可以和服主装得不一样） */
+export interface ClientProfile {
+  id: string;
+  name: string;
+  /** 客户端目录，默认 .minecraft */
+  dir: string;
+  mcVersion: string;
+  loader: ClientLoader;
+  loaderVersion?: string;
+  /** 玩家自选、服主没装的 Mod（音效包、小地图、光影前置…） */
+  extraMods: { file: string; name?: string }[];
+  updatedAt: number;
+}
+
+/** 玩家收藏/去过 的服务器（不做内容市场，只存"我的"） */
+export interface SavedServer {
+  id: string;
+  name: string;
+  address: string;
+  port?: number;
+  mcVersion?: string;
+  loader?: string;
+  /** 从哪个房间码来的 */
+  fromRoom?: string;
+  note?: string;
+  lastJoinedAt?: number;
+}
+
 
 export interface InstanceSchedule {
   /** 每日重启时间 HH:MM（空 = 不重启） */
@@ -24,9 +65,14 @@ export interface Instance {
   dir: string;
   /** Minecraft 版本号，如 26.1 */
   mcVersion: string;
+  /** 服务端核心。v28 起是权威字段 */
+  serverType?: ServerType;
+  /** @deprecated v27 字段，迁移后由 serverType 推导，仅为兼容保留 */
   loader: Loader;
-  /** Fabric Loader 版本；vanilla 为空 */
+  /** Fabric/NeoForge/Forge 的 loader 版本；vanilla/paper/purpur 为空 */
   loaderVersion?: string;
+  /** Paper/Purpur 的构建号（build 74 之类） */
+  buildNumber?: number;
   javaPath: string;
   /** 初始堆 / 最大堆（GB） */
   memoryMin: number;
@@ -81,11 +127,19 @@ export interface FrpProfile {
 
 export interface AppConfig {
   /** 配置结构版本，用于迁移 */
-  version: 27;
+  version: 28;
+  /** 上次所在的模式 */
+  mode: AppMode;
+  /** 是否已经问过"你要开服还是玩" */
+  modeAsked: boolean;
   theme: ThemeMode;
   accent: string;
   instances: Instance[];
   activeInstanceId: string | null;
+  /** 玩家侧：我的客户端 */
+  clientProfiles: ClientProfile[];
+  /** 玩家侧：我的服务器（收藏/历史） */
+  savedServers: SavedServer[];
   consoleViewMode: ConsoleViewMode;
   maxLogLines: number;
   animationsEnabled: boolean;

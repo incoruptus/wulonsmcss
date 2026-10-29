@@ -7,6 +7,7 @@ import type {
   McVersion,
   ModMeta,
   PreflightResult,
+  ServerType,
   WorldPack,
 } from "./types";
 
@@ -140,7 +141,17 @@ export interface McssApi {
   versions: {
     minecraft: () => Promise<McVersion[]>;
     fabricLoaders: (mc: string) => Promise<string[]>;
-    install: (opts: { dir: string; mc: string; loader: "fabric" | "vanilla"; loaderVersion?: string }) => Promise<{ ok: boolean; error?: string }>;
+    /** 列某个核心在某个 MC 版本下可用的构建（Paper 的 build、Forge/NeoForge 的 loader 版本） */
+    serverBuilds?: (serverType: string, mc: string) => Promise<string[]>;
+    install: (opts: {
+      dir: string;
+      mc: string;
+      /** v28：权威字段 */
+      serverType?: ServerType;
+      /** @deprecated 旧名字 */
+      loader?: ServerType;
+      loaderVersion?: string;
+    }) => Promise<{ ok: boolean; error?: string }>;
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };
   modrinth: {

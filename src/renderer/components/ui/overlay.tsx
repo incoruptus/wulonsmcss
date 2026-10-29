@@ -13,9 +13,11 @@ export interface DialogProps {
   children: React.ReactNode;
   className?: string;
   widthClass?: string;
+  /** 必须做选择时用：不显示关闭按钮（Esc/遮罩也关不掉，由 onOpenChange 决定） */
+  hideClose?: boolean;
 }
 
-export function Dialog({ open, onOpenChange, children, className, widthClass = "max-w-xl" }: DialogProps) {
+export function Dialog({ open, onOpenChange, children, className, widthClass = "max-w-xl", hideClose }: DialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -28,12 +30,14 @@ export function Dialog({ open, onOpenChange, children, className, widthClass = "
           )}
         >
           {children}
-          <DialogPrimitive.Close
-            aria-label="关闭"
-            className="absolute right-3 top-3 grid size-7 place-items-center rounded-md text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-1000"
-          >
-            <X className="size-4" />
-          </DialogPrimitive.Close>
+          {hideClose ? null : (
+            <DialogPrimitive.Close
+              aria-label="关闭"
+              className="absolute right-3 top-3 grid size-7 place-items-center rounded-md text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-1000"
+            >
+              <X className="size-4" />
+            </DialogPrimitive.Close>
+          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

@@ -1,6 +1,6 @@
 /** 同步数据形状（MCSS v1） */
 
-import type { FrpProfile, QuickAction } from "../types";
+import type { FrpProfile, QuickAction, ServerType } from "../types";
 
 export const SYNC_FORMAT = "wulons-mcss-sync" as const;
 export const SYNC_FORMAT_VERSION = 1 as const;
@@ -10,6 +10,9 @@ export interface SyncInstance {
   id: string;
   name: string;
   mcVersion: string;
+  /** v28：服务端核心（同步给另一台设备，用来判断"能不能互相接手"） */
+  serverType?: ServerType;
+  /** @deprecated 与 serverType 同义，老设备仍读它 */
   loader: "fabric" | "vanilla";
   loaderVersion?: string;
   port: number;
