@@ -1,7 +1,24 @@
 const { spawn } = require('child_process')
 const { join } = require('path')
-const { existsSync } = require('fs')
+const { existsSync, writeFileSync, readdirSync } = require('fs')
 const { createInterface } = require('readline')
+
+/**
+ * Forge 1.17+ / NeoForge 的启动参数文件（libraries/net/.../<ver>/win_args.txt）。
+ * 找到就说明这家不能 -jar 启动；找不到返回 null，维持原来的 -jar 逻辑。
+ */
+function findArgsFile(dir) {
+  for (const ns of ['neoforged/neoforge', 'minecraftforge/forge']) {
+    const base = join(dir, 'libraries', 'net', ...ns.split('/'))
+    try {
+      for (const ver of readdirSync(base)) {
+        const candidate = join(base, ver, 'win_args.txt')
+        if (existsSync(candidate)) return candidate
+      }
+    } catch (e) {}
+  }
+  return null
+}
 
 let serverProcess = null
 let stopKillTimer = null
@@ -46,12 +63,18 @@ function start(java, dir, jvmArgs) {
   javaPath = java || 'java'
   serverDir = dir || process.cwd()
 
-  let jar = join(serverDir, 'fabric-server-launch.jar')
-  if (!existsSync(jar)) jar = join(serverDir, 'server.jar')
-  if (!existsSync(jar)) {
-    emitOutput('ERROR', `未在 ${serverDir} 找到 fabric-server-launch.jar 或 server.jar`)
-    emitStatus('stopped')
-    return { ok: false, error: '未找到服务端 jar' }
+  // Forge 1.17+ / NeoForge 不能用 -jar：真实参数在 libraries/.../win_args.txt 里，
+  // 内存要写进 user_jvm_args.txt。判据是产物文件，不是猜核心类型。
+  const argsFile = findArgsFile(serverDir)
+  let jar = null
+  if (!argsFile) {
+    jar = join(serverDir, 'fabric-server-launch.jar')
+    if (!existsSync(jar)) jar = join(serverDir, 'server.jar')
+    if (!existsSync(jar)) {
+      emitOutput('ERROR', `未在 ${serverDir} 找到 argsfile、fabric-server-launch.jar 或 server.jar`)
+      emitStatus('stopped')
+      return { ok: false, error: '未找到可启动的服务端' }
+    }
   }
   // 只有传进来的是具体路径时才检查存在性，避免把 PATH 里的 "java" 误判成缺失
   if (/[\\/]/.test(javaPath) && !existsSync(javaPath)) {
@@ -60,7 +83,21 @@ function start(java, dir, jvmArgs) {
     return { ok: false, error: 'Java 路径不存在' }
   }
 
-  const args = [...splitArgs(jvmArgs), '-jar', jar, 'nogui']
+  const jvm = splitArgs(jvmArgs)
+  let args
+  if (argsFile) {
+    // 这两家把内存写在 user_jvm_args.txt 里，命令行只引用它
+    const userArgs = join(serverDir, 'user_jvm_args.txt')
+    try {
+      writeFileSync(userArgs, `${jvm.join(' ')}\n`.trim() + '\n', 'utf-8')
+    } catch (e) {
+      emitOutput('WARN', `写 user_jvm_args.txt 失败：${e.message}`)
+    }
+    args = ['@user_jvm_args.txt', `@${argsFile}`, 'nogui']
+    emitOutput('INFO', `检测到 Forge/NeoForge 启动参数：${argsFile}`)
+  } else {
+    args = [...jvm, '-jar', jar, 'nogui']
+  }
   emitOutput('INFO', `启动服务器：${javaPath} ${args.join(' ')}`)
   emitStatus('starting')
 
@@ -186,4 +223,4 @@ function getMemory() {
   return 0
 }
 
-module.exports = { start, stop, sendCommand, onOutput, onStatus, getStatus, getPid, getMemory }
+module.exports = { start, stop, sendCommand, onOutput, onStatus, getStatus, getPid, getMemory, findArgsFile }

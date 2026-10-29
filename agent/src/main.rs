@@ -271,21 +271,38 @@ fn start_server(shared: &Shared, instance_id: &str) -> Result<Json, String> {
     if !dir_path.exists() {
         return Err(format!("目录不存在：{dir}"));
     }
-    let jar = if dir_path.join("fabric-server-launch.jar").exists() {
-        "fabric-server-launch.jar"
+    // Forge 1.17+ / NeoForge 不能用 -jar：真实参数在 libraries/.../win_args.txt
+    let args_file = find_args_file(&dir_path);
+    let jar = if args_file.is_some() {
+        None
+    } else if dir_path.join("fabric-server-launch.jar").exists() {
+        Some("fabric-server-launch.jar")
     } else if dir_path.join("server.jar").exists() {
-        "server.jar"
+        Some("server.jar")
     } else {
-        return Err("目录里没有 fabric-server-launch.jar 或 server.jar".into());
+        return Err("目录里既没有 Forge/NeoForge 的 argsfile，也没有 server.jar".into());
     };
 
     let mut cmd = Command::new(&java);
-    cmd.arg(format!("-Xms{mem_min}G"))
-        .arg(format!("-Xmx{mem_max}G"));
-    for part in jvm.split_whitespace() {
-        cmd.arg(part);
+    if let Some(af) = &args_file {
+        // 这两家的内存写在 user_jvm_args.txt 里，命令行只引用它
+        let mut user_args = format!("-Xms{mem_min}G -Xmx{mem_max}G");
+        if !jvm.trim().is_empty() {
+            user_args.push(' ');
+            user_args.push_str(jvm.trim());
+        }
+        let _ = std::fs::write(dir_path.join("user_jvm_args.txt"), format!("{user_args}\n"));
+        cmd.arg("@user_jvm_args.txt")
+            .arg(format!("@{}", af.display()))
+            .arg("nogui");
+    } else {
+        cmd.arg(format!("-Xms{mem_min}G"))
+            .arg(format!("-Xmx{mem_max}G"));
+        for part in jvm.split_whitespace() {
+            cmd.arg(part);
+        }
+        cmd.arg("-jar").arg(jar.unwrap_or("server.jar")).arg("nogui");
     }
-    cmd.arg("-jar").arg(jar).arg("nogui");
     cmd.current_dir(&dir_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -2116,6 +2133,27 @@ fn proc_run(opts: Json) -> Result<Json, String> {
         ("stderrTail", Json::s("")),
         ("timedOut", Json::Bool(timed_out)),
     ]))
+}
+
+/// 找 Forge/NeoForge 的 win_args.txt；找不到返回 None（维持 -jar 启动）
+fn find_args_file(dir: &Path) -> Option<PathBuf> {
+    for ns in [
+        ["neoforged", "neoforge"],
+        ["minecraftforge", "forge"],
+    ] {
+        let base = dir.join("libraries").join("net").join(ns[0]).join(ns[1]);
+        let entries = match std::fs::read_dir(&base) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let candidate = entry.path().join("win_args.txt");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
 }
 
 fn write_marker(dir: &Path, server_type: &str, mc: &str, build: &str) {
