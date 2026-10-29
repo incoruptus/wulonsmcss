@@ -64,6 +64,17 @@ java @user_jvm_args.txt @libraries/net/neoforged/neoforge/<ver>/win_args.txt nog
 | Forge | `promotions_slim.json` 的 `promos["<mc>-latest"]` | `64.1.5` |
 | NeoForge | `maven-metadata.xml` 的 `<versions>`（过滤掉与 mc 不匹配的） | `26.1.xxx` |
 
+## 4.5 已经做完的部分（2026-10-29）
+
+| 块 | 状态 | 位置 |
+|---|---|---|
+| `proc:run`（跑安装器、等结果） | ✅ 两侧 | `electron/ipc/proc.js` / `agent` 的 `proc_run` |
+| argsfile 启动（`user_jvm_args.txt` + `win_args.txt`） | ✅ 两侧 | `electron/ipc/server.js` 的 `findArgsFile` / `agent` 的 `find_args_file` |
+| 版本列表（Forge 实测、NeoForge 网络不可达返回空） | ✅ | `versions.forgeBuilds` / `neoforgeBuilds` |
+| 拒绝静默误装（明确告知走导入） | ✅ 两侧 | `installServer` / `install_server` 入口 |
+| **安装器流程（下载 installer → `--installServer` → 验 `win_args.txt`）** | ⬜ **未做** | 落地后即可把 Forge/NeoForge 放进新建实例的核心列表 |
+
+
 ## 5. 接入后要补的验收
 
 - [ ] 新建实例的核心里出现 Forge / NeoForge（当前刻意只放 4 个，避免假按钮）
