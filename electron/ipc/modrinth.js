@@ -76,12 +76,13 @@ async function versions(projectId, opts = {}) {
   }));
 }
 
-/** 下载到 <dir>/mods/，返回落盘路径 */
-async function install({ dir, fileUrl, fileName, onProgress }) {
+/** 下载到 <dir>/mods 或 <dir>/plugins（看 kind），返回落盘路径 */
+async function install({ dir, fileUrl, fileName, kind, onProgress }) {
   if (!dir) throw new Error("缺少安装目录");
   if (!/^https:\/\//.test(fileUrl)) throw new Error("下载地址不合法");
   const safe = String(fileName || "mod.jar").replace(/[\\/:*?"<>|]+/g, "_");
-  const dest = path.join(dir, "mods", safe);
+  const subdir = kind === "plugin" ? "plugins" : "mods";
+  const dest = path.join(dir, subdir, safe);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   await download(fileUrl, dest, (got, total) => onProgress?.(got, total));
   return { ok: true, path: dest };

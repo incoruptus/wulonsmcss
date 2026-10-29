@@ -1042,8 +1042,12 @@ fn modrinth_search(query: &str, opts: Option<&Json>) -> Result<Json, String> {
     let offset = opts.and_then(|o| o.get("offset")).and_then(|v| v.num()).unwrap_or(0.0) as i32;
     let mc = opts.and_then(|o| o.get("mcVersion")).and_then(|v| v.str());
     let loader = opts.and_then(|o| o.get("loader")).and_then(|v| v.str());
+    let project_type = opts
+        .and_then(|o| o.get("projectType"))
+        .and_then(|v| v.str())
+        .unwrap_or("mod");
 
-    let mut facets = vec![r#"["project_type:mod"]"#.to_string()];
+    let mut facets = vec![format!(r#"["project_type:{project_type}"]"#)];
     if let Some(mc) = mc {
         facets.push(format!(r#"["versions:{mc}"]"#));
     }
@@ -1145,6 +1149,11 @@ fn modrinth_install(opts: &Json) -> Result<Json, String> {
     let dir = opts.get("dir").and_then(|v| v.str()).unwrap_or("");
     let url = opts.get("fileUrl").and_then(|v| v.str()).unwrap_or("");
     let filename = opts.get("fileName").and_then(|v| v.str()).unwrap_or("mod.jar");
+    // 插件服装 plugins/，模组服装 mods/：同一个通道，不同目录
+    let subdir = match opts.get("kind").and_then(|v| v.str()) {
+        Some("plugin") => "plugins",
+        _ => "mods",
+    };
     if dir.is_empty() || !url.starts_with("https://") {
         return Err("缺少安装目录或下载地址不合法".into());
     }
@@ -1152,7 +1161,7 @@ fn modrinth_install(opts: &Json) -> Result<Json, String> {
         .chars()
         .map(|c| if r#"[\\/:*?"<>|]"#.contains(c) { '_' } else { c })
         .collect();
-    let dest = Path::new(dir).join("mods").join(&safe);
+    let dest = Path::new(dir).join(subdir).join(&safe);
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败：{e}"))?;
     }

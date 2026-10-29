@@ -166,7 +166,15 @@ export interface McssApi {
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };
   modrinth: {
-    search: (q: string, opts?: { mcVersion?: string; loader?: string; limit?: number; offset?: number; sort?: string }) => Promise<{
+    search: (q: string, opts?: {
+      mcVersion?: string;
+      loader?: string;
+      /** Modrinth 的 project_type：模组服查 mod，插件服查 plugin */
+      projectType?: "mod" | "plugin" | "datapack";
+      limit?: number;
+      offset?: number;
+      sort?: string;
+    }) => Promise<{
       hits: { id: string; slug: string; title: string; description: string; iconUrl?: string; downloads: number; author?: string; categories: string[] }[];
       total: number;
     }>;
@@ -174,7 +182,7 @@ export interface McssApi {
       id: string; name: string; versionNumber: string; gameVersions: string[]; loaders: string[]; datePublished: string;
       files: { url: string; filename: string; size: number; primary: boolean }[];
     }[]>;
-    install: (opts: { dir: string; fileUrl: string; fileName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
+    install: (opts: { dir: string; fileUrl: string; fileName: string; kind?: "mod" | "plugin" }) => Promise<{ ok: boolean; path?: string; error?: string }>;
   };
   client: {
     prepare: (opts: { dir: string; mods: { p: string; v: string; n?: string }[] }) => Promise<{
