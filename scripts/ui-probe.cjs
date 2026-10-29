@@ -103,14 +103,14 @@ const timer = setTimeout(() => {
 
 child.on("exit", () => {
   clearTimeout(timer);
-  const dump = (out.match(/DUMP>>>([\s\S]*?)(?:\n\[app\]|$)/) || [])[1] || "";
+  const dump = (out.match(/DUMP>>>([\s\S]*?)DUMP<<</) || out.match(/DUMP>>>([\s\S]*?)$/) || [])[1] || "";
   // dump 第一行是 location 信息，剩下才是页面文本
   const body = dump.split("\n").slice(1).join("\n").trim();
   if (keep) return process.exit(0);
   console.log(`\n=== 结果 ===\n截图：${shot}\n页面文本长度：${body.length}`);
-  const expect = arg("expect");
-  if (expect && !body.includes(expect)) {
-    console.log(`❌ 页面里没找到「${expect}」`);
+  const want = arg("expect");
+  if (want && !body.includes(want)) {
+    console.log(`❌ 页面里没找到「${want}」`);
     process.exit(1);
   }
   if (body.length < 20) {

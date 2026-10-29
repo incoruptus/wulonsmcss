@@ -176,7 +176,8 @@ function createWindow() {
             const text = await mainWindow?.webContents.executeJavaScript(
               "JSON.stringify({href: location.href, hash: location.hash, search: location.search}) + '\\n' + document.body.innerText"
             );
-            console.log("DUMP>>>" + String(text ?? "").slice(0, 20000));
+            // 首尾标记：探针按标记截取，避免把后面的日志混进页面文本
+            console.log("DUMP>>>" + String(text ?? "").slice(0, 20000) + "\nDUMP<<<");
           }
           if (process.env.MCSS_SHOT) {
             const image = await mainWindow?.webContents.capturePage();

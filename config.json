@@ -107,7 +107,7 @@
     }
   },
   "mode": "host",
-  "modeAsked": false,
+  "modeAsked": true,
   "clientProfiles": [],
   "savedServers": [],
   "autoBackupOnStop": false
