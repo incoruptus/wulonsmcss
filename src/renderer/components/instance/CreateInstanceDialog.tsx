@@ -22,6 +22,8 @@ const CORES: { value: ServerType; hint: string }[] = [
   { value: "fabric", hint: "轻量模组服，性能模组首选" },
   { value: "paper", hint: "插件服（水桶系），玩家用原版客户端就能进" },
   { value: "purpur", hint: "Paper 的增强版，多几百个玩法开关" },
+  { value: "forge", hint: "老整合包用得多（1.12–1.19）；装的时候要跑官方安装器" },
+  { value: "neoforge", hint: "现代整合包的标准（1.20.2+）；同样要跑安装器" },
   { value: "vanilla", hint: "原版服务端，不装任何东西" },
 ];
 
@@ -130,7 +132,8 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         mc: mcVersion,
         serverType,
         loaderVersion: serverType === "fabric" ? build : undefined,
-        build: kind === "plugin" ? build : undefined,
+        build: kind === "plugin" || serverType === "forge" || serverType === "neoforge" ? build : undefined,
+        javaPath,
       });
       if (!res.ok) throw new Error(res.error || "安装失败");
       const inst = makeInstance({

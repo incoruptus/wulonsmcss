@@ -164,16 +164,27 @@ test("探测：空目录返回 null，不抛错", () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("Forge/NeoForge 没有自动安装：必须明确拒绝，不能静默退回原版", async () => {
+test("Forge/NeoForge 安装前必须知道 Java：没给就明确拒绝，且不落任何文件", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-install-"));
   for (const t of ["forge", "neoforge"]) {
     await assert.rejects(
       () => versions.installServer({ dir, mc: "26.1.2", serverType: t }),
-      /导入现有服务器/,
-      `${t} 应该明确拒绝`,
+      /需要先指定 Java/,
+      `${t} 应该明确要求 Java`,
     );
   }
-  // 目录里不该出现任何 jar
   assert.deepStrictEqual(fs.readdirSync(dir), []);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("Forge 版本解析：走 promotions_slim（有网时）", async (t) => {
+  let got = null;
+  try {
+    got = await versions.forgeBuilds("26.1.2");
+  } catch (e) {
+    t.skip("无网络，跳过");
+    return;
+  }
+  assert.ok(Array.isArray(got));
+  for (const v of got) assert.strictEqual(typeof v, "string");
 });

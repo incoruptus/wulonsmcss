@@ -160,8 +160,10 @@ export interface McssApi {
       /** @deprecated 旧名字 */
       loader?: ServerType;
       loaderVersion?: string;
-      /** Paper/Purpur 的构建号 */
+      /** Paper/Purpur 的构建号、Fabric 的 loader 版本、Forge/NeoForge 的 loader 版本 */
       build?: string;
+      /** Forge/NeoForge 的安装器需要知道用哪个 java 去跑 */
+      javaPath?: string;
     }) => Promise<{ ok: boolean; error?: string; build?: string; loaderVersion?: string }>;
     onProgress: (cb: (p: { stage: string; percent: number; detail?: string }) => void) => () => void;
   };

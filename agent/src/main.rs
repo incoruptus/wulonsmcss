@@ -2365,12 +2365,59 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
     };
 
     if loader == "forge" || loader == "neoforge" {
-        // 这两家要跑安装器（--installServer），流程还没接完。
-        // 必须明确拒绝，否则会掉到 vanilla 分支，静默装一个原版 jar 冒充模组服。
-        return Err(format!(
-            "{} 暂时还不能在这里自动安装：先用官方安装器装好，再用「导入现有服务器」把它接进来",
-            if loader == "forge" { "Forge" } else { "NeoForge" }
-        ));
+        let java = opts.get("javaPath").and_then(|v| v.str()).unwrap_or("");
+        if java.is_empty() {
+            return Err("安装 Forge/NeoForge 需要先指定 Java".into());
+        }
+        let builds = if loader == "forge" { forge_builds(mc)? } else { neoforge_builds(mc)? };
+        let ver = if !build.is_empty() {
+            build.to_string()
+        } else {
+            builds
+                .arr()
+                .and_then(|a| a.first())
+                .and_then(|v| v.str())
+                .map(String::from)
+                .ok_or_else(|| format!("{loader} 还没有 {mc} 的版本"))?
+        };
+        let (url, name) = if loader == "forge" {
+            (
+                format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{mc}-{ver}/forge-{mc}-{ver}-installer.jar"),
+                format!("forge-{mc}-{ver}-installer.jar"),
+            )
+        } else {
+            (
+                format!("https://maven.neoforged.net/releases/net/neoforged/neoforge/{ver}/neoforge-{ver}-installer.jar"),
+                format!("neoforge-{ver}-installer.jar"),
+            )
+        };
+        progress("下载安装器", 5, "");
+        let installer = dir_path.join(&name);
+        download_to(&url, &installer, &[], None)?;
+
+        progress("运行安装器（要下载 libraries，可能几分钟）", 40, "");
+        let installer_str = installer.to_string_lossy().to_string();
+        let res = proc_run(Json::obj(vec![
+            (
+                "command",
+                Json::Arr(vec![
+                    Json::s(java),
+                    Json::s("-jar"),
+                    Json::s(&installer_str),
+                    Json::s("--installServer"),
+                    Json::s(dir),
+                ]),
+            ),
+            ("cwd", Json::s(dir)),
+        ]))?;
+        // 判据是产物，不是退出码：安装器出现过"退出码 0 但没装成"
+        if find_args_file(&dir_path).is_none() {
+            let code = res.get("code").and_then(|c| c.num()).unwrap_or(-1.0) as i64;
+            return Err(format!("安装器没有生成启动参数文件（退出码 {code}），安装未成功"));
+        }
+        write_marker(&dir_path, loader, mc, &ver);
+        progress("完成", 100, "");
+        return Ok(Json::obj(vec![("ok", Json::Bool(true)), ("build", Json::s(&ver))]));
     }
 
     if loader == "paper" {

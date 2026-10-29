@@ -294,22 +294,63 @@ async function download(url, dest, onProgress, opts = {}) {
   });
 }
 
+/** 找安装器生成的 win_args.txt（成功判据） */
+function findArgsFileIn(dir) {
+  for (const ns of [["neoforged", "neoforge"], ["minecraftforge", "forge"]]) {
+    const base = path.join(dir, "libraries", "net", ns[0], ns[1]);
+    try {
+      for (const ver of fs.readdirSync(base)) {
+        const candidate = path.join(base, ver, "win_args.txt");
+        if (fs.existsSync(candidate)) return candidate;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
 /**
  * 安装服务端到 dir：
  * - fabric：直接取 Fabric 预构建的 server launcher jar（免装 installer）
  * - vanilla：从版本清单拿 server.jar
  * - paper / purpur：插件服（水桶系），同一个 server.jar，玩家用原版客户端即进
  */
-async function installServer({ dir, mc, serverType, loader, loaderVersion, build, onProgress }) {
+async function installServer({ dir, mc, serverType, loader, loaderVersion, build, javaPath, onProgress }) {
   if (!dir || !mc) throw new Error("缺少安装参数");
   fs.mkdirSync(dir, { recursive: true });
 
   const type = serverType || loader || "vanilla";
 
-  // Forge / NeoForge 要跑安装器（--installServer），流程还没接完。
-  // 这里必须明确拒绝：否则会掉到下面的 vanilla 分支，静默装一个原版 jar 冒充模组服。
+  // Forge / NeoForge 要跑安装器（--installServer）。判据是产物不是退出码：
+  // 安装器历史上出现过"退出码 0 但没装成"，所以只认 win_args.txt 有没有生成。
   if (type === "forge" || type === "neoforge") {
-    throw new Error(`${type === "forge" ? "Forge" : "NeoForge"} 暂时还不能在这里自动安装：先用官方安装器装好，再用「导入现有服务器」把它接进来`);
+    const proc = require("./proc");
+    if (!javaPath) throw new Error("安装 Forge/NeoForge 需要先指定 Java");
+    const builds = type === "forge" ? await forgeBuilds(mc) : await neoforgeBuilds(mc);
+    const ver = build || builds[0];
+    if (!ver) throw new Error(`${type === "forge" ? "Forge" : "NeoForge"} 还没有 ${mc} 的版本`);
+
+    const host = type === "forge" ? "https://maven.minecraftforge.net/net/minecraftforge/forge" : "https://maven.neoforged.net/releases/net/neoforged/neoforge";
+    const artifact = type === "forge" ? `${mc}-${ver}` : ver;
+    const installerName = type === "forge" ? `forge-${mc}-${ver}-installer.jar` : `neoforge-${ver}-installer.jar`;
+    const url = type === "forge" ? `${host}/${artifact}/${installerName}` : `${host}/${ver}/${installerName}`;
+
+    onProgress?.({ stage: "下载安装器", percent: 2 });
+    const installer = path.join(dir, installerName);
+    await download(url, installer, (got, total) => {
+      const pct = total ? 2 + Math.round((got / total) * 28) : 15;
+      onProgress?.({ stage: "下载安装器", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
+    });
+
+    onProgress?.({ stage: "运行安装器（要下载 libraries，可能几分钟）", percent: 32 });
+    const res = await proc.run({ command: [javaPath, "-jar", installer, "--installServer", dir], cwd: dir });
+    if (res.timedOut) throw new Error("安装器超时");
+    const argsFile = findArgsFileIn(dir);
+    if (!argsFile) {
+      throw new Error(`安装器没有生成启动参数文件，安装未成功。\n${(res.stderrTail || res.stdoutTail || "").slice(-600)}`);
+    }
+    writeMarker(dir, { serverType: type, mc, build: ver, argsFile });
+    onProgress?.({ stage: "完成", percent: 100 });
+    return { ok: true, build: ver };
   }
 
   if (type === "paper") {
