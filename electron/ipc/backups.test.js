@@ -166,3 +166,33 @@ test("整包恢复同样拒绝穿越文件名（不能指向备份目录之外�
   assert.ok(fs.existsSync(path.join(dir, "world", "level.dat")));
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+/* ------------------------- 整包备份（异步化之后） ------------------------- */
+
+test("整包备份 → 恢复：内容能回来，旧存档留底", async () => {
+  const { create, restore, list } = require("./backup.js");
+  const dir = tmp();
+  makeWorld(dir);
+
+  const made = await create(dir, null);
+  assert.equal(made.ok, true, made.error);
+  assert.ok(made.size > 0, "zip 不应为空");
+  assert.equal(list(dir).length, 1);
+
+  fs.writeFileSync(path.join(dir, "world", "level.dat"), "CORRUPTED");
+  const back = await restore(dir, made.name, { getStatus: () => "stopped" });
+  assert.equal(back.ok, true, back.error);
+  assert.equal(fs.readFileSync(path.join(dir, "world", "level.dat"), "utf8"), "LEVEL");
+  assert.ok(fs.existsSync(path.join(dir, back.parked)), "旧存档应留底");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("服务器在跑时不允许整包恢复（防止写坏存档）", async () => {
+  const { restore } = require("./backup.js");
+  const dir = tmp();
+  makeWorld(dir);
+  const res = await restore(dir, "whatever.zip", { getStatus: () => "running" });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /先把服务器停掉/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

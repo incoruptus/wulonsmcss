@@ -102,7 +102,10 @@ async function restore(serverDir, name, server) {
   if (!fs.existsSync(file)) return { ok: false, error: "备份文件不存在" };
 
   const worldDir = path.join(serverDir, "world");
-  const parked = path.join(serverDir, `world.before-restore-${stamp()}`);
+  // 同上：撞名会让 rename 失败，加序号
+  let parked = path.join(serverDir, `world.before-restore-${stamp()}`);
+  let n = 2;
+  while (fs.existsSync(parked)) parked = path.join(serverDir, `world.before-restore-${stamp()}-${n++}`);
   try {
     if (fs.existsSync(worldDir)) fs.renameSync(worldDir, parked);
     await extractZip(file, serverDir);

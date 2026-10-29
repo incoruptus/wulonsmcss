@@ -856,7 +856,7 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
     }
 
     let world = Path::new(server_dir).join("world");
-    let parked = Path::new(server_dir).join(format!("world.before-restore-{}", now_stamp()));
+    let parked = unique_parked(server_dir);
     if world.exists() {
         std::fs::rename(&world, &parked).map_err(|e| format!("移走旧存档失败：{e}"))?;
     }
@@ -1402,7 +1402,19 @@ fn copy_path(src: &str, dest: &str) -> Result<Json, String> {
 }
 
 fn remove_path(target: &str) -> Result<Json, String> {
-    let path = Path::new(target);
+    // 通道层挡一道：UI 调用点都有名字白名单，但通道本身可被直接调用，
+    // 空串或盘符根目录进来就是灾难
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        return Err("拒绝删除：路径为空".into());
+    }
+    let path = Path::new(trimmed);
+    if let Some(parent) = path.parent() {
+        // "D:\" 这种：父目录是它自己
+        if parent == path || parent.as_os_str().is_empty() {
+            return Err("拒绝删除：这是盘符根目录".into());
+        }
+    }
     if !path.exists() {
         return Ok(Json::obj(vec![("ok", Json::Bool(true))]));
     }
@@ -2174,6 +2186,18 @@ fn forge_builds(mc: &str) -> Result<Json, String> {
 /// 等网络可达时这里再补上同样的解析（见 docs/FORGE-NEOFORGE.md）。
 fn neoforge_builds(_mc: &str) -> Result<Json, String> {
     Ok(Json::Arr(vec![]))
+}
+
+/// 留底目录名：同一秒恢复两次会撞名，rename 会失败。撞了就加序号。
+fn unique_parked(server_dir: &str) -> PathBuf {
+    let base = Path::new(server_dir);
+    let mut candidate = base.join(format!("world.before-restore-{}", now_stamp()));
+    let mut n = 2;
+    while candidate.exists() {
+        candidate = base.join(format!("world.before-restore-{}-{}", now_stamp(), n));
+        n += 1;
+    }
+    candidate
 }
 
 fn write_marker(dir: &Path, server_type: &str, mc: &str, build: &str) {
@@ -3193,7 +3217,7 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
     }
 
     let world = Path::new(server_dir).join("world");
-    let parked = Path::new(server_dir).join(format!("world.before-restore-{}", now_stamp()));
+    let parked = unique_parked(server_dir);
     if world.exists() {
         std::fs::rename(&world, &parked).map_err(|e| format!("移走旧存档失败：{e}"))?;
     }
@@ -3234,15 +3258,26 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
 
 fn fs_list(dir: &str) -> Result<Json, String> {
     let mut entries = Vec::new();
-    let rd = std::fs::read_dir(dir).map_err(|e| format!("读取目录失败：{e}"))?;
+    // 和桌面版对齐：目录不存在时返回空数组，而不是报错
+    let rd = match std::fs::read_dir(dir) {
+        Ok(rd) => rd,
+        Err(_) => return Ok(Json::Arr(entries)),
+    };
     for entry in rd.flatten() {
         let path = entry.path();
         let meta = entry.metadata().ok();
+        let mtime = meta
+            .as_ref()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as f64)
+            .unwrap_or(0.0);
         entries.push(Json::obj(vec![
             ("name", Json::s(&entry.file_name().to_string_lossy())),
             ("path", Json::s(&path.to_string_lossy())),
             ("isDir", Json::Bool(meta.as_ref().map(|m| m.is_dir()).unwrap_or(false))),
             ("size", Json::n(meta.as_ref().map(|m| m.len() as f64).unwrap_or(0.0))),
+            ("mtime", Json::n(mtime)),
         ]));
     }
     Ok(Json::Arr(entries))

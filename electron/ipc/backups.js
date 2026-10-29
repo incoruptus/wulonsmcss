@@ -198,7 +198,10 @@ function restoreSnapshot(serverDir, name) {
   if (bad) return { ok: false, error: `快照内容不合法（路径 ${String(bad.path ?? "?").slice(0, 40)}），已拒绝恢复` };
 
   const worldDir = path.join(serverDir, "world");
-  const parked = path.join(serverDir, `world.before-restore-${stamp()}`);
+  // 留底目录名带秒级时间戳：同一秒恢复两次会撞名，rename 会失败。撞了就加序号。
+  let parked = path.join(serverDir, `world.before-restore-${stamp()}`);
+  let n = 2;
+  while (fs.existsSync(parked)) parked = path.join(serverDir, `world.before-restore-${stamp()}-${n++}`);
 
   try {
     if (fs.existsSync(worldDir)) fs.renameSync(worldDir, parked);
