@@ -188,3 +188,23 @@ test("Forge 版本解析：走 promotions_slim（有网时）", async (t) => {
   assert.ok(Array.isArray(got));
   for (const v of got) assert.strictEqual(typeof v, "string");
 });
+
+test("NeoForge 连不上时要说「连不上」，而不是「没有这个版本」", async () => {
+  // 这台机器上 maven.neoforged.net 被解析到错误地址（DNS 污染），
+  // 报"没有这个版本"会误导用户以为版本不存在
+  const restore = stubFetch(null);
+  global.fetch = async () => {
+    throw new Error("getaddrinfo ENOTFOUND");
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-nf-"));
+  try {
+    await assert.rejects(
+      () => versions.installServer({ dir, mc: "26.1.2", serverType: "neoforge", javaPath: "java" }),
+      /maven\.neoforged\.net/,
+      "错误信息应指明是网络问题",
+    );
+  } finally {
+    restore();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

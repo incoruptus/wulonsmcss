@@ -2419,7 +2419,13 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
                 .and_then(|a| a.first())
                 .and_then(|v| v.str())
                 .map(String::from)
-                .ok_or_else(|| format!("{loader} 还没有 {mc} 的版本"))?
+                .ok_or_else(|| {
+                    if loader == "neoforge" {
+                        "连不上 maven.neoforged.net，拿不到 NeoForge 版本列表（这类网络上常见 DNS 污染）。\n可以先用官方安装器装好，再用「导入现有服务器」把它接进来。".to_string()
+                    } else {
+                        format!("{loader} 还没有 {mc} 的版本")
+                    }
+                })?
         };
         let (url, name) = if loader == "forge" {
             (

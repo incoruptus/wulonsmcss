@@ -327,7 +327,17 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
     if (!javaPath) throw new Error("安装 Forge/NeoForge 需要先指定 Java");
     const builds = type === "forge" ? await forgeBuilds(mc) : await neoforgeBuilds(mc);
     const ver = build || builds[0];
-    if (!ver) throw new Error(`${type === "forge" ? "Forge" : "NeoForge"} 还没有 ${mc} 的版本`);
+    if (!ver) {
+      // 区分"没有这个版本"和"连不上"：后者在受污染的网络上很常见，
+      // 报"没有这个版本"只会让人以为版本不存在，实际上是被劫持了
+      if (type === "neoforge") {
+        throw new Error(
+          "连不上 maven.neoforged.net，拿不到 NeoForge 版本列表（这类网络上常见 DNS 污染）。\n" +
+            "可以先用官方安装器装好，再用「导入现有服务器」把它接进来。",
+        );
+      }
+      throw new Error(`${type === "forge" ? "Forge" : "NeoForge"} 还没有 ${mc} 的版本`);
+    }
 
     const host = type === "forge" ? "https://maven.minecraftforge.net/net/minecraftforge/forge" : "https://maven.neoforged.net/releases/net/neoforged/neoforge";
     const artifact = type === "forge" ? `${mc}-${ver}` : ver;
