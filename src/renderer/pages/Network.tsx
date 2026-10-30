@@ -116,7 +116,7 @@ export default function Network() {
       />
       <PageBody className="grid max-w-5xl gap-4 lg:grid-cols-[1.1fr_1fr]">
         <Card className="lg:col-span-2">
-          <NetDoctorCard />
+          <NetDoctorCard port={activeInstance?.port ?? 25565} />
         </Card>
 
         <Card className="space-y-3">

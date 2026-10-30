@@ -59,6 +59,14 @@ export interface McssApi {
     }>;
     /** 网络体检：网卡 / 公网 IP / NAT / UPnP（只探测，不改路由器） */
     doctor: () => Promise<NetDoctor>;
+    /** 显式开/撤一条 TCP 端口映射（需要路由器支持 UPnP） */
+    upnpMap: (opts: { port: number; lanIp?: string }) => Promise<{
+      ok: boolean;
+      externalIp?: string;
+      externalPort?: number;
+      error?: string;
+    }>;
+    upnpUnmap: (opts: { port: number }) => Promise<{ ok: boolean; error?: string }>;
   };
   ai: {
     exportBundle: (opts: {

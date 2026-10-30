@@ -125,6 +125,8 @@ export function createHttpClient(base: string, token: string): McssApi {
     probe: (opts) => invoke("net:probe", opts),
     ping: (opts) => invoke("net:ping", opts),
     doctor: () => invoke("net:doctor"),
+    upnpMap: (opts) => invoke("net:upnp-map", opts.port),
+    upnpUnmap: (opts) => invoke("net:upnp-unmap", opts.port),
   },
   ai: {
     exportBundle: (opts) => invoke("ai:export-bundle", opts),

@@ -306,11 +306,16 @@ function parseRootDesc(xml, location) {
   return ppp;
 }
 
-function soapRequest(controlURL, serviceType, action, extraBody, timeoutMs = 3000) {
-  const body =
+function soapEnvelope(serviceType, action, params) {
+  return (
     `<?xml version="1.0"?>` +
     `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">` +
-    `<s:Body><u:${action} xmlns:u="${serviceType}">${extraBody || ""}</u:${action}></s:Body></s:Envelope>`;
+    `<s:Body><u:${action} xmlns:u="${serviceType}">${params || ""}</u:${action}></s:Body></s:Envelope>`
+  );
+}
+
+function soapRequest(controlURL, serviceType, action, extraBody, timeoutMs = 3000) {
+  const body = soapEnvelope(serviceType, action, extraBody);
   return new Promise((resolve) => {
     let url;
     try {
@@ -350,30 +355,87 @@ function soapRequest(controlURL, serviceType, action, extraBody, timeoutMs = 300
   });
 }
 
-async function upnpReport() {
+async function discoverGateway() {
   const location = await ssdpSearch();
-  if (!location) return { available: false, error: "路由器没有响应 SSDP（可能没开 UPnP）" };
-
+  if (!location) return { error: "路由器没有响应 SSDP（可能没开 UPnP）" };
   const xml = await httpText(location, 2500);
   const service = parseRootDesc(xml, location);
-  if (!service) return { available: false, gateway: location, error: "网关没有 WANIPConnection 服务" };
+  if (!service) return { error: "网关没有 WANIPConnection 服务", location };
+  return { location, ...service };
+}
 
-  const soap = await soapRequest(service.controlURL, service.serviceType, "GetExternalIPAddress");
+function gatewayHost(location) {
+  try {
+    return new URL(location).host;
+  } catch {
+    return location;
+  }
+}
+
+function faultOf(xml) {
+  const code = /<errorCode>\s*(\d+)\s*<\/errorCode>/i.exec(xml || "")?.[1];
+  const desc = /<errorDescription>\s*([^<]*?)\s*<\/errorDescription>/i.exec(xml || "")?.[1];
+  if (!code) return "";
+  return `路由器拒绝（${code}${desc ? ` ${desc}` : ""}）`;
+}
+
+async function upnpReport() {
+  const gw = await discoverGateway();
+  if (gw.error) return { available: false, error: gw.error, gateway: gw.location ? gatewayHost(gw.location) : undefined };
+
+  const soap = await soapRequest(gw.controlURL, gw.serviceType, "GetExternalIPAddress");
   const externalIp = /<NewExternalIPAddress>\s*([^<]*?)\s*<\/NewExternalIPAddress>/i.exec(soap || "")?.[1] || undefined;
 
   return {
     available: true,
-    gateway: (() => {
-      try {
-        return new URL(location).host;
-      } catch {
-        return location;
-      }
-    })(),
+    gateway: gatewayHost(gw.location),
     externalIp: externalIp && externalIp !== "0.0.0.0" ? externalIp : undefined,
-    serviceType: service.serviceType,
-    controlURL: service.controlURL,
+    serviceType: gw.serviceType,
+    controlURL: gw.controlURL,
   };
+}
+
+/** 在路由器上开一条 TCP 端口映射（只在用户显式点击时调用） */
+async function upnpMap(port, lanIp) {
+  const p = Number(port);
+  if (!Number.isInteger(p) || p < 1 || p > 65535) return { ok: false, error: "端口不合法" };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(lanIp || "")) return { ok: false, error: "没有可用的局域网 IPv4 地址" };
+
+  const gw = await discoverGateway();
+  if (gw.error) return { ok: false, error: gw.error };
+
+  const params =
+    `<NewRemoteHost></NewRemoteHost>` +
+    `<NewExternalPort>${p}</NewExternalPort>` +
+    `<NewProtocol>TCP</NewProtocol>` +
+    `<NewInternalPort>${p}</NewInternalPort>` +
+    `<NewInternalClient>${lanIp}</NewInternalClient>` +
+    `<NewEnabled>1</NewEnabled>` +
+    `<NewPortMappingDescription>Wulons MCSS</NewPortMappingDescription>` +
+    `<NewLeaseDuration>0</NewLeaseDuration>`;
+
+  const res = await soapRequest(gw.controlURL, gw.serviceType, "AddPortMapping", params);
+  if (!res) return { ok: false, error: "路由器没有响应映射请求" };
+  if (/<errorCode>/i.test(res)) return { ok: false, error: faultOf(res) || "路由器拒绝映射" };
+
+  const ipRes = await soapRequest(gw.controlURL, gw.serviceType, "GetExternalIPAddress", "");
+  const externalIp = /<NewExternalIPAddress>\s*([^<]*?)\s*<\/NewExternalIPAddress>/i.exec(ipRes || "")?.[1];
+  return { ok: true, externalIp: externalIp && externalIp !== "0.0.0.0" ? externalIp : undefined, externalPort: p };
+}
+
+/** 撤销上面那条映射；只删 TCP，不碰路由器里别的规则 */
+async function upnpUnmap(port) {
+  const p = Number(port);
+  if (!Number.isInteger(p) || p < 1 || p > 65535) return { ok: false, error: "端口不合法" };
+
+  const gw = await discoverGateway();
+  if (gw.error) return { ok: false, error: gw.error };
+
+  const params = `<NewRemoteHost></NewRemoteHost><NewExternalPort>${p}</NewExternalPort><NewProtocol>TCP</NewProtocol>`;
+  const res = await soapRequest(gw.controlURL, gw.serviceType, "DeletePortMapping", params);
+  if (!res) return { ok: false, error: "路由器没有响应撤销请求" };
+  if (/<errorCode>/i.test(res)) return { ok: false, error: faultOf(res) || "路由器拒绝撤销" };
+  return { ok: true };
 }
 
 /* ---------------- 汇总 ---------------- */
@@ -397,9 +459,13 @@ module.exports = {
   publicIps,
   stunReport,
   upnpReport,
+  upnpMap,
+  upnpUnmap,
   // 给测试用
   parseStunResponse,
   stunRequest,
   natKind,
   parseRootDesc,
+  soapEnvelope,
+  faultOf,
 };

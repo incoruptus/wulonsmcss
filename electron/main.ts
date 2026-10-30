@@ -504,6 +504,13 @@ ipcMain.handle("app:lan-address", async () => ({ ip: await netdoctor.lanAddress(
 
 /** 网络体检：网卡 / 公网 IP / NAT 类型 / UPnP 网关（只探测，不改路由器） */
 ipcMain.handle("net:doctor", () => netdoctor.doctor());
+/** 显式端口映射：只在用户点「在路由器上开端口」时调用 */
+ipcMain.handle("net:upnp-map", (_e, arg) => {
+  const port = typeof arg === "number" ? arg : arg?.port;
+  const lanIp = typeof arg === "object" && arg ? arg.lanIp : undefined;
+  return netdoctor.upnpMap(port, lanIp);
+});
+ipcMain.handle("net:upnp-unmap", (_e, arg) => netdoctor.upnpUnmap(typeof arg === "number" ? arg : arg?.port));
 
 /* --------------------------------- 服务器 --------------------------------- */
 

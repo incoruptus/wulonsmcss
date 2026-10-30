@@ -1,6 +1,6 @@
 {
   "name": "wulons-mcss",
-  "version": "27.4.0",
+  "version": "27.5.0",
   "description": "Wulon's MCSS · 乌龙味MC开服茶",
   "main": "./out/main/index.js",
   "scripts": {

@@ -115,7 +115,9 @@ contextBridge.exposeInMainWorld("mcss", {
   net: {
     probe: (opts: { host: string; port: number; timeoutMs?: number }) => invoke("net:probe", opts),
     ping: (opts: { host: string; port: number; timeoutMs?: number }) => invoke("net:ping", opts),
-    doctor: () => invoke("net:doctor")
+    doctor: () => invoke("net:doctor"),
+    upnpMap: (opts: { port: number; lanIp?: string }) => invoke("net:upnp-map", opts),
+    upnpUnmap: (opts: { port: number }) => invoke("net:upnp-unmap", opts)
   },
   ai: {
     exportBundle: (opts: any) => invoke("ai:export-bundle", opts),

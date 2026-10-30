@@ -276,10 +276,14 @@ pub fn parse_service(xml: &str, location: &str) -> Option<(String, String)> {
     ppp
 }
 
-fn soap_call(control: &str, service: &str, action: &str) -> Option<String> {
-    let body = format!(
-        "<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:{action} xmlns:u=\"{service}\"/></s:Body></s:Envelope>"
-    );
+fn soap_envelope(service: &str, action: &str, params: &str) -> String {
+    format!(
+        "<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:{action} xmlns:u=\"{service}\">{params}</u:{action}></s:Body></s:Envelope>"
+    )
+}
+
+fn soap_call(control: &str, service: &str, action: &str, params: &str) -> Option<String> {
+    let body = soap_envelope(service, action, params);
     let action_header = format!("SOAPAction: \"{service}#{action}\"");
     let out = curl(&[
         "-s",
@@ -299,28 +303,30 @@ fn soap_call(control: &str, service: &str, action: &str) -> Option<String> {
     Some(String::from_utf8_lossy(&out).to_string())
 }
 
-fn upnp_json() -> Json {
-    let location = match ssdp_location(Duration::from_millis(1800)) {
-        Some(v) => v,
-        None => {
-            return Json::obj(vec![
-                ("available", Json::Bool(false)),
-                ("error", Json::s("路由器没有响应 SSDP（可能没开 UPnP）")),
-            ])
-        }
-    };
+fn fault_of(xml: &str) -> String {
+    let code = tag(xml, "errorCode").unwrap_or_default();
+    if code.is_empty() {
+        return String::new();
+    }
+    let desc = tag(xml, "errorDescription").unwrap_or_default();
+    format!("路由器拒绝（{code}{}）", if desc.is_empty() { String::new() } else { format!(" {desc}") })
+}
+
+fn discover_gateway() -> Result<(String, String, String), String> {
+    let location = ssdp_location(Duration::from_millis(1800)).ok_or("路由器没有响应 SSDP（可能没开 UPnP）")?;
     let xml = http_text(&location).unwrap_or_default();
-    let (service, control) = match parse_service(&xml, &location) {
-        Some(v) => v,
-        None => {
-            return Json::obj(vec![
-                ("available", Json::Bool(false)),
-                ("gateway", Json::s(&location)),
-                ("error", Json::s("网关没有 WANIPConnection 服务")),
-            ])
+    let (service, control) = parse_service(&xml, &location).ok_or("网关没有 WANIPConnection 服务")?;
+    Ok((location, service, control))
+}
+
+fn upnp_json() -> Json {
+    let (location, service, control) = match discover_gateway() {
+        Ok(v) => v,
+        Err(e) => {
+            return Json::obj(vec![("available", Json::Bool(false)), ("error", Json::s(&e))]);
         }
     };
-    let external = soap_call(&control, &service, "GetExternalIPAddress")
+    let external = soap_call(&control, &service, "GetExternalIPAddress", "")
         .and_then(|text| tag(&text, "NewExternalIPAddress"))
         .filter(|ip| ip != "0.0.0.0" && !ip.is_empty());
     let gateway = base_url(&location).unwrap_or(location);
@@ -332,6 +338,57 @@ fn upnp_json() -> Json {
         ("serviceType", Json::s(&service)),
         ("controlURL", Json::s(&control)),
     ])
+}
+
+/// 在路由器上开一条 TCP 端口映射；只在用户显式点击时调用
+pub fn upnp_map(port: u16) -> Json {
+    let lan = lan_address();
+    if lan == "127.0.0.1" {
+        return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s("没有可用的局域网 IPv4 地址"))]);
+    }
+    let (_, service, control) = match discover_gateway() {
+        Ok(v) => v,
+        Err(e) => return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s(&e))]),
+    };
+    let params = format!(
+        "<NewRemoteHost></NewRemoteHost><NewExternalPort>{port}</NewExternalPort><NewProtocol>TCP</NewProtocol><NewInternalPort>{port}</NewInternalPort><NewInternalClient>{lan}</NewInternalClient><NewEnabled>1</NewEnabled><NewPortMappingDescription>Wulons MCSS</NewPortMappingDescription><NewLeaseDuration>0</NewLeaseDuration>"
+    );
+    let res = match soap_call(&control, &service, "AddPortMapping", &params) {
+        Some(v) => v,
+        None => return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s("路由器没有响应映射请求"))]),
+    };
+    if res.contains("<errorCode>") {
+        let fault = fault_of(&res);
+        return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s(&fault))]);
+    }
+    let external = soap_call(&control, &service, "GetExternalIPAddress", "")
+        .and_then(|text| tag(&text, "NewExternalIPAddress"))
+        .filter(|ip| ip != "0.0.0.0" && !ip.is_empty());
+    Json::obj(vec![
+        ("ok", Json::Bool(true)),
+        ("externalIp", external.map(|ip| Json::s(&ip)).unwrap_or(Json::Null)),
+        ("externalPort", Json::n(port as f64)),
+    ])
+}
+
+/// 撤销映射；只删 TCP，不碰路由器里的其它规则
+pub fn upnp_unmap(port: u16) -> Json {
+    let (_, service, control) = match discover_gateway() {
+        Ok(v) => v,
+        Err(e) => return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s(&e))]),
+    };
+    let params = format!(
+        "<NewRemoteHost></NewRemoteHost><NewExternalPort>{port}</NewExternalPort><NewProtocol>TCP</NewProtocol>"
+    );
+    let res = match soap_call(&control, &service, "DeletePortMapping", &params) {
+        Some(v) => v,
+        None => return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s("路由器没有响应撤销请求"))]),
+    };
+    if res.contains("<errorCode>") {
+        let fault = fault_of(&res);
+        return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s(&fault))]);
+    }
+    Json::obj(vec![("ok", Json::Bool(true))])
 }
 
 /* ---------------- 汇总 ---------------- */
@@ -382,5 +439,24 @@ mod tests {
     fn tag_reads_external_ip() {
         let soap = "<NewExternalIPAddress>203.0.113.7</NewExternalIPAddress>";
         assert_eq!(tag(soap, "NewExternalIPAddress"), Some("203.0.113.7".to_string()));
+    }
+
+    #[test]
+    fn soap_envelope_carries_service_and_params() {
+        let body = soap_envelope(
+            "urn:schemas-upnp-org:service:WANIPConnection:1",
+            "AddPortMapping",
+            "<NewExternalPort>25565</NewExternalPort>",
+        );
+        assert!(body.contains("AddPortMapping"));
+        assert!(body.contains("WANIPConnection"));
+        assert!(body.contains("<NewExternalPort>25565</NewExternalPort>"));
+    }
+
+    #[test]
+    fn fault_is_human_readable() {
+        let xml = "<errorCode>718</errorCode><errorDescription>ConflictInMappingEntry</errorDescription>";
+        assert!(fault_of(xml).contains("718"));
+        assert!(fault_of(xml).contains("ConflictInMappingEntry"));
     }
 }

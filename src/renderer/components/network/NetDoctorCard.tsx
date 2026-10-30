@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Activity, Globe, RefreshCw, Router, Wifi } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { useNetDoctor } from "@/hooks/useNetDoctor";
@@ -12,12 +14,72 @@ const NAT_LABEL: Record<NetDoctor["stun"]["nat"], string> = {
   unknown: "没测出来",
 };
 
-/** 联机页顶部的网络体检：只解释「能不能直连」，不替用户改路由器 */
-export function NetDoctorCard() {
+/** 联机页顶部的网络体检：解释「能不能直连」，端口映射必须用户显式点 */
+export function NetDoctorCard({ port }: { port: number }) {
   const { doctor, checking, error, refresh } = useNetDoctor();
   const advice = describeDoctor(doctor);
   const lan = physicalLan(doctor?.interfaces ?? []);
   const virtual = virtualCount(doctor?.interfaces ?? []);
+  const [mapping, setMapping] = useState(false);
+  const [unmapping, setUnmapping] = useState(false);
+  const [mapped, setMapped] = useState<{ port: number; externalIp?: string } | null>(null);
+
+  // 记一下上次映射：切页面回来还能看到「撤销」，不用让用户去路由器里翻
+  const storageKey = `mcss.upnp.${port}`;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      setMapped(raw ? (JSON.parse(raw) as { port: number; externalIp?: string }) : null);
+    } catch {
+      setMapped(null);
+    }
+  }, [storageKey]);
+
+  function remember(next: { port: number; externalIp?: string } | null) {
+    setMapped(next);
+    try {
+      if (next) localStorage.setItem(storageKey, JSON.stringify(next));
+      else localStorage.removeItem(storageKey);
+    } catch {}
+  }
+
+  async function mapPort() {
+    if (!doctor || !lan) return;
+    const ok = window.confirm(
+      `会在路由器上把 TCP ${port} 映射到 ${lan}:${port}，朋友就能用公网地址直连。\n\n` +
+        `只加这一条 TCP 规则，随时可以撤销；如果你换了网络或路由器重启，可能需要重新开。继续？`,
+    );
+    if (!ok) return;
+    setMapping(true);
+    try {
+      const res = await window.mcss.net.upnpMap({ port, lanIp: lan });
+      if (!res.ok) throw new Error(res.error || "路由器拒绝映射");
+      remember({ port, externalIp: res.externalIp });
+      toast.success("端口已映射", {
+        description: `${res.externalIp || doctor.publicV4 || "公网 IP"}:${port} → ${lan}:${port}`,
+      });
+      void refresh();
+    } catch (e) {
+      toast.error("映射失败", { description: (e as Error).message });
+    } finally {
+      setMapping(false);
+    }
+  }
+
+  async function unmapPort() {
+    setUnmapping(true);
+    try {
+      const res = await window.mcss.net.upnpUnmap({ port });
+      if (!res.ok) throw new Error(res.error || "路由器拒绝撤销");
+      remember(null);
+      toast.success("已撤销端口映射");
+      void refresh();
+    } catch (e) {
+      toast.error("撤销失败", { description: (e as Error).message });
+    } finally {
+      setUnmapping(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -80,6 +142,26 @@ export function NetDoctorCard() {
           unknown={!doctor}
         />
       </div>
+
+      {doctor?.upnp.available && lan ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-100 p-2.5 shadow-geist-border">
+          <Router className="size-3.5 shrink-0 text-gray-800" />
+          <span className="t-label-12 min-w-0 flex-1 text-gray-800">
+            {mapped
+              ? `已映射：${mapped.externalIp || doctor.upnp.externalIp || "公网 IP"}:${mapped.port} → ${lan}:${mapped.port}`
+              : `路由器支持 UPnP，可以给 ${port} 开一条 TCP 映射；只加这一条，随时可撤销。`}
+          </span>
+          {mapped ? (
+            <Button size="xs" variant="secondary" onClick={() => void unmapPort()} loading={unmapping}>
+              撤销映射
+            </Button>
+          ) : (
+            <Button size="xs" onClick={() => void mapPort()} loading={mapping}>
+              在路由器上开端口
+            </Button>
+          )}
+        </div>
+      ) : null}
 
       {error ? <p className="t-label-12 text-red-900">{error}</p> : null}
 

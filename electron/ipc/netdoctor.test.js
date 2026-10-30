@@ -67,3 +67,22 @@ test("UPnP：没有网关服务就返回 null", () => {
   assert.equal(nd.parseRootDesc("<root></root>", "http://192.168.1.1/root.xml"), null);
   assert.equal(nd.parseRootDesc("", "http://192.168.1.1/root.xml"), null);
 });
+
+test("UPnP：SOAP 请求带服务名、动作和参数", () => {
+  const xml = nd.soapEnvelope(
+    "urn:schemas-upnp-org:service:WANIPConnection:1",
+    "AddPortMapping",
+    "<NewExternalPort>25565</NewExternalPort><NewProtocol>TCP</NewProtocol>",
+  );
+  assert.match(xml, /AddPortMapping/);
+  assert.match(xml, /WANIPConnection/);
+  assert.match(xml, /<NewExternalPort>25565<\/NewExternalPort>/);
+  assert.match(xml, /<NewProtocol>TCP<\/NewProtocol>/);
+});
+
+test("UPnP：错误码翻译成人话", () => {
+  const fault = nd.faultOf("<errorCode>718</errorCode><errorDescription>ConflictInMappingEntry</errorDescription>");
+  assert.match(fault, /718/);
+  assert.match(fault, /ConflictInMappingEntry/);
+  assert.equal(nd.faultOf(""), "");
+});

@@ -4034,6 +4034,14 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
         "net:doctor" => Ok(netdoctor::doctor()),
+        "net:upnp-map" => {
+            let port = args.first().and_then(|v| v.num()).unwrap_or(25565.0) as u16;
+            Ok(netdoctor::upnp_map(port))
+        }
+        "net:upnp-unmap" => {
+            let port = args.first().and_then(|v| v.num()).unwrap_or(25565.0) as u16;
+            Ok(netdoctor::upnp_unmap(port))
+        }
         "net:ping" => {
             let opts = args.first().ok_or("缺少参数")?;
             let host = opts.get("host").and_then(|v| v.str()).unwrap_or("127.0.0.1");
