@@ -86,7 +86,7 @@ function isSafeName(name) {
  * 打一个快照。
  * @returns {Promise<{ok:boolean, name?:string, files?:number, bytesTotal?:number, bytesNew?:number, error?:string}>}
  */
-async function createSnapshot(serverDir) {
+async function createSnapshotInner(serverDir) {
   const worldDir = path.join(serverDir, "world");
   if (!fs.existsSync(worldDir)) return { ok: false, error: "还没有 world 目录，先启动一次服务器" };
 
@@ -133,8 +133,10 @@ async function createSnapshot(serverDir) {
     entries,
   };
   fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest));
+  const gc = gcSnapshots(serverDir, 10);
+  const parked = gcParkedWorlds(serverDir, 3);
 
-  return { ok: true, name, files: entries.length, bytesTotal, bytesNew };
+  return { ok: true, name, files: entries.length, bytesTotal, bytesNew, gc, parked };
 }
 
 /** 已用对象总大小（用来算“省了多少”） */
@@ -233,6 +235,76 @@ function restoreSnapshot(serverDir, name) {
   }
 
   return { ok: true, restored, parked: path.basename(parked) };
+}
+
+/**
+ * 自动清理：只保留最近 keep 个快照，并删掉没有任何快照引用的对象。
+ * 不做这一步，时间机会只涨不跌，最后把磁盘吃满。
+ */
+function gcSnapshots(serverDir, keep = 10) {
+  const all = listSnapshots(serverDir);
+  const kept = all.slice(0, Math.max(1, keep));
+  const removed = all.slice(Math.max(1, keep)).map((s) => s.name);
+  for (const name of removed) {
+    try {
+      fs.rmSync(path.join(snapshotsDir(serverDir), name), { recursive: true, force: true });
+    } catch {}
+  }
+  const referenced = new Set();
+  for (const snap of kept) {
+    const manifest = readManifest(serverDir, snap.name);
+    for (const e of manifest?.entries || []) {
+      if (e && typeof e.hash === "string") referenced.add(e.hash);
+    }
+  }
+  let objectsRemoved = 0;
+  try {
+    for (const name of fs.readdirSync(objectsDir(serverDir))) {
+      if (referenced.has(name)) continue;
+      try {
+        fs.unlinkSync(path.join(objectsDir(serverDir), name));
+        objectsRemoved += 1;
+      } catch {}
+    }
+  } catch {}
+  return { removed, objectsRemoved, kept: kept.map((s) => s.name) };
+}
+
+/** `world.before-restore-*` 只留最近 3 份，避免每次恢复都永久留一份完整世界 */
+function gcParkedWorlds(serverDir, keep = 3) {
+  let names = [];
+  try {
+    names = fs.readdirSync(serverDir).filter((n) => n.startsWith("world.before-restore-"));
+  } catch {
+    return { removed: [] };
+  }
+  const sorted = names
+    .map((name) => {
+      try {
+        return { name, mtime: fs.statSync(path.join(serverDir, name)).mtimeMs };
+      } catch {
+        return { name, mtime: 0 };
+      }
+    })
+    .sort((a, b) => b.mtime - a.mtime);
+  const removed = sorted.slice(Math.max(0, keep)).map((x) => x.name);
+  for (const name of removed) {
+    try {
+      fs.rmSync(path.join(serverDir, name), { recursive: true, force: true });
+    } catch {}
+  }
+  return { removed };
+}
+
+let snapshotQueue = Promise.resolve();
+function createSnapshot(serverDir) {
+  const run = () => createSnapshotInner(serverDir);
+  const p = snapshotQueue.then(run, run);
+  snapshotQueue = p.then(
+    () => {},
+    () => {},
+  );
+  return p;
 }
 
 module.exports = {

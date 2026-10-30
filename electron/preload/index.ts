@@ -98,6 +98,7 @@ contextBridge.exposeInMainWorld("mcss", {
     text: (text: string, opts?: { from?: string; to?: string }) => invoke("translate:text", text, opts)
   },
   client: {
+    scan: (dir: string) => invoke("client:scan", dir),
     prepare: (opts: any) => invoke("client:prepare", opts),
     addServer: (opts: any) => invoke("client:add-server", opts),
     launch: (opts: { command: string[]; cwd?: string }) => invoke("client:launch", opts),

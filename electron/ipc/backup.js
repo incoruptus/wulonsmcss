@@ -54,7 +54,7 @@ function stamp() {
 /**
  * 打一个 zip。server 传进来是为了在跑的时候先停写。
  */
-async function create(serverDir, server) {
+async function createInner(serverDir, server) {
   const worldDir = path.join(serverDir, "world");
   if (!fs.existsSync(worldDir)) return { ok: false, error: "还没有 world 目录，先启动一次服务器" };
 
@@ -144,6 +144,18 @@ function prune(serverDir, keep) {
     } catch (e) {}
   }
   return { ok: true, removed, kept: all.slice(0, n).map((x) => x.name) };
+}
+
+let createQueue = Promise.resolve();
+/** 串行化整包备份：手动 + 定时 + 停服自动同时触发时，不能抢同一个 world */
+function create(serverDir, server) {
+  const run = () => createInner(serverDir, server);
+  const p = createQueue.then(run, run);
+  createQueue = p.then(
+    () => {},
+    () => {},
+  );
+  return p;
 }
 
 module.exports = { list, create, restore, remove, prune, backupDir };

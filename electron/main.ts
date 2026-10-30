@@ -670,6 +670,14 @@ ipcMain.handle("client:add-server", (_e, opts) => {
   }
 });
 
+ipcMain.handle("client:scan", (_e, dir) => {
+  try {
+    return client.scanClient(dir);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle("client:prepare", async (_e, opts) => {
   try {
     const res = await client.prepare({ ...opts, onProgress: (p) => send("client:progress", p) });
@@ -741,7 +749,8 @@ function startScheduler() {
   setInterval(() => {
     try {
       const cfg = readConfig();
-      const inst = cfg.instances.find((i) => i.id === cfg.activeInstanceId);
+      // 只调度真正在跑的那个实例；activeInstanceId 只是 UI 当前选中，可能已经切走
+      const inst = cfg.instances.find((i) => i.id === runningInstanceId);
       if (!inst?.schedule) return;
 
       const running = server.getStatus() === "running";

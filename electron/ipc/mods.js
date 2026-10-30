@@ -124,6 +124,56 @@ function fallbackMeta(file, filePath, size, mtime) {
   };
 }
 
+function tomlValue(raw) {
+  let v = String(raw || "").trim();
+  const hash = v.indexOf(" #");
+  if (hash >= 0) v = v.slice(0, hash).trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1);
+  }
+  return v;
+}
+
+/** Forge / NeoForge 的 META-INF/mods.toml（只取第一个 [[mods]] 段） */
+function parseTomlMeta(text, loader, file, filePath, size, mtime) {
+  let inMods = false;
+  const fields = {};
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const t = line.trim();
+    if (t === "[[mods]]") {
+      if (inMods) break;
+      inMods = true;
+      continue;
+    }
+    if (t.startsWith("[[")) {
+      if (inMods) break;
+      continue;
+    }
+    if (!inMods || !t || t.startsWith("#")) continue;
+    const m = t.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
+    if (!m) continue;
+    fields[m[1]] = tomlValue(m[2]);
+  }
+  const side = String(fields.side || "BOTH").toUpperCase();
+  const environment = side === "CLIENT" ? "client" : side === "SERVER" ? "server" : "*";
+  const id = fields.modId || file.replace(/\.jar$/i, "").toLowerCase().replace(/[^a-z0-9_]+/g, "-");
+  const version = /^\$\{/.test(fields.version || "") ? "" : fields.version || "";
+  return {
+    file,
+    path: filePath,
+    id: String(id),
+    name: String(fields.displayName || fields.modId || file),
+    version: String(version),
+    description: String(fields.description || ""),
+    environment,
+    depends: [],
+    loaders: [loader],
+    mcVersion: "",
+    size,
+    mtime,
+  };
+}
+
 function readModMeta(jarPath) {
   let stat;
   try {
@@ -140,6 +190,15 @@ function readModMeta(jarPath) {
     } catch (e) {
       /* 落到文件名解析 */
     }
+  }
+  for (const [entry, loader] of [
+    ["META-INF/neoforge.mods.toml", "neoforge"],
+    ["META-INF/mods.toml", "forge"],
+  ]) {
+    const toml = readZipEntry(jarPath, entry);
+    if (!toml) continue;
+    const meta = parseTomlMeta(toml.toString("utf8"), loader, file, jarPath, stat.size, stat.mtimeMs);
+    if (meta.id) return meta;
   }
   return fallbackMeta(file, jarPath, stat.size, stat.mtimeMs);
 }

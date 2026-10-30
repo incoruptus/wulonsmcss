@@ -48,7 +48,7 @@ describe("房间描述符", () => {
 
   it("能从网页链接 / 深链 / 纯码里提取", async () => {
     const code = await encodeRoom(ROOM);
-    for (const input of [roomWebLink(code), roomDeepLink(code), code, `  房间码：${code}  `]) {
+    for (const input of [roomWebLink(code, "https://example.test"), roomDeepLink(code), code, `  房间码：${code}  `]) {
       expect(extractCode(input)).toBe(code);
       const room = await decodeRoom(input);
       expect(room.addr).toBe(ROOM.addr);

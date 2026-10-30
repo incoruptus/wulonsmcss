@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
 import { WebAgentBanner } from "@/components/app/WebAgentBanner";
+import { MobileNav } from "@/components/app/MobileNav";
 import { FirstRunWizard } from "@/components/app/FirstRunWizard";
 import Overview from "@/pages/Overview";
 import Instances from "@/pages/Instances";
@@ -84,11 +85,11 @@ export default function App() {
       <TitleBar />
       <WebAgentBanner />
       <div className="flex min-h-0 flex-1">
-        {/* 朋友在手机上点开邀请时，不该先看到一条 228px 的侧栏 */}
-        <div className={location.pathname.startsWith("/join") ? "hidden shrink-0 md:flex" : "flex shrink-0"}>
+        {/* 手机上不用 228px 侧栏；用底部导航，邀请页则完全沉浸 */}
+        <div className="hidden shrink-0 md:flex">
           <Sidebar />
         </div>
-        <main className="min-w-0 flex-1 overflow-y-auto scroll-thin">
+        <main className="min-w-0 flex-1 overflow-y-auto pb-16 scroll-thin md:pb-0">
           <Routes>
             {/* 两个模式各自的首页：服主=实例仪表盘，玩家=加入游戏 */}
             <Route path="/" element={mode === "player" ? <Join /> : <Overview />} />
@@ -106,6 +107,7 @@ export default function App() {
           </Routes>
         </main>
       </div>
+      {location.pathname.startsWith("/join") ? null : <MobileNav />}
       <Toaster
         position="bottom-right"
         theme={theme === "light" ? "light" : "dark"}

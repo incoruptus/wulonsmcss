@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, FolderOpen, GitCompare, Link2, RefreshCw, Search, XCircle } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/button";
-import { Input } from "@/components/ui/field";
+import { Checkbox, Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import type { Instance, ModMeta } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
+import { useServer } from "@/stores/server";
 import { BindModDialog } from "@/components/instance/BindModDialog";
+import { syncClientMods } from "@/lib/client-mods";
 
 interface DiffRow {
   key: string;
@@ -25,10 +27,15 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
 
-  const [clientDir, setClientDir] = useState("");
+  const savedClientDir = useConfig((s) => s.cfg.clientProfiles[0]?.dir ?? "");
+  const [clientDir, setClientDir] = useState(savedClientDir);
   const [diff, setDiff] = useState<DiffRow[] | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
   const [comparing, setComparing] = useState(false);
   const catalog = useConfig((s) => s.cfg.remoteCatalogs?.[instance.id]);
+  const serverStatus = useServer((s) => s.status);
+  const serverBusy = serverStatus === "running" || serverStatus === "starting" || serverStatus === "stopping";
   // 注意：选择器里不能返回新对象（`?? {}`），否则每次渲染引用都变，Zustand 会无限重渲染
   const modrinthIndex = useConfig((s) => s.cfg.modrinthIndex) ?? EMPTY_INDEX;
   const [binding, setBinding] = useState<ModMeta | null>(null);
@@ -59,6 +66,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
     const dir = await window.mcss.dialog.openDirectory();
     if (dir) setClientDir(dir);
     setDiff(null);
+    setSelected(new Set());
   }
 
   async function compare(source: "local" | "cloud") {
@@ -112,6 +120,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       const order = { version: 0, "server-only": 1, "client-only": 2, same: 3 } as const;
       rows.sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name, "zh-CN"));
       setDiff(rows);
+      setSelected(new Set());
     } catch (e) {
       toast.error(`比对失败：${(e as Error).message}`);
     } finally {
@@ -128,6 +137,71 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       clientOnly: diff.filter((d) => d.status === "client-only").length,
     };
   }, [diff]);
+
+  const selectable = (diff ?? []).filter((d) => d.client && (d.status === "client-only" || d.status === "version"));
+  const selectedRows = selectable.filter((d) => selected.has(d.key));
+
+  function toggleSelected(key: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
+
+  async function downloadSelected() {
+    if (!selectedRows.length) return;
+    if (serverBusy) return toast.error("先停止服务器，再同步 Mod");
+    const clientSide = selectedRows.filter((r) => r.client?.environment === "client");
+    if (clientSide.length) {
+      const ok = window.confirm(
+        `有 ${clientSide.length} 个 Mod 标记为「仅客户端」。下载到服务端可能报错或导致服务器起不来。仍然继续？`,
+      );
+      if (!ok) return;
+    }
+    setSyncing(true);
+    try {
+      // 版本不一致的旧服务端文件先删掉，避免新旧两个 jar 同时被加载
+      for (const row of selectedRows) {
+        if (row.status === "version" && row.server?.path) {
+          await window.mcss.fs.remove(row.server.path).catch(() => {});
+        }
+      }
+      const res = await syncClientMods(
+        instance.dir,
+        selectedRows.map((r) => r.client!),
+      );
+      if (Object.keys(res.index).length) {
+        const index = { ...(useConfig.getState().cfg.modrinthIndex ?? {}), ...res.index };
+        await useConfig.getState().patch({ modrinthIndex: index });
+      }
+      const ok = res.downloaded.length + res.copied.length;
+      if (ok) {
+        toast.success(`已同步 ${ok} 个 Mod 到服务端`, {
+          description: [
+            res.downloaded.length ? `Modrinth 下载 ${res.downloaded.length}` : "",
+            res.copied.length ? `本地复制 ${res.copied.length}` : "",
+            res.failed.length ? `失败 ${res.failed.length}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        });
+      }
+      if (res.failed.length) {
+        toast.error(`${res.failed.length} 个失败`, {
+          description: res.failed.map((x) => `${x.file}：${x.error}`).slice(0, 3).join("；"),
+        });
+      }
+      setDiff(null);
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      toast.error(`同步失败：${(e as Error).message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -219,6 +293,33 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
 
         {summary ? (
           <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-200 px-3 py-2">
+              <Button
+                size="sm"
+                onClick={downloadSelected}
+                loading={syncing}
+                disabled={!selectedRows.length || serverBusy}
+                title={serverBusy ? "先停止服务器再同步 Mod" : undefined}
+              >
+                下载选中的 {selectedRows.length} 个到服务端
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setSelected(
+                    selectable.every((r) => selected.has(r.key))
+                      ? new Set()
+                      : new Set(selectable.map((r) => r.key)),
+                  )
+                }
+              >
+                {selectable.length && selectable.every((r) => selected.has(r.key)) ? "取消全选" : "全选可下载"}
+              </Button>
+              <span className="t-label-12 text-gray-700">
+                只选客户端有的；服务端已有的不会重复下。下载后建议重启服务器。
+              </span>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="green" size="sm">一致 {summary.same}</Badge>
               <Badge variant="amber" size="sm">版本不一致 {summary.version}</Badge>
@@ -229,6 +330,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               <table className="w-full border-collapse text-left">
                 <thead className="sticky top-0 bg-background-100">
                   <tr className="border-b border-gray-300">
+                    <th className="w-8 px-3 py-2" aria-label="选择" />
                     <th className="t-label-12 px-3 py-2 font-medium text-gray-700">Mod</th>
                     <th className="t-label-12 px-3 py-2 font-medium text-gray-700">服务端</th>
                     <th className="t-label-12 px-3 py-2 font-medium text-gray-700">客户端</th>
@@ -238,6 +340,15 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
                 <tbody>
                   {(diff ?? []).map((row) => (
                     <tr key={row.key} className="border-b border-gray-300/60 last:border-0">
+                      <td className="px-3 py-2">
+                        {row.client && (row.status === "client-only" || row.status === "version") ? (
+                          <Checkbox
+                            checked={selected.has(row.key)}
+                            onCheckedChange={(v) => toggleSelected(row.key, v === true)}
+                            aria-label={`选择 ${row.name}`}
+                          />
+                        ) : null}
+                      </td>
                       <td className="px-3 py-2">
                         <div className="t-label-13 text-gray-1000">{row.name}</div>
                         <div className="t-mono-12 text-gray-700">{row.key}</div>

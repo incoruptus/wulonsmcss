@@ -8,6 +8,7 @@ import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog";
 import { ImportInstanceDialog } from "@/components/instance/ImportInstanceDialog";
+import { CreateServerFromClientDialog } from "@/components/instance/CreateServerFromClientDialog";
 import { useConfig } from "@/stores/config";
 import { timeAgo } from "@/lib/utils";
 import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
@@ -20,6 +21,7 @@ export default function Instances() {
   const updateInstance = useConfig((s) => s.updateInstance);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [fromClient, setFromClient] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const target = instances.find((i) => i.id === pendingDelete);
@@ -31,6 +33,10 @@ export default function Instances() {
         desc="每个服务器有独立的版本、核心、内容与存档，互不干扰。"
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setFromClient(true)}>
+              <Server className="size-4" />
+              从客户端开服
+            </Button>
             <Button variant="secondary" onClick={() => setImporting(true)}>
               <FolderInput className="size-4" />
               导入现有服务器
@@ -135,6 +141,7 @@ export default function Instances() {
       </PageBody>
 
       <CreateInstanceDialog open={creating} onOpenChange={setCreating} />
+      <CreateServerFromClientDialog open={fromClient} onOpenChange={setFromClient} />
       <ImportInstanceDialog open={importing} onOpenChange={setImporting} />
 
       <Dialog open={Boolean(target)} onOpenChange={(v) => !v && setPendingDelete(null)}>

@@ -9,6 +9,8 @@ pub struct Request {
     pub query: Vec<(String, String)>,
     pub body: Vec<u8>,
     pub token: String,
+    /// 浏览器跨域来源；非浏览器请求为空
+    pub origin: String,
 }
 
 impl Request {
@@ -72,6 +74,7 @@ pub fn read_request(stream: &mut TcpStream) -> Option<Request> {
 
     let mut content_length = 0usize;
     let mut token = String::new();
+    let mut origin = String::new();
     loop {
         let mut header = String::new();
         if reader.read_line(&mut header).ok()? == 0 {
@@ -88,6 +91,8 @@ pub fn read_request(stream: &mut TcpStream) -> Option<Request> {
                 content_length = value.parse().unwrap_or(0);
             } else if key == "x-mcss-token" {
                 token = value;
+            } else if key == "origin" {
+                origin = value;
             }
         }
     }
@@ -103,6 +108,7 @@ pub fn read_request(stream: &mut TcpStream) -> Option<Request> {
         query: parse_query(&raw_query),
         body,
         token,
+        origin,
     })
 }
 

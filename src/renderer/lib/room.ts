@@ -152,7 +152,9 @@ export function extractCode(input: string): string {
 }
 
 /** 邀请链接（给网页用）；origin 由调用方按当前部署地址传入 */
-export function roomWebLink(code: string, origin = "https://wulons.github.io/mcss"): string {
+export function roomWebLink(code: string, origin = ""): string {
+  // 没部署网页就不要编一个不存在的链接；调用方只在有 origin 时展示
+  if (!origin) return "";
   return `${origin.replace(/\/+$/, "")}/#/join/${code}`;
 }
 

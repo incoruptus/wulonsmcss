@@ -70,6 +70,7 @@ node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未
 
 | channel | 说明 |
 |---|---|
+| `client:scan` | 读 `versions/*/*.json` + `mods/`，返回客户端版本/加载器/Mod（不改文件） |
 | `client:add-server` | 写 `servers.dat`（自写 NBT，**先读后写，不覆盖已有列表**） |
 | `client:prepare` | 按 Modrinth 版本 id 下载 Mod 到 `mods/` |
 | `client:export-mrpack` | 导出 `.mrpack`（含 `overrides/servers.dat`），任何启动器可导入 |

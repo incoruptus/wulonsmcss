@@ -9,6 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const { download } = require("./versions");
 const { matches } = require("./download");
+const { scanMods } = require("./mods");
 
 const API = "https://api.modrinth.com/v2";
 const UA = "WulonsMCSS/27.0.0 (github.com/wulons)";
@@ -100,4 +101,138 @@ async function prepare({ dir, mods = [], onProgress }) {
   return { ok: results.every((r) => r.ok), dir, modsDir, results };
 }
 
-module.exports = { prepare, resolveFile, needsReplace, safeFileName };
+/* ------------------------------------------------------------------ */
+/* 读取现有客户端：版本 / 加载器 / Mod                                     */
+/* ------------------------------------------------------------------ */
+
+function readJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf-8").replace(/^\uFEFF/, ""));
+  } catch (e) {
+    return null;
+  }
+}
+
+function loaderFromLibraries(json) {
+  const libs = Array.isArray(json?.libraries) ? json.libraries : [];
+  for (const lib of libs) {
+    const name = String(lib?.name || "");
+    const fabric = name.match(/^net\.fabricmc:fabric-loader:(.+)$/);
+    if (fabric) return { loader: "fabric", loaderVersion: fabric[1] };
+    const forge = name.match(/^net\.minecraftforge:forge:(.+)$/);
+    if (forge) {
+      const raw = forge[1];
+      const dash = raw.indexOf("-");
+      return { loader: "forge", loaderVersion: dash >= 0 ? raw.slice(dash + 1) : raw };
+    }
+    const neo = name.match(/^net\.neoforged:neoforge:(.+)$/);
+    if (neo) return { loader: "neoforge", loaderVersion: neo[1] };
+    const quilt = name.match(/^org\.quiltmc:quilt-loader:(.+)$/);
+    if (quilt) return { loader: "quilt", loaderVersion: quilt[1] };
+  }
+  return null;
+}
+
+function loaderFromId(id) {
+  const text = String(id || "");
+  let m = text.match(/^fabric-loader-([^-]+)-(.+)$/i);
+  if (m) return { loader: "fabric", loaderVersion: m[1], mcVersion: m[2] };
+  m = text.match(/^(.+?)-fabric(?:[- ](.+))?$/i);
+  if (m) return { loader: "fabric", loaderVersion: m[2] || "", mcVersion: m[1] };
+  m = text.match(/^(.+?)-forge(?:[- ](.+))?$/i);
+  if (m) return { loader: "forge", loaderVersion: m[2] || "", mcVersion: m[1] };
+  m = text.match(/^(.+?)-neoforge(?:[- ](.+))?$/i);
+  if (m) return { loader: "neoforge", loaderVersion: m[2] || "", mcVersion: m[1] };
+  m = text.match(/^neoforge-(.+)$/i);
+  if (m) return { loader: "neoforge", loaderVersion: m[1], mcVersion: "" };
+  m = text.match(/^quilt-loader-([^-]+)-(.+)$/i);
+  if (m) return { loader: "quilt", loaderVersion: m[1], mcVersion: m[2] };
+  m = text.match(/^(\d+\.\d+(?:\.\d+)?)$/);
+  if (m) return { loader: "vanilla", loaderVersion: "", mcVersion: m[1] };
+  return null;
+}
+
+function readLauncherProfiles(mcDir) {
+  const file = path.join(mcDir, "launcher_profiles.json");
+  const json = readJson(file);
+  const map = new Map();
+  const profiles = json?.profiles && typeof json.profiles === "object" ? Object.values(json.profiles) : [];
+  for (const p of profiles) {
+    const id = String(p?.lastVersionId || "");
+    if (!id) continue;
+    map.set(id, {
+      name: String(p?.name || id),
+      lastUsed: Number(p?.lastUsed || 0),
+    });
+  }
+  return map;
+}
+
+/**
+ * 扫描一个 .minecraft：
+ * - versions/ 里每个版本目录 + 对应 json 的 inheritsFrom/libraries
+ * - launcher_profiles.json 里最近使用的版本
+ * - mods/ 里的 jar（交给 mods.scanMods，Fabric/Forge 元数据都能读）
+ *
+ * 不改任何文件；找不到 versions/ 时返回空数组，让 UI 显示“这不是客户端目录”。
+ */
+function scanClient(mcDir) {
+  if (!mcDir) throw new Error("缺少客户端目录");
+  const versionsDir = path.join(mcDir, "versions");
+  const launcher = readLauncherProfiles(mcDir);
+  const versions = [];
+  let entries = [];
+  try {
+    entries = fs.readdirSync(versionsDir, { withFileTypes: true });
+  } catch (e) {
+    entries = [];
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const folder = entry.name;
+    const json = readJson(path.join(versionsDir, folder, `${folder}.json`));
+    const fromLib = loaderFromLibraries(json);
+    const fromId = loaderFromId(folder);
+    const loader = fromLib?.loader || fromId?.loader || "vanilla";
+    const loaderVersion = fromLib?.loaderVersion || fromId?.loaderVersion || "";
+    let mcVersion = String(json?.inheritsFrom || fromId?.mcVersion || "");
+    if (!mcVersion) {
+      const m = folder.match(/(\d+\.\d+(?:\.\d+)?)/);
+      mcVersion = m ? m[1] : "";
+    }
+    if (!mcVersion) continue;
+
+    let mtime = 0;
+    try {
+      mtime = fs.statSync(path.join(versionsDir, folder)).mtimeMs;
+    } catch (e) {}
+    const meta = launcher.get(folder);
+    versions.push({
+      id: folder,
+      name: meta?.name || folder,
+      mcVersion,
+      loader,
+      loaderVersion,
+      lastUsed: meta?.lastUsed || 0,
+      mtime,
+      path: path.join(versionsDir, folder),
+    });
+  }
+
+  versions.sort((a, b) => b.lastUsed - a.lastUsed || b.mtime - a.mtime || a.id.localeCompare(b.id, "zh-CN"));
+  const recommended =
+    versions.find((v) => v.lastUsed > 0) ||
+    versions.find((v) => v.loader !== "vanilla") ||
+    versions[0] ||
+    null;
+
+  return {
+    dir: mcDir,
+    versions,
+    recommended,
+    mods: scanMods(path.join(mcDir, "mods")),
+  };
+}
+
+module.exports = { prepare, resolveFile, needsReplace, safeFileName, scanClient };

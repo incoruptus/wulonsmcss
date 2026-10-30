@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { FolderOpen, Layers, Package, RefreshCw, Save, Sparkles } from "lucide-react";
+import { FolderOpen, Layers, Package, RefreshCw, Save, Server, Sparkles } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, CardTitle, EmptyState } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import type { DirEntry } from "@/lib/types";
+import { CreateServerFromClientDialog } from "@/components/instance/CreateServerFromClientDialog";
 
 /**
  * 我的客户端（玩家模式）
@@ -27,6 +28,7 @@ export default function Client() {
   const [mods, setMods] = useState<DirEntry[]>([]);
   const [loaders, setLoaders] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [serverOpen, setServerOpen] = useState(false);
 
   // 默认指向本机 .minecraft：主进程直接给 minecraftDir（网页 agent 也有），
   // 老版本没有这个字段时才退回 appData 的上一层。
@@ -88,10 +90,16 @@ export default function Client() {
         title="我的客户端"
         desc="这是你自己的那一份：可以比服主多装音效、光影、小地图，不影响进服。"
         actions={
-          <Button variant="secondary" onClick={scan} loading={scanning}>
-            <RefreshCw className="size-4" />
-            重新扫描
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={scan} loading={scanning}>
+              <RefreshCw className="size-4" />
+              重新扫描
+            </Button>
+            <Button onClick={() => setServerOpen(true)} disabled={!ready}>
+              <Server className="size-4" />
+              用这个客户端开服
+            </Button>
+          </div>
         }
       />
       <PageBody className="space-y-4">
@@ -190,6 +198,7 @@ export default function Client() {
           </div>
         </Card>
       </PageBody>
+      <CreateServerFromClientDialog open={serverOpen} onOpenChange={setServerOpen} />
     </>
   );
 }

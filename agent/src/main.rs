@@ -494,6 +494,156 @@ fn add_server(opts: &Json) -> Result<Json, String> {
     ]))
 }
 
+/* --------------------------- 现有客户端扫描 --------------------------- */
+
+fn first_mc_version(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::new();
+    let mut on = false;
+    for &b in bytes {
+        let c = b as char;
+        if c.is_ascii_digit() || (on && c == '.') {
+            on = true;
+            out.push(c);
+        } else if on {
+            break;
+        }
+    }
+    out.trim_end_matches('.').to_string()
+}
+
+fn loader_from_id(id: &str) -> Option<(String, String, String)> {
+    let lower = id.to_lowercase();
+    if let Some(rest) = lower.strip_prefix("fabric-loader-") {
+        if let Some((lv, mc)) = rest.split_once('-') {
+            return Some(("fabric".into(), lv.to_string(), mc.to_string()));
+        }
+    }
+    for (needle, loader) in [
+        ("-fabric", "fabric"),
+        ("-forge", "forge"),
+        ("-neoforge", "neoforge"),
+        ("-quilt", "quilt"),
+    ] {
+        if let Some(pos) = lower.find(needle) {
+            let mc = first_mc_version(&id[..pos]);
+            let lv = id[pos + needle.len()..].trim_start_matches(['-', ' ']).to_string();
+            if !mc.is_empty() {
+                return Some((loader.into(), lv, mc));
+            }
+        }
+    }
+    if let Some(rest) = lower.strip_prefix("neoforge-") {
+        return Some(("neoforge".into(), rest.to_string(), String::new()));
+    }
+    let mc = first_mc_version(id);
+    if !mc.is_empty() {
+        return Some(("vanilla".into(), String::new(), mc));
+    }
+    None
+}
+
+fn loader_from_libraries(json: &Json) -> Option<(String, String)> {
+    let libs = json.get("libraries").and_then(|v| v.arr())?;
+    for lib in libs {
+        let name = lib.get("name").and_then(|v| v.str()).unwrap_or("");
+        if let Some(v) = name.strip_prefix("net.fabricmc:fabric-loader:") {
+            return Some(("fabric".into(), v.to_string()));
+        }
+        if let Some(v) = name.strip_prefix("net.minecraftforge:forge:") {
+            let lv = v.split_once('-').map(|(_, b)| b).unwrap_or(v);
+            return Some(("forge".into(), lv.to_string()));
+        }
+        if let Some(v) = name.strip_prefix("net.neoforged:neoforge:") {
+            return Some(("neoforge".into(), v.to_string()));
+        }
+        if let Some(v) = name.strip_prefix("org.quiltmc:quilt-loader:") {
+            return Some(("quilt".into(), v.to_string()));
+        }
+    }
+    None
+}
+
+fn client_scan(dir: &str) -> Result<Json, String> {
+    if dir.trim().is_empty() {
+        return Err("缺少客户端目录".into());
+    }
+    let versions_dir = Path::new(dir).join("versions");
+    let mut rows: Vec<(f64, Json)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&versions_dir) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let folder = entry.file_name().to_string_lossy().to_string();
+            let json_path = entry.path().join(format!("{folder}.json"));
+            let json = std::fs::read_to_string(&json_path)
+                .ok()
+                .and_then(|t| Json::parse(t.trim_start_matches('\u{feff}')).ok());
+            let from_lib = json.as_ref().and_then(loader_from_libraries);
+            let from_id = loader_from_id(&folder);
+            let loader = from_lib
+                .as_ref()
+                .map(|(l, _)| l.clone())
+                .or_else(|| from_id.as_ref().map(|(l, _, _)| l.clone()))
+                .unwrap_or_else(|| "vanilla".into());
+            let loader_version = from_lib
+                .as_ref()
+                .map(|(_, v)| v.clone())
+                .or_else(|| from_id.as_ref().map(|(_, v, _)| v.clone()))
+                .unwrap_or_default();
+            let mut mc = json
+                .as_ref()
+                .and_then(|j| j.get("inheritsFrom"))
+                .and_then(|v| v.str())
+                .unwrap_or("")
+                .to_string();
+            if mc.is_empty() {
+                mc = from_id.map(|(_, _, m)| m).unwrap_or_default();
+            }
+            if mc.is_empty() {
+                mc = first_mc_version(&folder);
+            }
+            if mc.is_empty() {
+                continue;
+            }
+            let mtime = entry
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as f64)
+                .unwrap_or(0.0);
+            let row = Json::obj(vec![
+                ("id", Json::s(&folder)),
+                ("name", Json::s(&folder)),
+                ("mcVersion", Json::s(&mc)),
+                ("loader", Json::s(&loader)),
+                ("loaderVersion", Json::s(&loader_version)),
+                ("lastUsed", Json::n(0.0)),
+                ("mtime", Json::n(mtime)),
+                ("path", Json::s(&entry.path().to_string_lossy())),
+            ]);
+            rows.push((mtime, row));
+        }
+    }
+    rows.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    let recommended = rows
+        .iter()
+        .find(|(_, v)| v.get("loader").and_then(|x| x.str()) != Some("vanilla"))
+        .or_else(|| rows.first())
+        .map(|(_, v)| v.clone())
+        .unwrap_or(Json::Null);
+    let versions: Vec<Json> = rows.into_iter().map(|(_, v)| v).collect();
+    let mods = scan_mods(&format!("{dir}\\mods")).unwrap_or_else(|_| Json::Arr(vec![]));
+    Ok(Json::obj(vec![
+        ("dir", Json::s(dir)),
+        ("versions", Json::Arr(versions)),
+        ("recommended", recommended),
+        ("mods", mods),
+    ]))
+}
+
 /* ------------------------------- 依赖解析 ------------------------------- */
 
 /// 取某个 Modrinth 版本的首选文件信息
@@ -3478,6 +3628,8 @@ fn backup_snapshot(server_dir: &str) -> Result<Json, String> {
         ("entries", Json::Arr(entries)),
     ]);
     std::fs::write(dir.join("manifest.json"), manifest.to_string()).map_err(|e| format!("写入清单失败：{e}"))?;
+    gc_snapshots(server_dir, 10);
+    gc_parked_worlds(server_dir, 3);
 
     Ok(Json::obj(vec![
         ("ok", Json::Bool(true)),
@@ -3486,6 +3638,68 @@ fn backup_snapshot(server_dir: &str) -> Result<Json, String> {
         ("bytesTotal", Json::n(bytes_total as f64)),
         ("bytesNew", Json::n(bytes_new as f64)),
     ]))
+}
+
+/// 只保留最近 keep 个快照，并回收没有任何快照引用的对象
+fn gc_snapshots(server_dir: &str, keep: usize) {
+    let snaps = snapshots_dir(server_dir);
+    let mut items: Vec<(f64, String)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&snaps) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if let Some(manifest) = read_manifest(server_dir, &name) {
+                let at = manifest.get("at").and_then(|v| v.num()).unwrap_or(0.0);
+                items.push((at, name));
+            }
+        }
+    }
+    items.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    for (_, name) in items.iter().skip(keep) {
+        let _ = std::fs::remove_dir_all(snaps.join(name));
+    }
+    let mut referenced = std::collections::HashSet::new();
+    for (_, name) in items.iter().take(keep) {
+        if let Some(manifest) = read_manifest(server_dir, name) {
+            if let Some(entries) = manifest.get("entries").and_then(|v| v.arr()) {
+                for entry in entries {
+                    if let Some(hash) = entry.get("hash").and_then(|v| v.str()) {
+                        referenced.insert(hash.to_string());
+                    }
+                }
+            }
+        }
+    }
+    if let Ok(entries) = std::fs::read_dir(snapshots_objects(server_dir)) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !referenced.contains(&name) {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+}
+
+/// world.before-restore-* 只留最近 3 份
+fn gc_parked_worlds(server_dir: &str, keep: usize) {
+    let root = Path::new(server_dir);
+    let mut items: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(root) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.starts_with("world.before-restore-") {
+                continue;
+            }
+            let mtime = entry
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            items.push((mtime, entry.path()));
+        }
+    }
+    items.sort_by(|a, b| b.0.cmp(&a.0));
+    for (_, path) in items.iter().skip(keep) {
+        let _ = std::fs::remove_dir_all(path);
+    }
 }
 
 fn read_manifest(server_dir: &str, name: &str) -> Option<Json> {
@@ -3806,6 +4020,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                 ])),
             }
         }
+        "client:scan" => client_scan(args.first().and_then(|v| v.str()).ok_or("缺少参数")?),
         "client:add-server" => add_server(args.first().ok_or("缺少参数")?),
         "client:prepare" => prepare_client(shared, args.first().ok_or("缺少参数")?),
         "client:export-mrpack" => export_mrpack(shared, args.first().ok_or("缺少参数")?),
@@ -3914,7 +4129,20 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                 None => Json::Null,
             })
         }
-        "server:memory" => Ok(Json::n(0.0)),
+        "server:memory" => {
+            let pid = {
+                let state = shared.lock().unwrap();
+                state.child.as_ref().map(|c| c.id())
+            };
+            let bytes = pid
+                .and_then(|pid| {
+                    ps_number(&format!(
+                        "(Get-Process -Id {pid} -ErrorAction SilentlyContinue).WorkingSet64"
+                    ))
+                })
+                .unwrap_or(0.0);
+            Ok(Json::n(bytes))
+        }
         // 给个能读的错误：网页版会把它直接显示给用户
         other => Err(format!("这个功能还没有实现：{other}")),
     }
@@ -3937,6 +4165,43 @@ fn merge(base: &Json, patch: &Json) -> Json {
     }
 }
 
+/// 浏览器来源白名单：本机页面 + 显式配置的部署域名。
+/// 非浏览器（空 Origin）不受影响；这层是为了在 token 意外泄露时再多一道门。
+fn origin_allowed(origin: &str) -> bool {
+    let o = origin.trim().to_ascii_lowercase();
+    if o.is_empty() || o == "null" {
+        return true;
+    }
+    let rest = o
+        .strip_prefix("http://")
+        .or_else(|| o.strip_prefix("https://"))
+        .unwrap_or("");
+    if !rest.is_empty() {
+        let hostport = rest.split('/').next().unwrap_or("");
+        let host = if hostport.starts_with('[') {
+            hostport.split(']').next().unwrap_or("").trim_start_matches('[')
+        } else {
+            hostport.split(':').next().unwrap_or("")
+        };
+        if matches!(host, "127.0.0.1" | "localhost" | "::1") {
+            return true;
+        }
+    }
+    if o == "https://wulons.github.io" {
+        return true;
+    }
+    if let Ok(extra) = std::env::var("MCSS_ALLOWED_ORIGINS") {
+        if extra
+            .split(',')
+            .map(|s| s.trim().trim_end_matches('/').to_ascii_lowercase())
+            .any(|s| !s.is_empty() && s == o.trim_end_matches('/'))
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn handle(shared: &Shared, mut stream: TcpStream) {
     let req = match http::read_request(&mut stream) {
         Some(r) => r,
@@ -3950,6 +4215,11 @@ fn handle(shared: &Shared, mut stream: TcpStream) {
 
     if req.path == "/api/health" {
         http::respond_json(&mut stream, 200, r#"{"ok":true}"#);
+        return;
+    }
+
+    if !origin_allowed(&req.origin) {
+        http::respond_json(&mut stream, 403, r#"{"error":"这个网页来源不被允许访问本机助手"}"#);
         return;
     }
 

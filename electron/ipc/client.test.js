@@ -12,7 +12,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { needsReplace, safeFileName } = require("./client.js");
+const { needsReplace, safeFileName, scanClient } = require("./client.js");
 
 function tmpFile(content) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-prep-"));
@@ -47,6 +47,49 @@ test("没有哈希时退回大小比较", async () => {
   const { dir, file } = tmpFile(Buffer.from("12345"));
   assert.equal(await needsReplace(file, { size: 5 }), false, "大小相同就当同一份");
   assert.equal(await needsReplace(file, { size: 6 }), true, "大小不同要覆盖");
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("扫描客户端：Fabric / Forge / 原版都能认出 MC 版本与加载器", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-scan-"));
+  const versions = path.join(dir, "versions");
+  const add = (folder, json) => {
+    fs.mkdirSync(path.join(versions, folder), { recursive: true });
+    fs.writeFileSync(path.join(versions, folder, `${folder}.json`), JSON.stringify(json));
+  };
+  add("fabric-loader-0.16.9-1.21.1", {
+    id: "fabric-loader-0.16.9-1.21.1",
+    inheritsFrom: "1.21.1",
+    libraries: [{ name: "net.fabricmc:fabric-loader:0.16.9" }],
+  });
+  add("1.20.1-forge-47.2.0", {
+    id: "1.20.1-forge-47.2.0",
+    inheritsFrom: "1.20.1",
+    libraries: [{ name: "net.minecraftforge:forge:1.20.1-47.2.0" }],
+  });
+  add("1.21.1", { id: "1.21.1" });
+  fs.writeFileSync(
+    path.join(dir, "launcher_profiles.json"),
+    JSON.stringify({
+      profiles: {
+        fabric: { name: "Fabric 生存", lastVersionId: "fabric-loader-0.16.9-1.21.1", lastUsed: 200 },
+        forge: { name: "Forge 旧包", lastVersionId: "1.20.1-forge-47.2.0", lastUsed: 100 },
+      },
+    }),
+  );
+
+  const scan = scanClient(dir);
+  const fabric = scan.versions.find((v) => v.id === "fabric-loader-0.16.9-1.21.1");
+  const forge = scan.versions.find((v) => v.id === "1.20.1-forge-47.2.0");
+  const vanilla = scan.versions.find((v) => v.id === "1.21.1");
+  assert.equal(fabric.loader, "fabric");
+  assert.equal(fabric.mcVersion, "1.21.1");
+  assert.equal(fabric.loaderVersion, "0.16.9");
+  assert.equal(forge.loader, "forge");
+  assert.equal(forge.loaderVersion, "47.2.0");
+  assert.equal(vanilla.loader, "vanilla");
+  assert.equal(scan.recommended.id, "fabric-loader-0.16.9-1.21.1");
+  assert.equal(scan.recommended.name, "Fabric 生存");
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

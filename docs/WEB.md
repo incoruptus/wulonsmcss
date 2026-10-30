@@ -70,9 +70,13 @@ node scripts/web-shot.cjs      # 起 agent + 静态站点 + 截图验证
 没令牌的请求一律 401；跨域预检带了 `Access-Control-Allow-Private-Network`，
 满足 Chrome 对「公网页面访问本机」的要求。
 
+`Origin` 也做白名单：本机页面（127.0.0.1/localhost/::1）和
+`https://wulons.github.io` 直接可用；自定义部署地址需要给助手设置
+`MCSS_ALLOWED_ORIGINS=https://your.site`（逗号分隔）。非白名单来源直接 403。
+
 ## 安全边界
 
 - 助手只监听 `127.0.0.1`，不对外网开放
 - 令牌是唯一凭据，等价于本机密码；泄露了就在 `agent.token` 里换一个
 - 房间码自带校验位，篡改/过期会直接报错；内容不经过我们的服务器
-- 助手能做的仅限「配置/文件/进程」三组 channel，没有远程执行任意命令的入口
+- 助手能做的仅限「配置/文件/进程」三组 channel；`fs:*` 仍是本机文件能力，配对时要当密码对待

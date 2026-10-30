@@ -12,6 +12,7 @@ const os = require("os");
 const { spawn, execFileSync } = require("child_process");
 const { readZipEntry } = require("./mods");
 const { download, GITHUB_MIRRORS } = require("./versions");
+const { hashFile } = require("./download");
 
 let proc = null;
 let mode = null;
@@ -41,10 +42,24 @@ function frpcPath() {
   return path.join(frpDir(), "frpc.exe");
 }
 
-/** 从 GitHub Release 拉最新 frpc.exe（有缓存则跳过） */
+/** 从 GitHub Release 拉最新 frpc.exe（缓存必须通过 sha256 复核） */
 async function ensureFrpc(onProgress) {
   const exe = frpcPath();
-  if (fs.existsSync(exe) && fs.statSync(exe).size > 1024) return exe;
+  const marker = `${exe}.sha256`;
+  if (fs.existsSync(exe) && fs.statSync(exe).size > 1024) {
+    try {
+      const expected = fs.readFileSync(marker, "utf-8").trim();
+      const actual = await hashFile(exe, "sha256");
+      if (expected && expected === actual) return exe;
+    } catch (e) {}
+    // 没有校验标记，或者标记对不上：删掉重下，绝不直接执行
+    try {
+      fs.unlinkSync(exe);
+    } catch (e) {}
+    try {
+      fs.unlinkSync(marker);
+    } catch (e) {}
+  }
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30000);
@@ -76,6 +91,7 @@ async function ensureFrpc(onProgress) {
   const buf = readZipEntry(zip, "frpc.exe");
   if (!buf) throw new Error("frp 安装包里没有 frpc.exe");
   fs.writeFileSync(exe, buf);
+  fs.writeFileSync(marker, `${await hashFile(exe, "sha256")}\n`);
   try {
     fs.unlinkSync(zip);
   } catch (e) {}

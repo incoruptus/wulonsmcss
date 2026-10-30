@@ -27,10 +27,14 @@ function check(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
 }
 
-async function invoke(channel, args = [], token = TOKEN) {
+async function invoke(channel, args = [], token = TOKEN, origin = "") {
   const res = await fetch(`${BASE}/api/invoke`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...(token ? { "x-mcss-token": token } : {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { "x-mcss-token": token } : {}),
+      ...(origin ? { origin } : {}),
+    },
     body: JSON.stringify({ channel, args }),
   });
   const text = await res.text();
@@ -67,12 +71,27 @@ async function waitHealth(timeoutMs = 10000) {
     const noToken = await invoke("config:read", [], "");
     check("无令牌请求被拒（401）", noToken.status === 401, `status=${noToken.status}`);
 
+    const evilOrigin = await invoke("config:read", [], TOKEN, "http://evil.example");
+    check("非白名单 Origin 被拒（403）", evilOrigin.status === 403, `status=${evilOrigin.status}`);
+    const localOrigin = await invoke("config:read", [], TOKEN, "http://127.0.0.1:63729");
+    check("本机网页 Origin 可用", localOrigin.status === 200, `status=${localOrigin.status}`);
+
+    const scan = await invoke("client:scan", [path.join(process.env.APPDATA || "", ".minecraft")]);
+    check(
+      "client:scan 返回版本/Mod 形状",
+      Array.isArray(scan.data?.result?.versions) && Array.isArray(scan.data?.result?.mods),
+      `${scan.data?.result?.versions?.length ?? 0} 个版本 / ${scan.data?.result?.mods?.length ?? 0} 个 Mod`,
+    );
+
     const cfg = await invoke("config:read");
     const instances = cfg.data?.result?.instances ?? [];
     check("config:read 返回实例列表", Array.isArray(instances) && instances.length > 0, `${instances.length} 个实例`);
 
     const status = await invoke("server:status");
     check("server:status 返回合法状态", ["stopped", "starting", "running", "stopping"].includes(status.data?.result), String(status.data?.result));
+
+    const memory = await invoke("server:memory");
+    check("server:memory 返回数字（停服时为 0）", typeof memory.data?.result === "number", String(memory.data?.result));
 
     // 资源库三项：详情、中文简介、任意文本机翻（网页版与桌面版必须同能力）
     const project = await invoke("modrinth:project", ["AANobbMI"]);

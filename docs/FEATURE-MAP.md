@@ -46,15 +46,18 @@
 | 14 | 多世界 | 世界页 | `mwm.ts` + CLI | 3 例逐字节 | ✅ 5 模板 + 26.1 数据包修复 |
 | 15 | 导入既有服务器 | 全部服务器 | `ImportInstanceDialog`、`detectServer` | versions 3 例 | ✅ 标记/特征文件三档；版本已改 Picker，识别不到时手选并阻止空提交 |
 | 16 | 设置 | 侧栏设置 | `Settings` | smoke | ✅ 主题/日志上限/动画/同步；日志上限和动画现在**真的生效** |
-| 17 | 自动化（重启/公告/备份） | 实例概览 | `schedule.js` + `main.ts` | 6 例 | 🖥️ 仅桌面（网页版已明确提示不会触发）；只调度当前运行实例 |
+| 17 | 自动化（重启/公告/备份） | 实例概览 | `schedule.js` + `main.ts` | 6 例 | 🖥️ 仅桌面（网页版已明确提示不会触发）；只调度真正在跑的实例（不是 UI 选中） |
 | 18 | 首次开服向导 | 首次启动 | `FirstRunWizard` | 手动截图 | ✅ 2026-10-30 重做：意图→版本卡（带 Mod/插件数量/Java）→确认；高级项折叠 |
 | 19 | 我的服务器 | 玩家导航 | `MyServers` + `Join` 自动保存 | 无 | ✅ 打开房间即保存、同地址去重、删除可撤销 |
 | 20 | 我的客户端 | 玩家导航 | `Client.tsx` + `Join` 默认目录 | 无 | ✅ 保存后 Join 会优先用它；不再只是“存在但没人读” |
+| 21 | **从现有客户端开服** | 全部服务器 / 我的客户端 | `client:scan` + `CreateServerFromClientDialog` + `client-mods.ts` | client scan 6 例 + client-mods 2 例 + 真机创建 | ✅ Fabric/Forge/原版 → 对应服务端；NeoForge/Quilt 明确拒绝；Mod 可勾选、Modrinth 下载、匹配不到复制本地 jar |
+| 22 | **客户端 Mod 回灌服务端** | 内容 → 模组 → 比对 | `ModsTab` 勾选 + `syncClientMods` | 同上 | ✅ 只列 client-only/版本不一致；先停服；版本冲突先删旧 jar，再下载/复制 |
 
 ## 3. 真正验证过的东西
 
-- `pnpm test`：vitest 20 文件（含新增 java/server-guide/server-properties/zh-names）+ node:test（含 download/client/config/preflight/server/serversdat/files/backups/schedule/slp/versions/aidiag）+ parity + download contract。
-- 真机：Paper 26.1.2 / Forge 26.1.2 安装、代理目录、打包版首次运行、网页版 agent 端到端、截图探针（黑屏判定）。
+- `pnpm test`：24 个 vitest 文件（159 例）+ 65 个 node:test（含 client scan / client-mods / backup GC / serversdat / files）+ parity + download contract。
+- 真机：Paper 26.1.2 / Forge 26.1.2 安装、已有客户端→Fabric 服务端创建（26 个 Mod 选中）、模组比对勾选、UI 截图探针、打包版启动。
+- 网页 agent：`web-e2e` 15/15（健康/令牌/Origin/CORS/client:scan/内存/SSE/Modrinth/机翻/生态数量）。
 - 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天。
 
 ## 4. 已知空壳/死路（本轮处理）
@@ -68,19 +71,23 @@
 - 邀请里的“二维码下一步接”、网页助手“下载地址待配置”占位。
 - `jar-missing` 的假“修复”。
 - 桌面 `.minecraft` 默认路径算错（`%APPDATA%\wulons-mcss\.minecraft`）。
+- 已有客户端 → 服务端：`client.scan` + 创建 + 勾选 Mod 下载/复制。
+- agent CORS 无 Origin 白名单；frpc 缓存 exe 不复核；备份无并发锁/GC；网页内存恒 0；
+  定时任务用错实例；手机只有 Join 适配；浅色主题对比度不足。
 
 仍存在：
 - `roomWebLink` 的默认 origin 仍是占位域名；UI 已不再用它（有部署地址才发链接）。
 - `quickActions` / `accent` / `consoleViewMode` / `detectedJava` / `autoSync` 是配置/同步残骸。
 - `Overview` 与 `InstanceOverview` 两套仪表盘信息重叠。
 - `wulons-mcss-mwm-mod/` 是独立 Java 子项目，产品代码零引用。
-- 文档历史状态（PROJECT/ROADMAP/agent README）仍有旧数字；本轮只修了与用户可见行为相关的段落。
+- Modrinth 匹配不到的 Mod 只能复制本地 jar，不能自动追溯 CurseForge 来源；资源库也不会自动补前置依赖。
+- 文档历史状态（PROJECT/ROADMAP/agent README）仍有旧数字；以本文件与 `pnpm test` 为准。
 
 ## 5. 文档与代码不一致（需要在下次整理）
 
 | 文档 | 旧说法 | 实际 |
 |---|---|---|
-| `PROJECT.md` | 129/38 测试、v28 | 现在 144+ vitest / 58+ node / 15 Rust（以 `pnpm test` 为准） |
+| `PROJECT.md` | 129/38 测试、v28 | 现在 159 vitest / 65 node / 15 Rust（以 `pnpm test` 为准） |
 | `ROADMAP.md` | 阶段 C 未做 | `client:launch` 已实现，真机进程存活验证过 |
 | `agent/README.md` | 大量“还没做” | 那些通道都实现了 |
 | `docs/FORGE-NEOFORGE.md` | 安装器未做 | Forge 已实现并真机装过；NeoForge 新建暂停，已有目录可导入 |

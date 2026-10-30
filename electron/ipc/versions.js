@@ -411,14 +411,23 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
     return { ok: true, build: ver };
   }
 
+  const assertJar = (name) => {
+    const file = path.join(dir, name);
+    if (!fs.existsSync(file) || fs.statSync(file).size < 1024) {
+      throw new Error(`服务端安装后没有生成有效的 ${name}，请重试或换一个构建`);
+    }
+  };
+
   if (type === "paper") {
     const res = await installPaper({ dir, mc, build, onProgress });
+    assertJar("server.jar");
     writeMarker(dir, { serverType: "paper", mc, build: res.build });
     return res;
   }
 
   if (type === "purpur") {
     const res = await installPurpur({ dir, mc, build, onProgress });
+    assertJar("server.jar");
     writeMarker(dir, { serverType: "purpur", mc, build: res.build });
     return res;
   }
@@ -435,6 +444,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
       const pct = total ? 5 + Math.round((got / total) * 90) : 50;
       onProgress?.({ stage: "下载 Fabric 服务端", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
     });
+    assertJar("fabric-server-launch.jar");
     writeMarker(dir, { serverType: "fabric", mc, loaderVersion: chosen });
     onProgress?.({ stage: "完成", percent: 100 });
     return { ok: true, loaderVersion: chosen };
@@ -452,6 +462,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
     const pct = total ? 6 + Math.round((got / total) * 90) : 50;
     onProgress?.({ stage: "下载原版服务端", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
   }, { hash: { sha1: detail?.downloads?.server?.sha1 } });
+  assertJar("server.jar");
   writeMarker(dir, { serverType: "vanilla", mc });
   onProgress?.({ stage: "完成", percent: 100 });
   return { ok: true };

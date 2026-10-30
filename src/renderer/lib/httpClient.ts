@@ -211,6 +211,7 @@ export function createHttpClient(base: string, token: string): McssApi {
       text: (text, opts) => invoke("translate:text", text, opts),
     },
     client: {
+      scan: (dir) => invoke("client:scan", dir),
       prepare: (opts) => invoke("client:prepare", opts),
       onProgress: (cb) => on("client:progress", (p) => cb(p as never)),
       addServer: (opts) => invoke("client:add-server", opts),

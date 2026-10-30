@@ -16,7 +16,26 @@ export type ContentKind = "none" | "datapack" | "plugin" | "mod";
 /** 使用模式：决定首页与导航，不决定能力 */
 export type AppMode = "host" | "player";
 
-export type ClientLoader = "vanilla" | "fabric" | "forge" | "neoforge";
+export type ClientLoader = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt";
+
+export interface ClientVersion {
+  /** versions/ 下的目录名 */
+  id: string;
+  name: string;
+  mcVersion: string;
+  loader: ClientLoader;
+  loaderVersion: string;
+  lastUsed: number;
+  mtime: number;
+  path: string;
+}
+
+export interface ClientScan {
+  dir: string;
+  versions: ClientVersion[];
+  recommended: ClientVersion | null;
+  mods: ModMeta[];
+}
 
 /** 玩家自己的客户端配置（可以和服主装得不一样） */
 export interface ClientProfile {

@@ -1,5 +1,6 @@
 import type {
   AppConfig,
+  ClientScan,
   DirEntry,
   FrpProfile,
   JavaInfo,
@@ -244,6 +245,7 @@ export interface McssApi {
     text: (text: string, opts?: { from?: string; to?: string }) => Promise<{ text: string; engine: string; truncated?: boolean; cached?: boolean }>;
   };
   client: {
+    scan: (dir: string) => Promise<ClientScan | { ok: false; error: string }>;
     prepare: (opts: { dir: string; mods: { p: string; v: string; n?: string }[] }) => Promise<{
       ok: boolean;
       dir?: string;
