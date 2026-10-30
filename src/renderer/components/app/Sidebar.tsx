@@ -236,6 +236,15 @@ export function Sidebar() {
           </NavLink>
         </div>
 
+        <div className="flex items-center justify-between px-1">
+          <span className="t-label-12 text-gray-700">v{version || "—"} · 重构版</span>
+          {running ? (
+            <span className="inline-flex items-center gap-1 t-label-12 text-green-900">
+              <Square className="size-2.5 fill-current" /> 运行中
+            </span>
+          ) : null}
+        </div>
+
         <SegmentedControl<"host" | "player">
           grow
           size="sm"
@@ -246,15 +255,6 @@ export function Sidebar() {
             { value: "player", label: "来玩", title: "玩家模式：加入朋友的服务器" },
           ]}
         />
-
-        <div className="flex items-center justify-between px-1">
-          <span className="t-label-12 text-gray-700">v{version || "—"} · 重构版</span>
-          {running ? (
-            <span className="inline-flex items-center gap-1 t-label-12 text-green-900">
-              <Square className="size-2.5 fill-current" /> 运行中
-            </span>
-          ) : null}
-        </div>
       </div>
 
       <CreateInstanceDialog open={creating} onOpenChange={setCreating} />
