@@ -9,7 +9,9 @@ import { formatBytes, formatDateTime } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { BindModDialog } from "@/components/instance/BindModDialog";
+import { ClientSyncPanel } from "@/components/instance/ClientSyncPanel";
 import { syncClientMods } from "@/lib/client-mods";
+import { planFromDiff } from "@/lib/server-sync";
 
 interface DiffRow {
   key: string;
@@ -140,6 +142,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
 
   const selectable = (diff ?? []).filter((d) => d.client && (d.status === "client-only" || d.status === "version"));
   const selectedRows = selectable.filter((d) => selected.has(d.key));
+  const syncPlan = useMemo(() => planFromDiff(diff ?? []), [diff]);
 
   function toggleSelected(key: string, on: boolean) {
     setSelected((prev) => {
@@ -326,6 +329,8 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               <Badge variant="red" size="sm">客户端缺少 {summary.serverOnly}</Badge>
               <Badge variant="gray" size="sm">仅客户端 {summary.clientOnly}</Badge>
             </div>
+
+            <ClientSyncPanel plan={syncPlan} mcDir={clientDir} onSynced={() => void compare("local")} />
             <div className="max-h-[46vh] overflow-y-auto rounded-lg bg-background-100 shadow-geist-border scroll-thin">
               <table className="w-full border-collapse text-left">
                 <thead className="sticky top-0 bg-background-100">

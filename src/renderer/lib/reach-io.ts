@@ -229,6 +229,7 @@ export async function checkHostReach(
 
   const [ips, tunnel] = await Promise.all([ipsPromise, tunnelPromise]);
   const remoteTargets: ReachTarget[] = [];
+  if (ips.v6) remoteTargets.push({ kind: "ipv6", host: ips.v6, port: portNum });
   if (ips.v4) remoteTargets.push({ kind: "public", host: ips.v4, port: portNum });
   const tunnelTarget = tunnel ? parseAddr(tunnel) : null;
   if (tunnelTarget && !remoteTargets.some((t) => t.host === tunnelTarget.host && t.port === tunnelTarget.port)) {

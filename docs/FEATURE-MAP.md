@@ -53,10 +53,11 @@
 | 21 | **从现有客户端开服** | 全部服务器 / 我的客户端 | `client:scan` + `CreateServerFromClientDialog` + `client-mods.ts` | client scan 6 例 + client-mods 2 例 + 真机创建 | ✅ Fabric/Forge/原版 → 对应服务端；NeoForge/Quilt 明确拒绝；Mod 可勾选、Modrinth 下载、匹配不到复制本地 jar |
 | 22 | **客户端 Mod 回灌服务端** | 内容 → 模组 → 比对 | `ModsTab` 勾选 + `syncClientMods` | 同上 | ✅ 只列 client-only/版本不一致；先停服；版本冲突先删旧 jar，再下载/复制 |
 | 23 | **可达性体检 / 自动选路 / 诊断码** | 总览「朋友能不能进来」、邀请、加入页 | `reach.ts`、`reach-io.ts`、`ReachabilityPanel`、`diagnose.ts` | reach 15 + diagnose 4 + 真机截图 | ✅ 本机/局域网/公网/隧道逐条探测；玩家端并发竞速选最快；失败可生成 `d1z…` 诊断码给服主还原现场。公网结论依赖第三方 SLP 外证（mcsrvstat），失败时显示「未知」而不是「离线」 |
+| 24 | **服务端 → 客户端对齐** | 内容 → 模组 → 比对 | `server-sync.ts`、`ClientSyncPanel` | 5 例 | ✅ 只加不覆盖；纯服务端 Mod 跳过；每次复制写 manifest，可一键撤销；版本不一致只提示、不覆盖玩家文件 |
 
 ## 3. 真正验证过的东西
 
-- `pnpm test`：26 个 vitest 文件（180 例）+ 65 个 node:test（含 client scan / client-mods / backup GC / serversdat / files）+ parity + download contract。
+- `pnpm test`：27 个 vitest 文件（185 例）+ 65 个 node:test（含 client scan / client-mods / backup GC / serversdat / files）+ parity + download contract。
 - 真机：Paper 26.1.2 / Forge 26.1.2 安装、已有客户端→Fabric 服务端创建（26 个 Mod 选中）、模组比对勾选、UI 截图探针、打包版启动。
 - 网页 agent：`web-e2e` 15/15（健康/令牌/Origin/CORS/client:scan/内存/SSE/Modrinth/机翻/生态数量）。
 - 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天、第三方外证在 CGNAT/反爬下的假阴性。

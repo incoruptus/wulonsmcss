@@ -109,3 +109,7 @@ java?: number; // 26.1+ = 25
 - ? P2 
 et:doctor（IPv6 / STUN / UPnP）、P3 反向对齐与依赖补全
 
+- ? P3 第一半：服务端 → 客户端对齐（只加不覆盖 + manifest 可撤销）
+- ? 依赖补全、P2 
+et:doctor（IPv6 已接入外证，STUN/UPnP 仍缺）
+

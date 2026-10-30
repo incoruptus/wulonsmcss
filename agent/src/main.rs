@@ -3432,12 +3432,21 @@ fn motd_text(value: &Json) -> String {
     }
 }
 
+/** IPv6 字面量必须带方括号才能和端口拼成 SocketAddr */
+fn host_port(host: &str, port: u16) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
 /** Minecraft Server List Ping：不装插件也能拿到在线人数、版本、MOTD */
 fn ping_server(host: &str, port: u16, timeout_ms: u64) -> Result<Json, String> {
     use std::io::{Read, Write};
     use std::net::{TcpStream, ToSocketAddrs};
 
-    let addr = format!("{host}:{port}")
+    let addr = host_port(host, port)
         .to_socket_addrs()
         .map_err(|e| format!("地址解析失败：{e}"))?
         .next()
@@ -4055,7 +4064,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             let port = opts.get("port").and_then(|v| v.num()).unwrap_or(25565.0) as u16;
             let timeout = opts.get("timeoutMs").and_then(|v| v.num()).unwrap_or(800.0) as u64;
             let start = std::time::Instant::now();
-            let target = format!("{host}:{port}");
+            let target = host_port(host, port);
             let ok = target
                 .to_socket_addrs()
                 .ok()
