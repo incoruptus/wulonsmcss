@@ -22,6 +22,7 @@ const mrpack = require(path.join(IPC_DIR, "mrpack.js"));
 const schedule = require(path.join(IPC_DIR, "schedule.js"));
 const aidiag = require(path.join(IPC_DIR, "aidiag.js"));
 const slp = require(path.join(IPC_DIR, "slp.js"));
+const netdoctor = require(path.join(IPC_DIR, "netdoctor.js"));
 const proc = require(path.join(IPC_DIR, "proc.js"));
 const backups = require(path.join(IPC_DIR, "backups.js"));
 const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
@@ -499,52 +500,10 @@ ipcMain.handle("app:detect-launchers", () => {
 });
 
 /** 本机内网地址（同 WiFi 的朋友可以直接连） */
-ipcMain.handle("app:lan-address", () => {
-  const os = require("os");
-  const dgram = require("dgram");
+ipcMain.handle("app:lan-address", async () => ({ ip: await netdoctor.lanAddress() }));
 
-  // 和 agent 用同一招：UDP connect 不真的发包，但能问出「默认路由走哪张网卡」。
-  // 直接遍历网卡会优先拿到 WSL / Hyper-V / VPN 的虚拟地址，发给朋友的地址就错了。
-  const viaRoute = new Promise<string>((resolve) => {
-    const sock = dgram.createSocket("udp4");
-    let settled = false;
-    const finish = (ip: string) => {
-      if (settled) return;
-      settled = true;
-      try { sock.close(); } catch {}
-      resolve(ip);
-    };
-    const timer = setTimeout(() => finish(""), 600);
-    sock.on("error", () => { clearTimeout(timer); finish(""); });
-    try {
-      sock.connect(80, "8.8.8.8", () => {
-        clearTimeout(timer);
-        try { finish(sock.address().address || ""); } catch { finish(""); }
-      });
-    } catch {
-      clearTimeout(timer);
-      finish("");
-    }
-  });
-
-  return viaRoute.then((ip) => {
-    if (ip && ip !== "0.0.0.0") return { ip };
-
-    // 没有默认路由时退回网卡扫描：优先 192.168，再 10，再 172.16/12；跳过明显的虚拟网卡
-    const virtual = /vEthernet|VMware|VirtualBox|Hyper-V|WSL|Tailscale|ZeroTier|WireGuard|TAP|Radmin|Loopback/i;
-    const candidates: { ip: string; score: number }[] = [];
-    for (const [name, list] of Object.entries(os.networkInterfaces())) {
-      if (virtual.test(name)) continue;
-      for (const net of (list as any[]) || []) {
-        if (net.family !== "IPv4" || net.internal) continue;
-        const score = net.address.startsWith("192.168.") ? 0 : net.address.startsWith("10.") ? 1 : 2;
-        candidates.push({ ip: net.address, score });
-      }
-    }
-    candidates.sort((a, b) => a.score - b.score);
-    return { ip: candidates[0]?.ip ?? "127.0.0.1" };
-  });
-});
+/** 网络体检：网卡 / 公网 IP / NAT 类型 / UPnP 网关（只探测，不改路由器） */
+ipcMain.handle("net:doctor", () => netdoctor.doctor());
 
 /* --------------------------------- 服务器 --------------------------------- */
 

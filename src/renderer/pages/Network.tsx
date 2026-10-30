@@ -7,6 +7,7 @@ import { Field, Input } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { Badge, Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import { DiagnoseDialog } from "@/components/instance/DiagnoseDialog";
+import { NetDoctorCard } from "@/components/network/NetDoctorCard";
 import { useConfig } from "@/stores/config";
 import { copyText, uid } from "@/lib/utils";
 import { isDesktopVisual } from "@/lib/shell";
@@ -100,7 +101,7 @@ export default function Network() {
     <>
       <PageHeader
         title="让外网的朋友进来"
-        desc="同一个 WiFi 不用这页：直接发 192.168.x.x:25565。只有不在同一个网络时才需要内网穿透。"
+        desc="同一个 WiFi 不用这页：直接发你的内网地址（192.168 / 10 / 172.16 开头）。只有不在同一个网络时才需要内网穿透。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDiagOpen(true)}>
@@ -114,6 +115,10 @@ export default function Network() {
         }
       />
       <PageBody className="grid max-w-5xl gap-4 lg:grid-cols-[1.1fr_1fr]">
+        <Card className="lg:col-span-2">
+          <NetDoctorCard />
+        </Card>
+
         <Card className="space-y-3">
           <div className="flex items-center gap-2">
             <Link2 className="size-4 text-gray-800" />

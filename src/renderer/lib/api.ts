@@ -7,6 +7,7 @@ import type {
   Instance,
   McVersion,
   ModMeta,
+  NetDoctor,
   PreflightResult,
   ServerType,
   WorldPack,
@@ -56,6 +57,8 @@ export interface McssApi {
       motd?: string;
       error?: string;
     }>;
+    /** 网络体检：网卡 / 公网 IP / NAT / UPnP（只探测，不改路由器） */
+    doctor: () => Promise<NetDoctor>;
   };
   ai: {
     exportBundle: (opts: {

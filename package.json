@@ -8,7 +8,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js electron/ipc/slp.test.js electron/ipc/backups.test.js electron/ipc/versions.test.js electron/ipc/config.test.js electron/ipc/server.test.js electron/ipc/files.test.js electron/ipc/preflight.test.js electron/ipc/client.test.js electron/ipc/serversdat.test.js && node scripts/check-parity.cjs --strict && node scripts/check-download-contract.cjs",
+    "test": "vitest run && node --test electron/ipc/schedule.test.js electron/ipc/aidiag.test.js electron/ipc/slp.test.js electron/ipc/backups.test.js electron/ipc/versions.test.js electron/ipc/config.test.js electron/ipc/server.test.js electron/ipc/files.test.js electron/ipc/preflight.test.js electron/ipc/client.test.js electron/ipc/serversdat.test.js electron/ipc/netdoctor.test.js && node scripts/check-parity.cjs --strict && node scripts/check-download-contract.cjs",
     "dist": "electron-builder --config electron-builder.yml",
     "build:web": "vite build --config vite.web.config.mts",
     "dev:web": "vite --config vite.web.config.mts",

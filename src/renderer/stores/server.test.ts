@@ -3,6 +3,20 @@ import { useServer } from "./server";
 
 const LAG = "[06:11:22] [Server thread/WARN]: Can't keep up! Is the server overloaded? Running 3034ms or 60 ticks behind";
 
+describe("开服就绪信号", () => {
+  it("Done 之后 ready 才为 true，停服就清零", () => {
+    useServer.getState().setStatus("starting");
+    useServer.getState().setStatus("running");
+    expect(useServer.getState().ready).toBe(false);
+
+    useServer.getState().addLog({ timestamp: "06:11:22", level: "INFO", message: 'Done (3.456s)! For help, type "help"' });
+    expect(useServer.getState().ready).toBe(true);
+
+    useServer.getState().setStatus("stopping");
+    expect(useServer.getState().ready).toBe(false);
+  });
+});
+
 describe("卡顿事件入栈", () => {
   beforeEach(() => {
     useServer.getState().clear();

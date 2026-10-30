@@ -93,6 +93,15 @@ async function waitHealth(timeoutMs = 10000) {
     const memory = await invoke("server:memory");
     check("server:memory 返回数字（停服时为 0）", typeof memory.data?.result === "number", String(memory.data?.result));
 
+    const doctor = await invoke("net:doctor");
+    check(
+      "net:doctor 返回网卡 / NAT / UPnP 形状",
+      typeof doctor.data?.result?.at === "number" &&
+        Array.isArray(doctor.data?.result?.interfaces) &&
+        typeof doctor.data?.result?.stun?.nat === "string",
+      `网卡 ${doctor.data?.result?.interfaces?.length ?? 0} · NAT ${doctor.data?.result?.stun?.nat ?? "—"}`,
+    );
+
     // 资源库三项：详情、中文简介、任意文本机翻（网页版与桌面版必须同能力）
     const project = await invoke("modrinth:project", ["AANobbMI"]);
     check(

@@ -9,6 +9,7 @@
 mod http;
 mod json;
 mod nbt;
+mod netdoctor;
 mod sha1;
 
 /// 版本号来自 package.json（由 build.rs 注入），保证三处一致
@@ -16,7 +17,7 @@ const PRODUCT_VERSION: &str = env!("MCSS_VERSION");
 
 use json::Json;
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -107,17 +108,6 @@ fn save_config(path: &Path, config: &Json) {
         let _ = std::fs::copy(path, &bak);
         let _ = std::fs::rename(&tmp, path);
     }
-}
-
-fn local_ip() -> String {
-    if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
-        if socket.connect("8.8.8.8:80").is_ok() {
-            if let Ok(addr) = socket.local_addr() {
-                return addr.ip().to_string();
-            }
-        }
-    }
-    "127.0.0.1".to_string()
 }
 
 /* --------------------------- 配对与深链 --------------------------- */
@@ -443,7 +433,7 @@ fn send_command(shared: &Shared, line: &str) -> Result<Json, String> {
 const UA: &str = "WulonsMCSS/27.0 (github.com/wulons)";
 
 /// 调系统 curl（Windows 10+ 自带）。用 curl 而不是手写 TLS：更稳、更省事。
-fn curl(args: &[&str]) -> Result<Vec<u8>, String> {
+pub(crate) fn curl(args: &[&str]) -> Result<Vec<u8>, String> {
     let out = Command::new("curl")
         .args(args)
         .output()
@@ -3969,7 +3959,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             }
             Ok(Json::Arr(out))
         }
-        "app:lan-address" => Ok(Json::obj(vec![("ip", Json::s(&local_ip()))])),
+        "app:lan-address" => Ok(Json::obj(vec![("ip", Json::s(&netdoctor::lan_address()))])),
         "config:read" => {
             let state = shared.lock().unwrap();
             Ok(state.config.clone())
@@ -4043,6 +4033,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         }
         "backup:restore" => backup_restore(shared, arg0, args.get(1).and_then(|v| v.str()).unwrap_or("")),
         "ai:export-bundle" => export_bundle(shared, args.first().ok_or("缺少参数")?),
+        "net:doctor" => Ok(netdoctor::doctor()),
         "net:ping" => {
             let opts = args.first().ok_or("缺少参数")?;
             let host = opts.get("host").and_then(|v| v.str()).unwrap_or("127.0.0.1");

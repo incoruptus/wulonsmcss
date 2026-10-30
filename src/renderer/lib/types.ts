@@ -237,3 +237,45 @@ export interface McVersion {
   type: "release" | "snapshot" | "old_beta" | "old_alpha";
   releaseTime: string;
 }
+
+/* ---------------- 网络体检（net:doctor） ---------------- */
+
+export interface NetInterface {
+  name: string;
+  address: string;
+  family: "IPv4" | "IPv6";
+  internal: boolean;
+  /** 虚拟网卡（WSL / Hyper-V / VPN）；UI 会提示「这条不是给朋友用的」 */
+  virtual: boolean;
+}
+
+export interface StunServerResult {
+  host: string;
+  ok: boolean;
+  mapped?: string;
+  ip?: string;
+  port?: number;
+  error?: string;
+}
+
+export interface NetDoctor {
+  at: number;
+  interfaces: NetInterface[];
+  publicV4: string | null;
+  publicV6: string | null;
+  stun: {
+    ok: boolean;
+    mapped?: string;
+    ip?: string;
+    nat: "cone" | "symmetric" | "unknown";
+    servers: StunServerResult[];
+    error?: string;
+  };
+  upnp: {
+    available: boolean;
+    gateway?: string;
+    externalIp?: string;
+    serviceType?: string;
+    error?: string;
+  };
+}
