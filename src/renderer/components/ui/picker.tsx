@@ -49,7 +49,10 @@ export function Picker({
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={<span className="text-gray-700">{placeholder}</span>}>
+        <SelectPrimitive.Value
+          placeholder={<span className="truncate text-gray-700">{placeholder}</span>}
+          className="min-w-0 flex-1 truncate"
+        >
           <span className="truncate">{current?.label ?? placeholder}</span>
         </SelectPrimitive.Value>
         <SelectPrimitive.Icon className="ml-auto shrink-0">
@@ -75,7 +78,7 @@ export function Picker({
                 )}
               >
                 <SelectPrimitive.ItemText>
-                  <span className="truncate">{o.label}</span>
+                  <span className="block min-w-0 flex-1 truncate">{o.label}</span>
                 </SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-2">
                   <Check className="size-3.5 text-gray-1000" />

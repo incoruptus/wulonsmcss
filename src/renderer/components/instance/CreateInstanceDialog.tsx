@@ -218,12 +218,10 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
               onValueChange={(v) => setServerType(v as ServerType)}
               options={GUIDE_CORES.filter((c) => c.supported !== false).map((c) => ({
                 value: c.type,
-                label: `${c.label} — ${c.tagline}`,
+                // 触发框只放短名；细节在下面的 hint 里，避免长标签把相邻字段顶歪
+                label: c.label,
               }))}
             />
-            <p className="mt-1 t-label-12 text-gray-700">
-              NeoForge 新建暂不支持；已有 NeoForge 服务器请用「导入」。
-            </p>
           </Field>
           <Field
             label={kind === "plugin" ? "构建号" : "Fabric Loader"}
@@ -247,8 +245,11 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
             />
           </Field>
         </div>
+        <p className="t-label-12 text-gray-700">
+          NeoForge 新建暂不支持；已有 NeoForge 服务器请用「导入」。
+        </p>
 
-        <Field label="安装目录" hint={finalDir || "会在应用数据目录下按名称创建"}>
+        <Field label="安装目录" hint="默认按名称创建在应用数据目录；可以改到别的盘">
           <div className="flex gap-2">
             <Input value={finalDir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" />
             <Button variant="secondary" onClick={browseDir}>
@@ -292,10 +293,17 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         >
           <div className="flex gap-2">
             <Picker
-              className="flex-1"
+              className="min-w-0 flex-1"
               value={javaPath}
               onValueChange={setJavaPath}
-              options={javas.length ? javas.map((j) => ({ value: j.path, label: `${j.path}（Java ${j.major ?? "?"}）` })) : [{ value: "", label: "未找到 Java" }]}
+              options={
+                javas.length
+                  ? javas.map((j) => ({
+                      value: j.path,
+                      label: `Java ${j.major ?? "?"} · ${j.path.split(/[\\/]/).pop() || "java"}`,
+                    }))
+                  : [{ value: "", label: "未找到 Java" }]
+              }
             />
             <Button
               variant="secondary"
