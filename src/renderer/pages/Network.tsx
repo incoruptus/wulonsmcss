@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Copy, FolderOpen, Link2, Plug, Power, RefreshCw, Unplug } from "lucide-react";
+import { Copy, FolderOpen, LifeBuoy, Link2, Plug, Power, RefreshCw, Unplug } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { Badge, Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
+import { DiagnoseDialog } from "@/components/instance/DiagnoseDialog";
 import { useConfig } from "@/stores/config";
 import { copyText, uid } from "@/lib/utils";
 import { isDesktopVisual } from "@/lib/shell";
@@ -34,6 +35,7 @@ export default function Network() {
   const [address, setAddress] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [diagOpen, setDiagOpen] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,9 +102,15 @@ export default function Network() {
         title="让外网的朋友进来"
         desc="同一个 WiFi 不用这页：直接发 192.168.x.x:25565。只有不在同一个网络时才需要内网穿透。"
         actions={
-          <Badge variant={running ? "green" : "gray"} size="md">
-            {running ? "隧道已连接" : "未连接"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setDiagOpen(true)}>
+              <LifeBuoy className="size-3.5" />
+              朋友进不来？
+            </Button>
+            <Badge variant={running ? "green" : "gray"} size="md">
+              {running ? "隧道已连接" : "未连接"}
+            </Badge>
+          </div>
         }
       />
       <PageBody className="grid max-w-5xl gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -253,6 +261,7 @@ export default function Network() {
           </div>
         </Card>
       </PageBody>
+      <DiagnoseDialog open={diagOpen} onOpenChange={setDiagOpen} />
     </>
   );
 }

@@ -21,6 +21,26 @@ describe("房间描述符", () => {
     expect(back.addr).toBe(ROOM.addr);
   });
 
+  it("候选地址随房间码一起带走", async () => {
+    const code = await encodeRoom({
+      ...ROOM,
+      addrs: [
+        { k: "lan", host: "192.168.1.9", port: 25565 },
+        { k: "tunnel", host: "frp.example.com", port: 25565 },
+      ],
+    });
+    const back = await decodeRoom(code);
+    expect(back.addrs).toHaveLength(2);
+    expect(back.addrs?.[0].k).toBe("lan");
+  });
+
+  it("分享文案把外网和同 WiFi 两条路都写清楚", async () => {
+    const code = await encodeRoom({ ...ROOM, lan: "192.168.1.9:25565" });
+    const text = roomShareText({ ...ROOM, lan: "192.168.1.9:25565" }, code);
+    expect(text).toContain("外网");
+    expect(text).toContain("同一 WiFi");
+  });
+
   it("没有内网地址时也能正常解码（旧码兼容）", async () => {
     const code = await encodeRoom(ROOM);
     expect((await decodeRoom(code)).lan).toBeUndefined();

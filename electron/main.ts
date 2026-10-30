@@ -501,20 +501,49 @@ ipcMain.handle("app:detect-launchers", () => {
 /** 本机内网地址（同 WiFi 的朋友可以直接连） */
 ipcMain.handle("app:lan-address", () => {
   const os = require("os");
-  const nets = os.networkInterfaces();
-  for (const list of Object.values(nets)) {
-    for (const net of list || []) {
-      if (net.family === "IPv4" && !net.internal && /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(net.address)) {
-        return { ip: net.address };
+  const dgram = require("dgram");
+
+  // 和 agent 用同一招：UDP connect 不真的发包，但能问出「默认路由走哪张网卡」。
+  // 直接遍历网卡会优先拿到 WSL / Hyper-V / VPN 的虚拟地址，发给朋友的地址就错了。
+  const viaRoute = new Promise<string>((resolve) => {
+    const sock = dgram.createSocket("udp4");
+    let settled = false;
+    const finish = (ip: string) => {
+      if (settled) return;
+      settled = true;
+      try { sock.close(); } catch {}
+      resolve(ip);
+    };
+    const timer = setTimeout(() => finish(""), 600);
+    sock.on("error", () => { clearTimeout(timer); finish(""); });
+    try {
+      sock.connect(80, "8.8.8.8", () => {
+        clearTimeout(timer);
+        try { finish(sock.address().address || ""); } catch { finish(""); }
+      });
+    } catch {
+      clearTimeout(timer);
+      finish("");
+    }
+  });
+
+  return viaRoute.then((ip) => {
+    if (ip && ip !== "0.0.0.0") return { ip };
+
+    // 没有默认路由时退回网卡扫描：优先 192.168，再 10，再 172.16/12；跳过明显的虚拟网卡
+    const virtual = /vEthernet|VMware|VirtualBox|Hyper-V|WSL|Tailscale|ZeroTier|WireGuard|TAP|Radmin|Loopback/i;
+    const candidates: { ip: string; score: number }[] = [];
+    for (const [name, list] of Object.entries(os.networkInterfaces())) {
+      if (virtual.test(name)) continue;
+      for (const net of (list as any[]) || []) {
+        if (net.family !== "IPv4" || net.internal) continue;
+        const score = net.address.startsWith("192.168.") ? 0 : net.address.startsWith("10.") ? 1 : 2;
+        candidates.push({ ip: net.address, score });
       }
     }
-  }
-  for (const list of Object.values(nets)) {
-    for (const net of list || []) {
-      if (net.family === "IPv4" && !net.internal) return { ip: net.address };
-    }
-  }
-  return { ip: "127.0.0.1" };
+    candidates.sort((a, b) => a.score - b.score);
+    return { ip: candidates[0]?.ip ?? "127.0.0.1" };
+  });
 });
 
 /* --------------------------------- 服务器 --------------------------------- */

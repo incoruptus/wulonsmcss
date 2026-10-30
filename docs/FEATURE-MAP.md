@@ -38,8 +38,8 @@
 | 6 | 资源库 | 内容 → 资源库 | 同上 + `modrinth.js` | 手动 e2e（project/translate/install） | ✅ 中文名 5338 条、中文简介 MCIM、分类/环境筛选、详情/逐版本安装；仅 Modrinth |
 | 7 | 世界/备份/时间机 | 侧栏世界 | `WorldsTab`、`backup.js`、`backups.js` | backup 12 例、快照 3 例 | ✅ 整包 zip + 增量快照；运行中恢复已禁用；快照对象/旧 world 无自动回收 |
 | 8 | 玩家 | 侧栏玩家 | `PlayersTab` + 指令 | 无单测 | 🟡 在线/白名单/OP/封禁都靠服务器指令，服务器没跑时不可用；在线列表由日志推断 |
-| 9 | 联机 | 侧栏联机 | `frp.js` | 手动 frp-e2e | 🟡 通用 frp；樱花穿透仅桌面，网页版已隐藏 |
-| 10 | 房间码/邀请 | 实例头「邀请」 | `room.ts`、`InviteDialog` | room 11 例 | 🟡 编解码/过期/深链可靠；网页链接需部署（`VITE_PUBLIC_URL`/当前 origin），桌面不再伪造 404 |
+| 9 | 联机 | 侧栏联机 | `frp.js`、`reach-io.ts` | 手动 frp-e2e、reach 15 例 | 🟡 通用 frp；樱花穿透仅桌面，网页版已隐藏；可达性体检会从公网回探一次 |
+| 10 | 房间码/邀请 | 实例头「邀请」 | `room.ts`、`InviteDialog` | room 13 例 | ✅ 编解码/过期/深链；邀请自动带多条验证过的地址（`addrs`），旧码只有 `lan`+`addr` 也能进；网页链接需部署（`VITE_PUBLIC_URL`/当前 origin） |
 | 11 | 玩家体检/直接启动 | 加入页 | `checkup.ts`、`launch.ts`、`client.js` | checkup 9 + launch 7 + launch-plan 13 | ✅ 默认 `.minecraft` 已修正；直接启动是**离线身份**，正版验证服会失败（界面已说明） |
 | 12 | AI 诊断/现场包 | 崩溃卡、配置页 | `crash.ts`、`aidiag.js`、`ai-config.ts` | crash 8 + ai 15 | ✅ 知识库/脱敏/zip/白名单校验 |
 | 13 | 跨端同步（Gist） | 设置 | `sync/*` | 13 例（假 Gist） | 🟡 未对真实 `api.github.com` 跑过（需要用户 token） |
@@ -52,13 +52,14 @@
 | 20 | 我的客户端 | 玩家导航 | `Client.tsx` + `Join` 默认目录 | 无 | ✅ 保存后 Join 会优先用它；不再只是“存在但没人读” |
 | 21 | **从现有客户端开服** | 全部服务器 / 我的客户端 | `client:scan` + `CreateServerFromClientDialog` + `client-mods.ts` | client scan 6 例 + client-mods 2 例 + 真机创建 | ✅ Fabric/Forge/原版 → 对应服务端；NeoForge/Quilt 明确拒绝；Mod 可勾选、Modrinth 下载、匹配不到复制本地 jar |
 | 22 | **客户端 Mod 回灌服务端** | 内容 → 模组 → 比对 | `ModsTab` 勾选 + `syncClientMods` | 同上 | ✅ 只列 client-only/版本不一致；先停服；版本冲突先删旧 jar，再下载/复制 |
+| 23 | **可达性体检 / 自动选路 / 诊断码** | 总览「朋友能不能进来」、邀请、加入页 | `reach.ts`、`reach-io.ts`、`ReachabilityPanel`、`diagnose.ts` | reach 15 + diagnose 4 + 真机截图 | ✅ 本机/局域网/公网/隧道逐条探测；玩家端并发竞速选最快；失败可生成 `d1z…` 诊断码给服主还原现场。公网结论依赖第三方 SLP 外证（mcsrvstat），失败时显示「未知」而不是「离线」 |
 
 ## 3. 真正验证过的东西
 
-- `pnpm test`：24 个 vitest 文件（159 例）+ 65 个 node:test（含 client scan / client-mods / backup GC / serversdat / files）+ parity + download contract。
+- `pnpm test`：26 个 vitest 文件（180 例）+ 65 个 node:test（含 client scan / client-mods / backup GC / serversdat / files）+ parity + download contract。
 - 真机：Paper 26.1.2 / Forge 26.1.2 安装、已有客户端→Fabric 服务端创建（26 个 Mod 选中）、模组比对勾选、UI 截图探针、打包版启动。
 - 网页 agent：`web-e2e` 15/15（健康/令牌/Origin/CORS/client:scan/内存/SSE/Modrinth/机翻/生态数量）。
-- 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天。
+- 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天、第三方外证在 CGNAT/反爬下的假阴性。
 
 ## 4. 已知空壳/死路（本轮处理）
 

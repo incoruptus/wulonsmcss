@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ClipboardCopy,
   Copy,
   Download,
   Gamepad2,
@@ -18,7 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
+import { chooseBest, kindLabel, parseAddr } from "@/lib/reach";
+import { useRoomReach } from "@/hooks/useReach";
 import { checkClient, defaultClientDir, type CheckupResult } from "@/lib/checkup";
+import { buildDiagnostic, encodeDiagnostic } from "@/lib/diagnose";
 import { planFromDisk, type DiskPlan } from "@/lib/launch";
 import { copyText, cx, safeName } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
@@ -53,64 +57,20 @@ export default function Join() {
     }
   });
   const [checkup, setCheckup] = useState<CheckupResult | null>(null);
-  const [lan, setLan] = useState<{ ok: boolean; ms: number } | null>(null);
   const [plan, setPlan] = useState<DiskPlan | null>(null);
-  const [status, setStatus] = useState<{
-    ok: boolean;
-    online: boolean;
-    ms?: number;
-    players?: { online: number; max: number };
-    motd?: string;
-    error?: string;
-  } | null>(null);
-  const [pingTick, setPingTick] = useState(0);
-
-  // 先用 Minecraft 状态协议问一下服务器本人：顺带判断是不是同一局域网
-  useEffect(() => {
-    if (!room) {
-      setStatus(null);
-      setLan(null);
-      return;
-    }
-    let alive = true;
-    const ping = (addr: string) => {
-      const [host, port] = addr.split(":");
-      return window.mcss.net
-        .ping({ host, port: Number(port) || 25565, timeoutMs: 1200 })
-        .catch(() => null);
-    };
-    void (async () => {
-      setStatus(null);
-      if (room.lan) {
-        const local = await ping(room.lan);
-        if (!alive) return;
-        if (local?.ok) {
-          setLan({ ok: true, ms: local.ms ?? 0 });
-          setStatus(local);
-          return;
-        }
-      }
-      const remote = await ping(room.addr);
-      if (!alive) return;
-      setLan({ ok: false, ms: 0 });
-      setStatus(remote);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [room, pingTick]);
-
-  const effectiveAddr = lan?.ok && room?.lan ? room.lan : (room?.addr ?? "");
-  const usingLan = Boolean(lan?.ok && room?.lan);
+  // 多条候选地址并发探测，玩家不用知道哪条是内网、哪条是隧道
+  const { report: reach, checking: reaching, refresh: refreshReach } = useRoomReach(room);
+  const best = chooseBest(reach?.probes ?? []);
+  const effectiveAddr = best?.addr ?? room?.addr ?? "";
+  const usingLan = best?.target.kind === "lan";
   const saveServer = useConfig((s) => s.saveServer);
 
   // 打开一个房间就记到「我的服务器」：玩家下次不用再翻聊天记录找地址
   useEffect(() => {
     if (!room || !effectiveAddr) return;
-    const idx = effectiveAddr.lastIndexOf(":");
-    if (idx <= 0) return;
-    const address = effectiveAddr.slice(0, idx);
-    const port = Number(effectiveAddr.slice(idx + 1)) || undefined;
+    const parsed = parseAddr(effectiveAddr);
+    if (!parsed) return;
+    const { host: address, port } = parsed;
     // 同一个地址重复进不新增记录，只更新上次进入时间
     const existing = useConfig
       .getState()
@@ -285,6 +245,21 @@ export default function Join() {
     }
   }
 
+  /** 进不去时把「房间 + 探测 + 客户端体检」压成一段码，服主粘贴就能还原现场 */
+  async function copyDiagnostic() {
+    if (!room) return;
+    try {
+      const code = await encodeDiagnostic(buildDiagnostic({ room, reach, checkup, launchers }));
+      if (await copyText(code)) {
+        toast.success("诊断已复制", { description: "发给服主，他粘贴就能看到你的情况" });
+      } else {
+        toast.error("复制失败，请手动选中");
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   /** 旁路：把 Mod 直接装进现有客户端，并把服务器写进多人列表 */
   async function installIntoClient() {
     if (!room) return;
@@ -364,40 +339,38 @@ export default function Join() {
                 </div>
                 <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
                 <p className="t-mono-12 mt-0.5 text-gray-700">
-                  {effectiveAddr}
-                  {usingLan ? (
+                  {effectiveAddr || "还没有地址"}
+                  {best ? (
                     <span className="ml-2 rounded bg-green-800/12 px-1.5 py-0.5 t-label-12 text-green-900">
-                      同 WiFi 直连 · {lan?.ms ?? 0}ms
+                      {usingLan ? "同 WiFi 直连" : best.target.kind === "tunnel" ? "走隧道" : "公网直连"} · {best.ms ?? 0}ms
                     </span>
-                  ) : room.lan ? (
+                  ) : room.lan && !reaching ? (
                     <span className="ml-2 t-label-12 text-gray-700">（内网地址连不上，走公网）</span>
                   ) : null}
                 </p>
 
-                {/* 活的房间状态：直接问服务器本人 */}
+                {/* 多条候选地址都探一遍，走通哪条就说哪条 */}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {status ? (
-                    status.ok ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-green-800/12 px-2 py-0.5 t-label-12 text-green-900">
-                        <span className="size-1.5 rounded-full bg-green-900" />
-                        在线 {status.players?.online ?? 0}/{status.players?.max ?? 0} 人
-                        <span className="text-green-900/70">· {status.ms ?? 0}ms</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-gray-300/40 px-2 py-0.5 t-label-12 text-gray-700">
-                        <span className="size-1.5 rounded-full bg-gray-700" />
-                        现在没连上（服务器可能没开）
-                      </span>
-                    )
-                  ) : (
-                    <span className="t-label-12 text-gray-700">正在查询服务器状态…</span>
-                  )}
-                  <Button size="xs" variant="ghost" onClick={() => setPingTick((n) => n + 1)}>
+                  {reaching ? (
+                    <span className="t-label-12 text-gray-700">正在探测地址…</span>
+                  ) : best ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-green-800/12 px-2 py-0.5 t-label-12 text-green-900">
+                      <span className="size-1.5 rounded-full bg-green-900" />
+                      在线 {best.players?.online ?? 0}/{best.players?.max ?? 0} 人
+                      <span className="text-green-900/70">· {kindLabel(best.target.kind)}</span>
+                    </span>
+                  ) : reach?.probes.length ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-gray-300/40 px-2 py-0.5 t-label-12 text-gray-700">
+                      <span className="size-1.5 rounded-full bg-gray-700" />
+                      现在没连上（服务器可能没开，或不在同一网络）
+                    </span>
+                  ) : null}
+                  <Button size="xs" variant="ghost" onClick={() => void refreshReach()}>
                     刷新
                   </Button>
                 </div>
-                {status?.ok && status.motd ? (
-                  <p className="t-label-12 mt-1 line-clamp-2 text-gray-800">{status.motd}</p>
+                {best?.motd ? (
+                  <p className="t-label-12 mt-1 line-clamp-2 text-gray-800">{best.motd}</p>
                 ) : null}
               </div>
               <Button
@@ -467,6 +440,21 @@ export default function Join() {
                           ? "看起来还没用启动器装过游戏。用进服包最省事，导入后就是一个现成实例。"
                           : "选一下你的 .minecraft 目录，我看看版本和 Mod 齐不齐。"}
                 </p>
+              </div>
+            ) : null}
+
+            {/* 服务器没响应时先说清楚，不让人启动完才发现连不上 */}
+            {!best && reach && reach.probes.some((p) => p.checked) ? (
+              <div className="flex flex-wrap items-start gap-2 rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  服务器现在没响应：可能还没开，或者你们不在同一个网络。
+                  可以先把进服包准备好，等服主开好再进。
+                </span>
+                <Button size="xs" variant="secondary" className="shrink-0" onClick={copyDiagnostic}>
+                  <ClipboardCopy className="size-3" />
+                  复制诊断
+                </Button>
               </div>
             ) : null}
 
@@ -582,6 +570,10 @@ export default function Join() {
               <span className="t-label-12 text-gray-700">
                 不想新建实例？选你的 <span className="t-mono-12">.minecraft</span>，Mod 和服务器列表一起写好
               </span>
+              <Button size="sm" variant="ghost" onClick={copyDiagnostic}>
+                <ClipboardCopy className="size-3.5" />
+                进不去？复制诊断
+              </Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => { setRoom(null); setInput(""); }}>
                 换一个房间码
               </Button>

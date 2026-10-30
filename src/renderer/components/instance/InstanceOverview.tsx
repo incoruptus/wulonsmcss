@@ -6,6 +6,7 @@ import { Field, Input } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { Card } from "@/components/ui/misc";
 import { InviteDialog } from "@/components/instance/InviteDialog";
+import { ReachabilityPanel } from "@/components/instance/ReachabilityPanel";
 import { useServer } from "@/stores/server";
 import { useConfig } from "@/stores/config";
 import * as worldsApi from "@/lib/worlds";
@@ -86,6 +87,14 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
           value={`${counts.mods} 个 Mod · ${counts.worlds} 个世界`}
         />
       </div>
+
+      <Card>
+        <div className="mb-3 flex items-center gap-2">
+          <Send className="size-4 text-gray-800" />
+          <h3 className="t-h-14 text-gray-1000">朋友能不能进来</h3>
+        </div>
+        <ReachabilityPanel port={instance.port} onInvite={() => setInviting(true)} />
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

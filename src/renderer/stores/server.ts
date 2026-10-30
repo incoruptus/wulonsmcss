@@ -5,6 +5,8 @@ import { parseLag, type LagEvent } from "@/lib/lag";
 
 interface ServerState {
   status: ServerStatus;
+  /** 世界加载完成（日志里出现 Done (x.xxxs)!）。开服体检、邀请按钮都等这个信号 */
+  ready: boolean;
   logs: LogEntry[];
   maxLogs: number;
   tps: number;
@@ -28,6 +30,7 @@ let nextId = 1;
 
 export const useServer = create<ServerState>((set, get) => ({
   status: "stopped",
+  ready: false,
   logs: [],
   maxLogs: 2000,
   tps: 20,
@@ -56,6 +59,8 @@ export const useServer = create<ServerState>((set, get) => ({
     if (prev === s) return;
     set({
       status: s,
+      // 只要不是 running，就不再算「已就绪」；下次 Done 再打开
+      ready: s === "running" ? get().ready : false,
       startedAt: s === "running" ? Date.now() : s === "stopped" ? null : get().startedAt,
       players: s === "stopped" ? [] : get().players,
     });
@@ -86,6 +91,10 @@ export const useServer = create<ServerState>((set, get) => ({
     const logs = get().logs;
     const next = [...logs, entry];
     set({ logs: next.length > get().maxLogs ? next.slice(-get().maxLogs) : next });
+
+    // 世界真的加载完了：Done (12.345s)! —— 这是「朋友现在能进」的唯一可靠信号
+    if (!get().ready && /Done \(\d+(?:\.\d+)?s\)!/.test(parsed.message)) set({ ready: true });
+    if (get().ready && /Stopping server/i.test(parsed.message)) set({ ready: false });
 
     // 玩家列表兜底：聊天行 / 加入离开
     const msg = parsed.message;

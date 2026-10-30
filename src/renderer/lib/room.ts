@@ -24,16 +24,23 @@ export interface RoomDescriptorV1 {
   v: 1;
   /** 房间/服务器名 */
   name: string;
-  /** 连接地址 host:port */
+  /** 连接地址 host:port（主地址，旧客户端只认这个） */
   addr: string;
   /** 房主的内网地址（同一 WiFi 时优先用，快很多）；可选 */
   lan?: string;
+  /**
+   * 候选地址（新码才有，旧解码器会忽略）。
+   * 玩家端按「局域网 → IPv6 → 公网 → 隧道」自动挑最快的一条，不再让服主做选择题。
+   */
+  addrs?: { k: string; host: string; port: number }[];
   /** Minecraft 版本 */
   mc: string;
   /** 服务端核心 */
   loader: string;
   /** 加载器版本（fabric 导出 mrpack 时需要） */
   lv?: string;
+  /** 需要的 Java 主版本（26.1+ = 25）；缺省时由 mc 推导 */
+  java?: number;
   /** 需要的客户端 Mod（按 Modrinth 版本锁定） */
   mods: RoomModRef[];
   /** 过期时间（毫秒时间戳），0/缺省 = 不过期 */
@@ -44,7 +51,7 @@ export interface RoomDescriptorV1 {
 
 const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-function toB64Url(bytes: Uint8Array): string {
+export function toB64Url(bytes: Uint8Array): string {
   let out = "";
   for (let i = 0; i < bytes.length; i += 3) {
     const a = bytes[i];
@@ -60,7 +67,7 @@ function toB64Url(bytes: Uint8Array): string {
   return out;
 }
 
-function fromB64Url(s: string): Uint8Array {
+export function fromB64Url(s: string): Uint8Array {
   const clean = s.replace(/[^A-Za-z0-9\-_]/g, "");
   const out: number[] = [];
   let buf = 0;
@@ -79,7 +86,7 @@ function fromB64Url(s: string): Uint8Array {
 }
 
 /** FNV-1a，用于校验（不防篡改，只防手抄错） */
-function hash6(text: string): string {
+export function hash6(text: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {
     h ^= text.charCodeAt(i);
@@ -88,7 +95,7 @@ function hash6(text: string): string {
   return h.toString(36).padStart(7, "0").slice(-6);
 }
 
-async function deflate(bytes: Uint8Array): Promise<Uint8Array | null> {
+export async function deflate(bytes: Uint8Array): Promise<Uint8Array | null> {
   if (typeof CompressionStream === "undefined") return null;
   try {
     const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"));
@@ -98,7 +105,7 @@ async function deflate(bytes: Uint8Array): Promise<Uint8Array | null> {
   }
 }
 
-async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
+export async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream === "undefined") throw new Error("当前环境不支持解压");
   const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -182,9 +189,11 @@ export function roomShareText(room: RoomDescriptorV1, code: string, origin?: str
   const loader = LOADER_NAME[room.loader] ?? room.loader;
   const lines = [
     `来一起玩「${room.name}」吧！`,
-    `地址：${room.addr}`,
-    `版本：Minecraft ${room.mc}${loader ? ` · ${loader}` : ""}`,
+    `外网：${room.addr}`,
   ];
+  if (room.lan && room.lan !== room.addr) lines.push(`同一 WiFi：${room.lan}（同 WiFi 时优先用这个，快很多）`);
+  if (room.addrs?.length) lines.push(`地址一共 ${room.addrs.length} 条，进服时会自动挑最快的一条`);
+  lines.push(`版本：Minecraft ${room.mc}${loader ? ` · ${loader}` : ""}`);
   if (room.mods.length) lines.push(`朋友要准备：${room.mods.length} 个 Mod（打开链接会自动准备）`);
   lines.push("");
   if (origin) {

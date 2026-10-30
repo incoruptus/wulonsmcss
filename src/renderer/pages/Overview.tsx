@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import {
   Clock,
   Terminal,
-  Copy,
   FolderOpen,
   Gauge,
   Link2,
@@ -15,8 +14,6 @@ import {
   Server,
   Settings2,
   Square,
-  Users,
-  Wifi,
   Zap,
 } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
@@ -24,12 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
-import { copyText, formatBytes, formatDuration, formatDateTime } from "@/lib/utils";
-import { clientRequirementOf, contentKindOf, serverTypeLabel, serverTypeOf } from "@/lib/config-model";
+import { formatBytes, formatDuration, formatDateTime } from "@/lib/utils";import { clientRequirementOf, contentKindOf, serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 import { describeLag } from "@/lib/lag";
 import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { InviteDialog } from "@/components/instance/InviteDialog";
+import { ReachabilityPanel } from "@/components/instance/ReachabilityPanel";
 import { StopServerDialog } from "@/components/instance/StopServerDialog";
 
 /**
@@ -57,8 +54,6 @@ export default function Overview() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [stopOpen, setStopOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [lanIp, setLanIp] = useState("");
-  const [frp, setFrp] = useState<{ running: boolean; address?: string }>({ running: false });
   const [busy, setBusy] = useState<string | null>(null);
 
   const active = useMemo(() => instances.find((i) => i.id === activeId) ?? instances[0], [instances, activeId]);
@@ -79,11 +74,6 @@ export default function Overview() {
     const t = setInterval(tick, 5000);
     return () => clearInterval(t);
   }, [running, setMemory]);
-
-  useEffect(() => {
-    void window.mcss.app.lanAddress().then((r) => setLanIp(r.ip)).catch(() => setLanIp(""));
-    void window.mcss.frp.status().then(setFrp).catch(() => setFrp({ running: false }));
-  }, [active?.id]);
 
   async function toggle() {
     if (!active) return;
@@ -129,7 +119,6 @@ export default function Overview() {
 
   const serverType = serverTypeOf(active);
   const uptime = running && startedAt ? Math.floor((now - startedAt) / 1000) : 0;
-  const address = `${lanIp || "127.0.0.1"}:${active.port}`;
   const memMaxBytes = Math.max(1, active.memoryMax) * 1024 ** 3;
   const memPct = Math.min(100, Math.round((memoryUsed / memMaxBytes) * 100));
 
@@ -232,11 +221,11 @@ export default function Overview() {
             </div>
           </Card>
 
-          {/* 邀请与联机 */}
+          {/* 朋友能不能进来：把「连不上」变成可解释的结论 */}
           <Card>
             <CardHead
               icon={<Link2 className="size-4" />}
-              title="邀请与快速配置联机"
+              title="朋友能不能进来"
               action={
                 <Button variant="ghost" size="sm" onClick={() => navigate("/network")}>
                   联机设置
@@ -244,42 +233,10 @@ export default function Overview() {
               }
             />
             <div className="mt-3 space-y-2.5">
-              <div className="rounded-lg bg-background-100 p-2.5 shadow-geist-border">
-                <div className="flex items-center gap-1.5 t-label-12 text-gray-800">
-                  <Wifi className="size-3.5" />
-                  同一 WiFi 直接用这个
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <span className="t-mono-12 truncate text-gray-1000">{address}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
-                      const ok = await copyText(address);
-                      toast[ok ? "success" : "error"](ok ? "地址已复制" : "复制失败");
-                    }}
-                  >
-                    <Copy className="size-3.5" />
-                    复制
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between t-label-13">
-                <span className="text-gray-800">外网穿透</span>
-                <span className={frp.running ? "text-green-900" : "text-gray-700"}>
-                  {frp.running ? frp.address || "已开启" : "未开启"}
-                </span>
-              </div>
-
+              <ReachabilityPanel port={active.port} onInvite={() => setInviteOpen(true)} notify />
               <p className="t-label-12 text-gray-800">
                 朋友要装什么：<span className="text-gray-1000">{clientRequirementOf(serverType)}</span>
               </p>
-
-              <Button className="w-full" onClick={() => setInviteOpen(true)}>
-                <Users className="size-4" />
-                生成邀请（房间码 / 链接）
-              </Button>
             </div>
           </Card>
 
