@@ -162,7 +162,7 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
               onValueChange={(v) => setServerType(v as ServerType)}
               options={(["vanilla", "fabric", "forge", "neoforge", "paper", "purpur"] as ServerType[]).map((t) => ({
                 value: t,
-                label: serverTypeLabel(t),
+                label: t === "neoforge" ? "NeoForge（仅导入）" : serverTypeLabel(t),
               }))}
             />
           </Field>

@@ -185,13 +185,8 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
 
   function chooseVersion(v: string) {
     setMcVersion(v);
-    if (intent === "mods") {
-      setCore((c) => {
-        if (v === "1.21.1" && c === "fabric") return "neoforge";
-        if (v !== "1.21.1" && c === "neoforge") return "fabric";
-        return c;
-      });
-    }
+    // NeoForge 暂不支持新建；模组平台始终留在 Fabric
+    if (intent === "mods") setCore("fabric");
   }
 
   async function detectJava() {
@@ -215,7 +210,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
         mc: mcVersion,
         serverType: core,
         loaderVersion: core === "fabric" ? build : undefined,
-        build: core === "paper" || core === "purpur" || core === "forge" || core === "neoforge" ? build : undefined,
+        build: core === "paper" || core === "purpur" || core === "forge" ? build : undefined,
         javaPath: chosenJava.path,
       });
       if (!res.ok) throw new Error(res.error || "安装失败");
@@ -365,8 +360,8 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                   <span className="t-h-14 text-gray-1000">选模组平台</span>
                   <span className="t-label-12 text-gray-700">朋友也要装同样的平台</span>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {CORES.filter((c) => c.intents.includes("mods") && (c.type === "fabric" || c.type === "neoforge")).map((c) => (
+                <div className="grid gap-2">
+                  {CORES.filter((c) => c.type === "fabric" && c.supported !== false).map((c) => (
                     <button
                       key={c.type}
                       onClick={() => setCore(c.type)}
@@ -384,6 +379,9 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 t-label-12 leading-5 text-gray-700">
+                  NeoForge 新建暂不支持（安装器还不稳定）。已有 NeoForge 服务器可以在「全部实例 → 导入」里继续管理。
+                </p>
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-200 px-3 py-2">

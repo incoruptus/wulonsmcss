@@ -360,6 +360,14 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
 
   const type = serverType || loader || "vanilla";
 
+  // 用户决定：NeoForge 新建先关掉，别让新手撞上安装器/网络问题。
+  // 已有的 NeoForge 目录仍可导入、预检、启动（argsfile 逻辑不变）。
+  if (type === "neoforge") {
+    throw new Error(
+      "NeoForge 新建暂不支持（安装器还不稳定）。已有 NeoForge 服务器可以用「全部实例 → 导入」接进来继续管理。",
+    );
+  }
+
   // Forge / NeoForge 要跑安装器（--installServer）。判据是产物不是退出码：
   // 安装器历史上出现过"退出码 0 但没装成"，所以只认 win_args.txt 有没有生成。
   if (type === "forge" || type === "neoforge") {

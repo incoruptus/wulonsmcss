@@ -1,7 +1,8 @@
-# Forge / NeoForge 接入设计（未完成）
+# Forge / NeoForge 接入设计
 
-> 只差这一块，⑧「服务端核心 provider」就齐了。这一页是给下一轮直接开工用的：
-> 所有会踩的坑都已经踩过一遍（探测端点、启动方式、阻塞点）。
+> **2026-10-30 当前状态**：Forge 新建已支持（真机装过）；**NeoForge 新建按产品决定暂停**，
+> 已有 NeoForge 目录仍可导入、预检、启动。下面保留的是接入时的设计记录，
+> 其中“未完成/未做”的勾选是历史状态，不是当前代码状态。
 
 ## 1. 现实约束（实测）
 
@@ -72,16 +73,16 @@ java @user_jvm_args.txt @libraries/net/neoforged/neoforge/<ver>/win_args.txt nog
 | argsfile 启动（`user_jvm_args.txt` + `win_args.txt`） | ✅ 两侧 | `electron/ipc/server.js` 的 `findArgsFile` / `agent` 的 `find_args_file` |
 | 版本列表（Forge 实测、NeoForge 网络不可达返回空） | ✅ | `versions.forgeBuilds` / `neoforgeBuilds` |
 | 拒绝静默误装（明确告知走导入） | ✅ 两侧 | `installServer` / `install_server` 入口 |
-| **安装器流程（下载 installer → `--installServer` → 验 `win_args.txt`）** | ⬜ **未做** | 落地后即可把 Forge/NeoForge 放进新建实例的核心列表 |
+| 安装器流程（下载 installer → `--installServer` → 验 `win_args.txt`） | ✅ Forge；NeoForge 新建暂停 | `installServer` / `install_server`（NeoForge 入口会明确拒绝并提示导入） |
 
 
 ## 5. 接入后要补的验收
 
-- [ ] 新建实例的核心里出现 Forge / NeoForge（当前刻意只放 4 个，避免假按钮）
-- [ ] 装 Forge 26.1.2 真跑一次安装器，`win_args.txt` 真的生成
-- [ ] 用 argsfile 方式启动到 `Done (x.xs)!`
-- [ ] agent 侧同样装一次、起一次（网页版不落后）
-- [ ] `versions:detect-server` 对这两种目录已经能认（**已实现，无需改动**）
+- [x] 新建实例的核心里出现 Forge（NeoForge 暂不支持新建）
+- [x] 装 Forge 26.1.2 真跑一次安装器，`win_args.txt` 真的生成
+- [x] 用 argsfile 方式启动到 `Done (x.xs)!`
+- [x] agent 侧同样装一次、起一次（网页版不落后）
+- [x] `versions:detect-server` 对这两种目录已经能认（NeoForge 用于导入）
 
 ## 6. 已知风险
 

@@ -45,7 +45,8 @@
 
 **工程**
 - 网页版能力对齐 **100%**（71 个通道，`scripts/check-parity.cjs` 守门，`pnpm test` 里 `--strict`）
-- 测试：157 vitest + 63 node:test + 15 Rust；另有 `scripts/web-e2e.cjs` 11/11
+- 测试：157 vitest + 64 node:test + 15 Rust；另有 `scripts/web-e2e.cjs` 11/11
+- NeoForge 新建暂不支持；已有 NeoForge 目录仍可导入/预检/启动
 - 增量备份「时间机」：sha1 内容寻址，磁盘 ≈ 一份世界 + 改动（Rust 自带零依赖 SHA-1）
 - 下载链路：断点续传 / 多源回退 / 哈希校验 / 缓存命中
 - 多世界生成逻辑在渲染层实现，CLI / 桌面 / 网页共用同一份代码

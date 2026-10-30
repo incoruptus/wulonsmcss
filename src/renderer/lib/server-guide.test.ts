@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CORES,
   INTENTS,
   buildVersionPresets,
   clientRequirementText,
@@ -29,10 +30,12 @@ describe("开服向导的人话推荐", () => {
     expect(recommendedVersion("mods", presets)).toBe("1.21.11");
   });
 
-  it("1.21.11 用 Fabric，只有 1.21.1 才默认 NeoForge（回归：前缀误判）", () => {
+  it("模组平台只推荐 Fabric；NeoForge 暂不支持新建", () => {
     expect(recommendedCore("mods", "1.21.11")).toBe("fabric");
-    expect(recommendedCore("mods", "1.21.1")).toBe("neoforge");
+    expect(recommendedCore("mods", "1.21.1")).toBe("fabric");
     expect(recommendedCore("mods", "26.3")).toBe("fabric");
+    expect(CORES.find((c) => c.type === "neoforge")?.supported).toBe(false);
+    expect(coreMeta("neoforge")?.caveat).toContain("暂不支持");
   });
 
   it("每种意图都有可选，且不把核心黑话直接给用户", () => {

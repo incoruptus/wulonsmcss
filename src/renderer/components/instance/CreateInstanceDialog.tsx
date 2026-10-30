@@ -207,7 +207,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
               coreInfo
                 ? `${coreInfo.client}。${coreInfo.caveat}${
                     kind === "mod" && mcVersion.startsWith("26.")
-                      ? "；26.x 的模组还少，建议 1.21.11（Fabric）或 1.21.1（NeoForge）"
+                      ? "；26.x 的模组还少，建议 1.21.11 或 1.21.1 + Fabric"
                       : ""
                   }`
                 : "决定能装插件还是模组"
@@ -216,8 +216,14 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
             <Picker
               value={serverType}
               onValueChange={(v) => setServerType(v as ServerType)}
-              options={GUIDE_CORES.map((c) => ({ value: c.type, label: `${c.label} — ${c.tagline}` }))}
+              options={GUIDE_CORES.filter((c) => c.supported !== false).map((c) => ({
+                value: c.type,
+                label: `${c.label} — ${c.tagline}`,
+              }))}
             />
+            <p className="mt-1 t-label-12 text-gray-700">
+              NeoForge 新建暂不支持；已有 NeoForge 服务器请用「导入」。
+            </p>
           </Field>
           <Field
             label={kind === "plugin" ? "构建号" : "Fabric Loader"}

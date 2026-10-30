@@ -164,15 +164,22 @@ test("探测：空目录返回 null，不抛错", () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("Forge/NeoForge 安装前必须知道 Java：没给就明确拒绝，且不落任何文件", async () => {
+test("Forge 安装前必须知道 Java：没给就明确拒绝，且不落任何文件", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-install-"));
-  for (const t of ["forge", "neoforge"]) {
-    await assert.rejects(
-      () => versions.installServer({ dir, mc: "26.1.2", serverType: t }),
-      /需要先指定 Java/,
-      `${t} 应该明确要求 Java`,
-    );
-  }
+  await assert.rejects(
+    () => versions.installServer({ dir, mc: "26.1.2", serverType: "forge" }),
+    /需要先指定 Java/,
+  );
+  assert.deepStrictEqual(fs.readdirSync(dir), []);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("NeoForge 新建暂不支持：明确拒绝，不落文件", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-nf-"));
+  await assert.rejects(
+    () => versions.installServer({ dir, mc: "1.21.1", serverType: "neoforge", javaPath: "java" }),
+    /NeoForge 新建暂不支持/,
+  );
   assert.deepStrictEqual(fs.readdirSync(dir), []);
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -189,22 +196,12 @@ test("Forge 版本解析：走 promotions_slim（有网时）", async (t) => {
   for (const v of got) assert.strictEqual(typeof v, "string");
 });
 
-test("NeoForge 连不上时要说「连不上」，而不是「没有这个版本」", async () => {
-  // 这台机器上 maven.neoforged.net 被解析到错误地址（DNS 污染），
-  // 报"没有这个版本"会误导用户以为版本不存在
-  const restore = stubFetch(null);
-  global.fetch = async () => {
-    throw new Error("getaddrinfo ENOTFOUND");
-  };
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-nf-"));
-  try {
-    await assert.rejects(
-      () => versions.installServer({ dir, mc: "26.1.2", serverType: "neoforge", javaPath: "java" }),
-      /maven\.neoforged\.net/,
-      "错误信息应指明是网络问题",
-    );
-  } finally {
-    restore();
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+test("NeoForge 目录仍可被识别并导入", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-nf-detect-"));
+  const args = path.join(dir, "libraries", "net", "neoforged", "neoforge", "1.21.1", "win_args.txt");
+  fs.mkdirSync(path.dirname(args), { recursive: true });
+  fs.writeFileSync(args, "x");
+  const info = versions.detectServer(dir);
+  assert.equal(info?.serverType, "neoforge");
+  fs.rmSync(dir, { recursive: true, force: true });
 });

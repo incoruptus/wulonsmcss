@@ -34,7 +34,7 @@ export const INTENTS: IntentOption[] = [
     id: "mods",
     title: "加模组，改游戏内容",
     subtitle: "新物品、机械、魔法、整合包",
-    points: ["朋友也要装同样的模组", "需要 Fabric 或 NeoForge", "版本要选模组多的"],
+    points: ["朋友也要装同样的模组", "需要 Fabric（NeoForge 暂不支持新建）", "版本要选模组多的"],
   },
 ];
 
@@ -49,6 +49,8 @@ export interface CoreMeta {
   caveat: string;
   /** 适合的意图 */
   intents: ServerIntent[];
+  /** 是否允许新建；未标记 = 支持。已有实例仍可导入/启动 */
+  supported?: boolean;
 }
 
 export const CORES: CoreMeta[] = [
@@ -81,8 +83,9 @@ export const CORES: CoreMeta[] = [
     label: "NeoForge",
     tagline: "大型整合包/科技魔法模组常用",
     client: "要装 NeoForge + 同样的模组",
-    caveat: "新版本生态还在跟进；26.x 上模组比 1.21.x 少很多",
+    caveat: "新建暂不支持（安装器还不稳定）；已有 NeoForge 服务器可从「全部实例 → 导入」继续管理",
     intents: ["mods"],
+    supported: false,
   },
   {
     type: "forge",
@@ -161,7 +164,7 @@ export function recommendedVersion(intent: ServerIntent, presets: VersionPreset[
 
 /** 意图 + 版本 → 默认核心 */
 export function recommendedCore(intent: ServerIntent, mcVersion: string): ServerType {
-  if (intent === "mods") return mcVersion === "1.21.1" ? "neoforge" : "fabric";
+  if (intent === "mods") return "fabric";
   return "paper";
 }
 
@@ -187,7 +190,7 @@ export const TERMS = {
   },
   core: {
     label: "服务端核心",
-    detail: "决定这个服能装插件还是模组。Paper 能装插件；Fabric/NeoForge 能装模组；Vanilla 两个都不能。",
+    detail: "决定这个服能装插件还是模组。Paper 能装插件；Fabric/Forge 能装模组；NeoForge 暂只支持导入已有服务器；Vanilla 两个都不能。",
   },
   eula: {
     label: "Minecraft 使用条款（EULA）",

@@ -2736,6 +2736,10 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         );
     };
 
+    if loader == "neoforge" {
+        return Err("NeoForge 新建暂不支持（安装器还不稳定）。已有 NeoForge 服务器可以用「全部实例 → 导入」接进来继续管理。".into());
+    }
+
     if loader == "forge" || loader == "neoforge" {
         let java = opts.get("javaPath").and_then(|v| v.str()).unwrap_or("");
         if java.is_empty() {

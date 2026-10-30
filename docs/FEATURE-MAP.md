@@ -30,7 +30,7 @@
 
 | # | 功能 | 入口 | 实现 | 测试 | 状态 / 边界 |
 |---|---|---|---|---|---|
-| 1 | 建服（Vanilla/Fabric/Paper/Purpur/Forge/NeoForge） | 新建服务器 / 首次向导 | `electron/ipc/versions.js`、`CreateInstanceDialog`、`FirstRunWizard` | versions 12 例 + 真机 Paper/Forge 装过 | ✅ 六家都实现了；NeoForge 受 maven 网络影响（本机 DNS 污染时明确报错） |
+| 1 | 建服（Vanilla/Fabric/Paper/Purpur/Forge） | 新建服务器 / 首次向导 | `electron/ipc/versions.js`、`CreateInstanceDialog`、`FirstRunWizard` | versions 13 例 + 真机 Paper/Forge 装过 | ✅ 五家可新建；**NeoForge 新建暂不支持**（安装器不稳定），已有目录可导入/启动 |
 | 2 | 开服前预检（Java/jar/EULA/端口/数据包/内存/磁盘） | 启动按钮 | `preflight.js`、`PreflightDialog` | preflight 5 例 + 真机 | ✅；EULA 现在是**显式同意**，端口可弹窗内改，jar 缺失不再给假“修复” |
 | 3 | 启停/控制台 | 侧栏控制台 | `server.js`、`ConsoleTab` | server 3 例 + smoke | ✅ 日志分级/搜索/导出/补全/卡顿/崩溃诊断；右键菜单仅桌面 |
 | 4 | 配置 | 侧栏配置 | `ConfigTab` + `server-properties` | 新增词典测试 | ✅ 7 文本键 + 3 枚举 + 11 开关已中文化；未覆盖的键仍可进「原始文件（高级）」 |
@@ -55,7 +55,7 @@
 
 - `pnpm test`：vitest 20 文件（含新增 java/server-guide/server-properties/zh-names）+ node:test（含 download/client/config/preflight/server/serversdat/files/backups/schedule/slp/versions/aidiag）+ parity + download contract。
 - 真机：Paper 26.1.2 / Forge 26.1.2 安装、代理目录、打包版首次运行、网页版 agent 端到端、截图探针（黑屏判定）。
-- 未验证：NeoForge 真实安装（网络）、真实微软登录、真实 Gist、移动端真机、定时任务跨天。
+- 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天。
 
 ## 4. 已知空壳/死路（本轮处理）
 
@@ -83,6 +83,6 @@
 | `PROJECT.md` | 129/38 测试、v28 | 现在 144+ vitest / 58+ node / 15 Rust（以 `pnpm test` 为准） |
 | `ROADMAP.md` | 阶段 C 未做 | `client:launch` 已实现，真机进程存活验证过 |
 | `agent/README.md` | 大量“还没做” | 那些通道都实现了 |
-| `docs/FORGE-NEOFORGE.md` | 安装器未做 | 已实现并真机装过 |
+| `docs/FORGE-NEOFORGE.md` | 安装器未做 | Forge 已实现并真机装过；NeoForge 新建暂停，已有目录可导入 |
 | `docs/SERVER-TYPES.md` | 只支持 `java -jar` | argsfile 启动已支持 |
 | `docs/ZH-NAMES.md` | 204KB | 实际约 204KB（208,627 字节，5338 条） |

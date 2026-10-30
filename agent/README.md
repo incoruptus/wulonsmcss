@@ -80,7 +80,7 @@ node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未
 
 - 自动下载/安装 Java（只做探测与“去哪儿下载”的指引）
 - 微软账号登录（客户端启动仍是离线身份）
-- 真实 Gist / NeoForge / 移动端等环境性验证（见 `docs/REVIEW-2026-10-30.md`）
+- NeoForge 新建（已按产品决定暂停，仅支持导入已有目录）；真实 Gist / 移动端等环境性验证（见 `docs/REVIEW-2026-10-30.md`）
 - Windows 防火墙提示与开机自启
 
 > `versions:*`、`modrinth:*`、`worlds:*`、`mods:*`、`frp:*`、`backup:*`、`ai:export-bundle`
