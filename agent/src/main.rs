@@ -2172,9 +2172,9 @@ fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
         issues.push(issue(
             "jar-missing",
             "error",
-            "找不到服务端 jar",
-            &format!("在 {dir} 下既没有 Forge/NeoForge 的启动参数文件，也没有 fabric-server-launch.jar / server.jar"),
-            Some("reinstall"),
+            "服务端文件不完整",
+            &format!("在 {dir} 下没找到 server.jar / fabric-server-launch.jar，也没有 Forge/NeoForge 的启动参数。需要在「服务器设置」里重新安装服务端，或新建一个服务器。"),
+            None,
         ));
     }
 
@@ -2200,8 +2200,8 @@ fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
                     "memory-too-high",
                     "warn",
                     &format!("最大内存 {max_gb:.0}G 超过物理内存"),
-                    &format!("本机只有约 {total:.0}G，设这么高容易触发系统换页反而更卡"),
-                    Some("lower-memory"),
+                    &format!("本机只有约 {total:.0}G。请在服务器设置里把最大内存调到 {:.0}G 或更低；设太高会触发系统换页，反而更卡。", (total - 2.0).max(2.0)),
+                    None,
                 ));
             }
         }
