@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Check, Coffee, Download, FolderOpen, Play, Puzzl
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Slider } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { Badge, SegmentedControl } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
@@ -155,9 +155,9 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
 
   function finish(then?: "library" | "network" | "open") {
     onDone();
-    if (then === "library") navigate("/library");
+    if (then === "library") navigate(createdId ? `/instances/${createdId}/content?view=browse` : "/instances");
     else if (then === "network") navigate("/network");
-    else if (then === "open" && createdId) navigate(`/instances/${createdId}`);
+    else if (then === "open" && createdId) navigate("/");
   }
 
   const canNext = step === 0 ? Boolean(javaPath) : step === 1 ? Boolean(mcVersion && name.trim()) : true;
@@ -255,27 +255,23 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="和朋友一起玩" />
               </Field>
               <Field label="Minecraft 版本">
-                <Select
+                <Picker
                   value={mcVersion}
-                  onChange={(e) => setMcVersion(e.target.value)}
+                  onValueChange={setMcVersion}
                   options={releaseOptions.length ? releaseOptions : [{ value: "", label: "加载中…" }]}
                 />
               </Field>
             </div>
 
             <Field label="服务端核心" hint={CORE_HINTS[loader]}>
-              <Select
-                value={loader}
-                onChange={(e) => setLoader(e.target.value as ServerType)}
-                options={CORE_OPTIONS}
-              />
+              <Picker value={loader} onValueChange={(v) => setLoader(v as ServerType)} options={CORE_OPTIONS} />
             </Field>
 
             {loader !== "vanilla" ? (
               <Field label={loader === "fabric" ? "Fabric Loader" : "核心版本"}>
-                <Select
+                <Picker
                   value={loaderVersion}
-                  onChange={(e) => setLoaderVersion(e.target.value)}
+                  onValueChange={setLoaderVersion}
                   options={loaders.length ? loaders.map((l) => ({ value: l, label: l })) : [{ value: "", label: "—" }]}
                 />
               </Field>

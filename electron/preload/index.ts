@@ -88,8 +88,13 @@ contextBridge.exposeInMainWorld("mcss", {
   },
   modrinth: {
     search: (q: string, opts?: any) => invoke("modrinth:search", q, opts),
+    project: (projectId: string) => invoke("modrinth:project", projectId),
+    translate: (projectId: string) => invoke("modrinth:translate", projectId),
     versions: (projectId: string, opts?: any) => invoke("modrinth:versions", projectId, opts),
     install: (opts: any) => invoke("modrinth:install", opts)
+  },
+  translate: {
+    text: (text: string, opts?: { from?: string; to?: string }) => invoke("translate:text", text, opts)
   },
   client: {
     prepare: (opts: any) => invoke("client:prepare", opts),

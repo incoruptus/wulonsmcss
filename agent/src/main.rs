@@ -1067,11 +1067,25 @@ fn get_json(url: &str) -> Result<Json, String> {
     Json::parse(&text).map_err(|e| format!("解析接口返回失败：{e}"))
 }
 
+/// Modrinth 官方直连，失败时走 MCIM 镜像（与桌面版一致）。
+/// `--fail` 很关键：404/500 时不能把错误页当 JSON 解析。
+fn modrinth_get(path: &str) -> Result<Json, String> {
+    let official = format!("https://api.modrinth.com/v2{path}");
+    let mirror = format!("https://mod.mcimirror.top/modrinth/v2{path}");
+    let fetch = |url: &str| -> Result<Json, String> {
+        let body = curl(&["-sf", "--max-time", "20", "-H", &format!("User-Agent: {UA}"), url])?;
+        let text = String::from_utf8_lossy(&body).to_string();
+        Json::parse(&text).map_err(|e| format!("解析接口返回失败：{e}"))
+    };
+    fetch(&official).or_else(|_| fetch(&mirror))
+}
+
 fn modrinth_search(query: &str, opts: Option<&Json>) -> Result<Json, String> {
     let limit = opts.and_then(|o| o.get("limit")).and_then(|v| v.num()).unwrap_or(20.0) as i32;
     let offset = opts.and_then(|o| o.get("offset")).and_then(|v| v.num()).unwrap_or(0.0) as i32;
     let mc = opts.and_then(|o| o.get("mcVersion")).and_then(|v| v.str());
     let loader = opts.and_then(|o| o.get("loader")).and_then(|v| v.str());
+    let sort = opts.and_then(|o| o.get("sort")).and_then(|v| v.str()).unwrap_or("relevance");
     let project_type = opts
         .and_then(|o| o.get("projectType"))
         .and_then(|v| v.str())
@@ -1084,24 +1098,56 @@ fn modrinth_search(query: &str, opts: Option<&Json>) -> Result<Json, String> {
     if let Some(loader) = loader {
         facets.push(format!(r#"["categories:{loader}"]"#));
     }
+    if let Some(cats) = opts.and_then(|o| o.get("categories")).and_then(|v| v.arr()) {
+        let list: Vec<String> = cats
+            .iter()
+            .filter_map(|c| c.str().map(|s| format!(r#""categories:{s}""#)))
+            .collect();
+        if !list.is_empty() {
+            facets.push(format!("[{}]", list.join(",")));
+        }
+    }
+    match opts.and_then(|o| o.get("environment")).and_then(|v| v.str()) {
+        Some("client") => facets.push(r#"["client_side:required"]"#.to_string()),
+        Some("server") => facets.push(r#"["server_side:required"]"#.to_string()),
+        Some("both") => {
+            facets.push(r#"["client_side:required"]"#.to_string());
+            facets.push(r#"["server_side:required"]"#.to_string());
+        }
+        _ => {}
+    }
     let facets_json = format!("[{}]", facets.join(","));
 
-    let url = format!(
-        "https://api.modrinth.com/v2/search?query={}&limit={limit}&offset={offset}&facets={}",
+    let path = format!(
+        "/search?query={}&limit={limit}&offset={offset}&index={sort}&facets={}",
         urlencode(query),
         urlencode(&facets_json)
     );
-    let json = get_json(&url)?;
+    let json = modrinth_get(&path)?;
 
     let mut hits = Vec::new();
     if let Some(list) = json.get("hits").and_then(|v| v.arr()) {
         for hit in list {
             let str_of = |k: &str| hit.get(k).and_then(|v| v.str()).unwrap_or("").to_string();
+            let opt_str = |k: &str| {
+                let s = str_of(k);
+                if s.is_empty() {
+                    Json::Null
+                } else {
+                    Json::s(&s)
+                }
+            };
             let categories = hit
                 .get("categories")
                 .and_then(|v| v.arr())
                 .map(|arr| arr.iter().filter_map(|c| c.str().map(Json::s)).collect())
                 .unwrap_or_default();
+            let strs_of = |k: &str| {
+                hit.get(k)
+                    .and_then(|v| v.arr())
+                    .map(|arr| arr.iter().filter_map(|s| s.str().map(Json::s)).collect::<Vec<_>>())
+                    .unwrap_or_default()
+            };
             hits.push(Json::obj(vec![
                 ("id", Json::s(&str_of("project_id"))),
                 ("slug", Json::s(&str_of("slug"))),
@@ -1109,8 +1155,15 @@ fn modrinth_search(query: &str, opts: Option<&Json>) -> Result<Json, String> {
                 ("description", Json::s(&str_of("description"))),
                 ("iconUrl", Json::s(&str_of("icon_url"))),
                 ("downloads", Json::n(hit.get("downloads").and_then(|v| v.num()).unwrap_or(0.0))),
+                ("follows", Json::n(hit.get("follows").and_then(|v| v.num()).unwrap_or(0.0))),
                 ("author", Json::s(&str_of("author"))),
                 ("categories", Json::Arr(categories)),
+                ("gameVersions", Json::Arr(strs_of("versions"))),
+                ("clientSide", opt_str("client_side")),
+                ("serverSide", opt_str("server_side")),
+                ("license", opt_str("license")),
+                ("dateModified", opt_str("date_modified")),
+                ("projectType", opt_str("project_type")),
             ]));
         }
     }
@@ -1121,19 +1174,192 @@ fn modrinth_search(query: &str, opts: Option<&Json>) -> Result<Json, String> {
     ]))
 }
 
+fn modrinth_project(project_id: &str) -> Result<Json, String> {
+    if project_id.is_empty() {
+        return Err("缺少项目 id".into());
+    }
+    let json = modrinth_get(&format!("/project/{}", urlencode(project_id)))?;
+    let str_of = |k: &str| json.get(k).and_then(|v| v.str()).unwrap_or("").to_string();
+    let opt_str = |k: &str| {
+        let s = str_of(k);
+        if s.is_empty() {
+            Json::Null
+        } else {
+            Json::s(&s)
+        }
+    };
+    let strs = |k: &str| {
+        json.get(k)
+            .and_then(|v| v.arr())
+            .map(|arr| arr.iter().filter_map(|s| s.str().map(Json::s)).collect::<Vec<_>>())
+            .unwrap_or_default()
+    };
+    Ok(Json::obj(vec![
+        ("id", Json::s(&str_of("id"))),
+        ("slug", Json::s(&str_of("slug"))),
+        ("title", Json::s(&str_of("title"))),
+        ("description", Json::s(&str_of("description"))),
+        ("body", Json::s(&str_of("body"))),
+        ("categories", Json::Arr(strs("categories"))),
+        ("additionalCategories", Json::Arr(strs("additional_categories"))),
+        ("clientSide", opt_str("client_side")),
+        ("serverSide", opt_str("server_side")),
+        ("downloads", Json::n(json.get("downloads").and_then(|v| v.num()).unwrap_or(0.0))),
+        ("followers", Json::n(json.get("followers").and_then(|v| v.num()).unwrap_or(0.0))),
+        ("iconUrl", opt_str("icon_url")),
+        ("gallery", Json::Arr(strs("gallery"))),
+        ("published", opt_str("published")),
+        ("updated", opt_str("updated")),
+        ("license", json.get("license").cloned().unwrap_or(Json::Null)),
+        ("sourceUrl", opt_str("source_url")),
+        ("issuesUrl", opt_str("issues_url")),
+        ("wikiUrl", opt_str("wiki_url")),
+        ("discordUrl", opt_str("discord_url")),
+        ("projectType", opt_str("project_type")),
+        ("loaders", Json::Arr(strs("loaders"))),
+        ("gameVersions", Json::Arr(strs("game_versions"))),
+    ]))
+}
+
+/// 中文简介：MCIM 机翻；没有译文不算错误，返回 null 让界面回退英文
+fn modrinth_translate(project_id: &str) -> Result<Json, String> {
+    if project_id.is_empty() {
+        return Ok(Json::Null);
+    }
+    let url = format!(
+        "https://mod.mcimirror.top/translate/modrinth?project_id={}",
+        urlencode(project_id)
+    );
+    let body = curl(&["-sf", "--max-time", "12", "-H", &format!("User-Agent: {UA}"), &url]);
+    let Ok(body) = body else { return Ok(Json::Null) };
+    let text = String::from_utf8_lossy(&body).to_string();
+    let Ok(json) = Json::parse(&text) else { return Ok(Json::Null) };
+    let translated = json.get("translated").and_then(|v| v.str()).unwrap_or("");
+    if translated.trim().is_empty() {
+        return Ok(Json::Null);
+    }
+    Ok(Json::obj(vec![
+        ("translated", Json::s(translated)),
+        ("original", Json::s(json.get("original").and_then(|v| v.str()).unwrap_or(""))),
+        ("at", Json::s(json.get("translated_at").and_then(|v| v.str()).unwrap_or(""))),
+        ("engine", Json::s("mcim")),
+    ]))
+}
+
+fn cjk_count(text: &str) -> usize {
+    text.chars()
+        .filter(|c| ('\u{3400}'..='\u{9fff}').contains(c))
+        .count()
+}
+
+fn split_utf8_chunks(text: &str, max: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in text.split('\n') {
+        if line.chars().count() <= max {
+            out.push(line.to_string());
+            continue;
+        }
+        let mut rest: Vec<char> = line.chars().collect();
+        while rest.len() > max {
+            let piece: String = rest[..max].iter().collect();
+            out.push(piece);
+            rest = rest[max..].to_vec();
+        }
+        out.push(rest.iter().collect());
+    }
+    out
+}
+
+/// 任意文本机翻：MyMemory 为主（国内可达），Google 兜底
+fn translate_text(text: &str, opts: Option<&Json>) -> Result<Json, String> {
+    let raw = text.trim();
+    if raw.is_empty() {
+        return Ok(Json::obj(vec![("text", Json::s("")), ("engine", Json::s("none"))]));
+    }
+    let chars = raw.chars().count();
+    let truncated = chars > 2000;
+    let input: String = if truncated { raw.chars().take(2000).collect() } else { raw.to_string() };
+    let cjk = cjk_count(&input) as f64 / input.chars().count().max(1) as f64;
+    let target = opts
+        .and_then(|o| o.get("to"))
+        .and_then(|v| v.str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| if cjk > 0.2 { "en".into() } else { "zh-CN".into() });
+    let source = opts
+        .and_then(|o| o.get("from"))
+        .and_then(|v| v.str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| if target == "en" { "zh-CN".into() } else { "en".into() });
+
+    let chunks = split_utf8_chunks(&input, 300);
+    let mut pieces = Vec::new();
+    let mut engine = "mymemory";
+    for chunk in &chunks {
+        if chunk.trim().is_empty() {
+            pieces.push(chunk.clone());
+            continue;
+        }
+        let pair = urlencode(&format!("{source}|{target}"));
+        let url = format!(
+            "https://api.mymemory.translated.net/get?q={}&langpair={pair}",
+            urlencode(chunk)
+        );
+        let mine = curl(&["-sf", "--max-time", "12", "-H", &format!("User-Agent: {UA}"), &url])
+            .ok()
+            .and_then(|b| Json::parse(&String::from_utf8_lossy(&b)).ok())
+            .and_then(|j| {
+                j.get("responseData")
+                    .and_then(|d| d.get("translatedText"))
+                    .and_then(|v| v.str())
+                    .map(|s| s.to_string())
+            })
+            .filter(|s| !s.trim().is_empty() && !s.contains("MYMEMORY WARNING"));
+        if let Some(hit) = mine {
+            pieces.push(hit);
+            continue;
+        }
+        engine = "google";
+        let url = format!(
+            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={}&dt=t&q={}",
+            urlencode(&target),
+            urlencode(chunk)
+        );
+        let body = curl(&["-sf", "--max-time", "8", "-H", &format!("User-Agent: {UA}"), &url])?;
+        let json = Json::parse(&String::from_utf8_lossy(&body))
+            .map_err(|_| "翻译服务返回格式不对".to_string())?;
+        let rows = json.arr().ok_or("翻译服务返回格式不对")?;
+        let segs = rows
+            .first()
+            .and_then(|v| v.arr())
+            .ok_or("翻译服务返回格式不对")?;
+        let mut line = String::new();
+        for seg in segs {
+            if let Some(first) = seg.arr().and_then(|parts| parts.first()).and_then(|v| v.str()) {
+                line.push_str(first);
+            }
+        }
+        pieces.push(line);
+    }
+    Ok(Json::obj(vec![
+        ("text", Json::s(&pieces.join("\n"))),
+        ("engine", Json::s(engine)),
+        ("truncated", Json::Bool(truncated)),
+    ]))
+}
+
 fn modrinth_versions(project_id: &str, opts: Option<&Json>) -> Result<Json, String> {
     let mc = opts.and_then(|o| o.get("mcVersion")).and_then(|v| v.str());
     let loader = opts.and_then(|o| o.get("loader")).and_then(|v| v.str());
 
-    let mut url = format!("https://api.modrinth.com/v2/project/{}/version?", urlencode(project_id));
+    let mut path = format!("/project/{}/version?", urlencode(project_id));
     if let Some(mc) = mc {
-        url.push_str(&format!("game_versions={}&", urlencode(&format!(r#"["{mc}"]"#))));
+        path.push_str(&format!("game_versions={}&", urlencode(&format!(r#"["{mc}"]"#))));
     }
     if let Some(loader) = loader {
-        url.push_str(&format!("loaders={}&", urlencode(&format!(r#"["{loader}"]"#))));
+        path.push_str(&format!("loaders={}&", urlencode(&format!(r#"["{loader}"]"#))));
     }
 
-    let json = get_json(&url)?;
+    let json = modrinth_get(&path)?;
     let list = json.arr().ok_or("接口返回格式不对")?;
 
     let mut out = Vec::new();
@@ -3541,8 +3767,11 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "versions:install" => install_server(shared, args.first().ok_or("缺少参数")?),
         "server:preflight" => preflight(shared, arg0),
         "modrinth:search" => modrinth_search(arg0, args.get(1)),
+        "modrinth:project" => modrinth_project(arg0),
+        "modrinth:translate" => modrinth_translate(arg0),
         "modrinth:versions" => modrinth_versions(arg0, args.get(1)),
         "modrinth:install" => modrinth_install(args.first().ok_or("缺少参数")?),
+        "translate:text" => translate_text(arg0, args.get(1)),
         "mods:scan" => scan_mods(arg0),
         "mods:disable" => toggle_mod(arg0, false),
         "mods:enable" => toggle_mod(arg0, true),

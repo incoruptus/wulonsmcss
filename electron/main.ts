@@ -627,6 +627,9 @@ ipcMain.handle("client:prepare", async (_e, opts) => {
 });
 
 ipcMain.handle("modrinth:search", (_e, q, opts) => modrinth.search(q, opts));
+ipcMain.handle("modrinth:project", (_e, projectId) => modrinth.project(projectId));
+ipcMain.handle("modrinth:translate", (_e, projectId) => modrinth.translateProject(projectId));
+ipcMain.handle("translate:text", (_e, text, opts) => modrinth.translateText(text, opts));
 ipcMain.handle("modrinth:versions", (_e, projectId, opts) => modrinth.versions(projectId, opts));
 ipcMain.handle("modrinth:install", async (_e, opts) => {
   try {

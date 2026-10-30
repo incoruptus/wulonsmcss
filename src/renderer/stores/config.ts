@@ -139,8 +139,12 @@ export function makeInstance(partial: Partial<Instance> & { name: string; dir: s
 
 export const CONFIG_SCHEMA = CONFIG_VERSION;
 
-/** 主题 / 强调色 → <html> 上的 class 与 CSS 变量 */
-export function applyAppearance(cfg: Pick<AppConfig, "theme" | "accent">) {
+/**
+ * 主题 → <html> 上的 class
+ * 强调色已经砍掉：工业软件不需要给每个用户配一套品牌色，
+ * 配色只保留 Geist 的蓝/灰语义。旧配置里的 accent 字段继续容忍（不读）。
+ */
+export function applyAppearance(cfg: Pick<AppConfig, "theme">) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
@@ -151,8 +155,4 @@ export function applyAppearance(cfg: Pick<AppConfig, "theme" | "accent">) {
   try {
     localStorage.setItem("mcss.dark", dark ? "1" : "0");
   } catch (e) {}
-  if (cfg.accent) {
-    root.setAttribute("data-accent", "custom");
-    root.style.setProperty("--ui-accent-hex", cfg.accent);
-  }
 }

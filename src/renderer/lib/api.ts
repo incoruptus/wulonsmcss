@@ -173,18 +173,69 @@ export interface McssApi {
       loader?: string;
       /** Modrinth 的 project_type：模组服查 mod，插件服查 plugin */
       projectType?: "mod" | "plugin" | "datapack";
+      /** 分类 facet（同一个数组内是 OR） */
+      categories?: string[];
+      /** 环境：客户端需要 / 服务端需要 / 双端都要 */
+      environment?: "client" | "server" | "both";
       limit?: number;
       offset?: number;
       sort?: string;
     }) => Promise<{
-      hits: { id: string; slug: string; title: string; description: string; iconUrl?: string; downloads: number; author?: string; categories: string[] }[];
+      hits: {
+        id: string;
+        slug: string;
+        title: string;
+        description: string;
+        iconUrl?: string;
+        downloads: number;
+        follows?: number;
+        author?: string;
+        categories: string[];
+        gameVersions?: string[];
+        clientSide?: string;
+        serverSide?: string;
+        license?: string;
+        dateModified?: string;
+        projectType?: string;
+      }[];
       total: number;
     }>;
+    project: (projectId: string) => Promise<{
+      id: string;
+      slug: string;
+      title: string;
+      description: string;
+      body: string;
+      categories: string[];
+      additionalCategories: string[];
+      clientSide?: string;
+      serverSide?: string;
+      downloads: number;
+      followers: number;
+      iconUrl?: string;
+      gallery: string[];
+      published?: string;
+      updated?: string;
+      license?: { id?: string; name?: string; url?: string };
+      sourceUrl?: string;
+      issuesUrl?: string;
+      wikiUrl?: string;
+      discordUrl?: string;
+      projectType: string;
+      loaders: string[];
+      gameVersions: string[];
+    }>;
+    /** 中文简介（MCIM 机翻）；没有译文时返回 null，界面回退英文 */
+    translate: (projectId: string) => Promise<{ translated: string; original: string; at?: string; engine: string } | null>;
     versions: (projectId: string, opts?: { mcVersion?: string; loader?: string }) => Promise<{
       id: string; name: string; versionNumber: string; gameVersions: string[]; loaders: string[]; datePublished: string;
       files: { url: string; filename: string; size: number; primary: boolean }[];
     }[]>;
     install: (opts: { dir: string; fileUrl: string; fileName: string; kind?: "mod" | "plugin" }) => Promise<{ ok: boolean; path?: string; error?: string }>;
+  };
+  translate: {
+    /** 任意文本机翻（MyMemory 为主，Google 兜底） */
+    text: (text: string, opts?: { from?: string; to?: string }) => Promise<{ text: string; engine: string; truncated?: boolean; cached?: boolean }>;
   };
   client: {
     prepare: (opts: { dir: string; mods: { p: string; v: string; n?: string }[] }) => Promise<{

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { FolderOpen, PackageSearch, Plug, RefreshCw, Search } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/button";
@@ -15,9 +14,8 @@ import { formatBytes } from "@/lib/utils";
  * 所以这里不出现"客户端比对""Modrinth 绑定"这些模组专属的东西，
  * 只回答三件事：装了什么、启用没有、从哪装。
  */
-export function PluginsTab({ instance }: { instance: Instance }) {
+export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrowse?: () => void }) {
   const pluginsDir = `${instance.dir}\\plugins`;
-  const navigate = useNavigate();
   const [files, setFiles] = useState<DirEntry[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,7 +70,7 @@ export function PluginsTab({ instance }: { instance: Instance }) {
           <RefreshCw className="size-3.5" />
           刷新
         </Button>
-        <Button size="sm" onClick={() => navigate("/library")}>
+        <Button size="sm" onClick={onBrowse} disabled={!onBrowse}>
           <PackageSearch className="size-3.5" />
           去资源库装
         </Button>
@@ -91,7 +89,11 @@ export function PluginsTab({ instance }: { instance: Instance }) {
             icon={<Plug className="size-5" />}
             title="还没有装插件"
             desc="地皮保护、传送、经济、权限这些都在「资源库」里，搜到点安装就会落到 plugins/。"
-            action={<Button onClick={() => navigate("/library")}>去资源库</Button>}
+            action={
+              <Button onClick={onBrowse} disabled={!onBrowse}>
+                去资源库
+              </Button>
+            }
           />
         </Card>
       ) : (

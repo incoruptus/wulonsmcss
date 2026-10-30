@@ -1,61 +1,36 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Play, Square, FolderOpen, ArrowLeft, Settings2 } from "lucide-react";
+import { Play, Square, FolderOpen, Settings2 } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
-import { cx } from "@/lib/utils";
 import { InstanceOverview } from "@/components/instance/InstanceOverview";
 import { ConsoleTab } from "@/components/instance/ConsoleTab";
 import { ConfigTab } from "@/components/instance/ConfigTab";
-import { ModsTab } from "@/components/instance/ModsTab";
-import { PluginsTab } from "@/components/instance/PluginsTab";
 import { WorldsTab } from "@/components/instance/WorldsTab";
 import { PlayersTab } from "@/components/instance/PlayersTab";
+import { ContentTab } from "@/components/instance/ContentTab";
 import { InstanceSettingsDialog } from "@/components/instance/InstanceSettingsDialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { InviteDialog } from "@/components/instance/InviteDialog";
-import { contentKindOf, serverTypeOf } from "@/lib/config-model";
 
-/** 标签页随核心类型变：插件服叫「插件」，模组服叫「模组」，原版叫「数据包」 */
-function tabsFor(instance: { serverType?: string; loader?: string }) {
-  const kind = contentKindOf(serverTypeOf(instance as never));
-  const contentLabel = kind === "plugin" ? "插件" : kind === "datapack" ? "数据包" : "模组";
-  return [
-    { id: "overview", label: "概览" },
-    { id: "console", label: "控制台" },
-    { id: "config", label: "配置" },
-    { id: "mods", label: contentLabel },
-    { id: "worlds", label: "世界" },
-    { id: "players", label: "玩家" },
-  ] as const;
-}
-
-type TabId = ReturnType<typeof tabsFor>[number]["id"];
+/** 侧栏能点的「当前实例的面」；URL 用同一个词，刷新/深链都不会丢 */
+const TABS = ["overview", "console", "config", "content", "worlds", "players"] as const;
+type TabId = (typeof TABS)[number];
 
 export default function InstanceDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id, tab } = useParams<{ id: string; tab?: string }>();
   const navigate = useNavigate();
   const instance = useConfig((s) => s.cfg.instances.find((i) => i.id === id));
   const setActive = useConfig((s) => s.setActiveInstance);
   const status = useServer((s) => s.status);
-  const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
-  // Tab 记在 URL 上：刷新/返回不丢，也能直接分享到某个 Tab
-  const tabs = tabsFor(instance ?? {});
-  const tabParam = searchParams.get("tab");
-  const tab: TabId = tabs.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
-  const setTab = (next: TabId) => {
-    const params = new URLSearchParams(searchParams);
-    if (next === "overview") params.delete("tab");
-    else params.set("tab", next);
-    setSearchParams(params, { replace: true });
-  };
+  const current: TabId = TABS.includes(tab as TabId) ? (tab as TabId) : "overview";
 
   useEffect(() => {
     if (id) void setActive(id);
@@ -65,7 +40,6 @@ export default function InstanceDetail() {
     return (
       <div className="p-10">
         <Button variant="secondary" onClick={() => navigate("/instances")}>
-          <ArrowLeft className="size-4" />
           返回实例列表
         </Button>
         <p className="t-label-13 mt-4 text-gray-800">找不到这个实例，可能已被删除。</p>
@@ -86,10 +60,7 @@ export default function InstanceDetail() {
   return (
     <>
       <div className="border-b border-gray-300 bg-background-100">
-        <div className="flex flex-wrap items-center gap-3 px-6 pb-3 pt-5">
-          <IconButton label="返回" size="sm" onClick={() => navigate("/instances")}>
-            <ArrowLeft className="size-4" />
-          </IconButton>
+        <div className="flex flex-wrap items-center gap-3 px-6 py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="t-h-20 truncate text-gray-1000">{instance.name}</h1>
@@ -104,49 +75,30 @@ export default function InstanceDetail() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setInviteOpen(true)}>
+              邀请
+            </Button>
             <IconButton label="打开服务器目录" onClick={() => window.mcss.app.openPath(instance.dir)}>
               <FolderOpen className="size-4" />
             </IconButton>
             <IconButton label="实例设置" onClick={() => setEditing(true)}>
               <Settings2 className="size-4" />
             </IconButton>
-            <Button variant={running ? "error" : "default"} onClick={toggle}>
+            <Button variant={running ? "error" : "default"} size="sm" onClick={toggle}>
               {running ? <Square className="size-4" /> : <Play className="size-4" />}
               {running ? "停止" : "启动"}
             </Button>
           </div>
         </div>
-
-        <div className="flex gap-1 px-5">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cx(
-                "relative px-3 py-2 t-label-13 transition-colors",
-                tab === t.id ? "text-gray-1000" : "text-gray-700 hover:text-gray-1000",
-              )}
-            >
-              {t.label}
-              {tab === t.id ? <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-1000" /> : null}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="px-6 py-5">
-        {tab === "overview" ? <InstanceOverview instance={instance} onEdit={() => setEditing(true)} /> : null}
-        {tab === "console" ? <ConsoleTab instance={instance} /> : null}
-        {tab === "config" ? <ConfigTab instance={instance} /> : null}
-        {tab === "mods" ? (
-          contentKindOf(serverTypeOf(instance)) === "plugin" ? (
-            <PluginsTab instance={instance} />
-          ) : (
-            <ModsTab instance={instance} />
-          )
-        ) : null}
-        {tab === "worlds" ? <WorldsTab instance={instance} /> : null}
-        {tab === "players" ? <PlayersTab instance={instance} /> : null}
+        {current === "overview" ? <InstanceOverview instance={instance} onEdit={() => setEditing(true)} /> : null}
+        {current === "console" ? <ConsoleTab instance={instance} /> : null}
+        {current === "config" ? <ConfigTab instance={instance} /> : null}
+        {current === "content" ? <ContentTab instance={instance} onEdit={() => setEditing(true)} /> : null}
+        {current === "worlds" ? <WorldsTab instance={instance} /> : null}
+        {current === "players" ? <PlayersTab instance={instance} /> : null}
       </div>
 
       <InstanceSettingsDialog open={editing} onOpenChange={setEditing} instance={instance} />

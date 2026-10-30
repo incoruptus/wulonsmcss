@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Copy, Globe2, Plus, Trash2 } from "lucide-react";
+import { Copy, Plus, Server, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
@@ -22,23 +23,22 @@ export default function MyServers() {
   const sorted = [...servers].sort((a, b) => (b.lastJoinedAt ?? 0) - (a.lastJoinedAt ?? 0));
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="t-h-24 text-gray-1000">我的服务器</h1>
-          <p className="t-label-13 mt-1 text-gray-800">你去过的、保存过的服。加入新服时勾一下「记住」，它就会出现在这里。</p>
-        </div>
-        <Button variant="secondary" onClick={() => navigate("/")}>
-          <Plus className="size-4" />
-          加入新服
-        </Button>
-      </div>
-
-      <div className="mt-5 space-y-2">
+    <>
+      <PageHeader
+        title="我的服务器"
+        desc="你去过的、保存过的服。加入新服时勾一下「记住」，它就会出现在这里。"
+        actions={
+          <Button variant="secondary" onClick={() => navigate("/")}>
+            <Plus className="size-4" />
+            加入新服
+          </Button>
+        }
+      />
+      <PageBody className="max-w-3xl space-y-2">
         {sorted.length === 0 ? (
           <Card>
             <EmptyState
-              icon={<Globe2 className="size-5" />}
+              icon={<Server className="size-5" />}
               title="还没有保存过服务器"
               desc="在「加入游戏」里粘贴一个房间码或地址，进去一次就会留在这里。"
               action={
@@ -53,7 +53,7 @@ export default function MyServers() {
               className="flex items-center gap-3 rounded-xl bg-background-100 px-4 py-3 shadow-geist-border"
             >
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-900">
-                <Globe2 className="size-4" />
+                <Server className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -91,7 +91,6 @@ export default function MyServers() {
             </div>
           ))
         )}
-      </div>
 
       {mode === "player" ? (
         <p className="mt-6 t-label-13 text-gray-800">
@@ -108,6 +107,7 @@ export default function MyServers() {
           （两边用的是同一套东西，随时切回来）。
         </p>
       ) : null}
-    </div>
+      </PageBody>
+    </>
   );
 }

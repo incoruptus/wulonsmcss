@@ -5,6 +5,7 @@ import { useConfig } from "@/stores/config";
 import Join from "./pages/Join";
 import Settings from "./pages/Settings";
 import Network from "./pages/Network";
+import { ContentTab } from "./components/instance/ContentTab";
 
 /**
  * 页面渲染回归
@@ -63,16 +64,31 @@ describe("页面渲染回归", () => {
     stubBridge();
     seedConfig();
     const html = render(<Join />, "/join");
-    expect(html).toContain("加入房间");
+    expect(html).toContain("加入游戏");
     expect(html).toContain("粘贴邀请链接");
   });
 
-  it("设置页：渲染外观与同步区块", () => {
+  it("设置页：渲染外观与同步区块，且不再有自选强调色", () => {
     stubBridge();
     seedConfig();
     const html = render(<Settings />, "/settings");
     expect(html).toContain("外观");
     expect(html).toContain("跨端同步");
+    expect(html).toContain("日志保留行数");
+    expect(html).not.toContain("强调色");
+    expect(html).not.toContain("气泡");
+  });
+
+  it("实例内容页：资源库是实例内的一个视图，不再是一级页面", () => {
+    stubBridge();
+    seedConfig();
+    const html = renderToString(
+      <MemoryRouter initialEntries={["/instances/i1/content?view=browse"]}>
+        <ContentTab instance={instance as never} />
+      </MemoryRouter>,
+    );
+    expect(html).toContain("已装模组");
+    expect(html).toContain("资源库");
   });
 
   it("联机页：渲染 FRP 配置表单", () => {

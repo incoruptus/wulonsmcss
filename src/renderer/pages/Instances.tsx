@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { FolderInput, Plus, Server, Trash2, FolderOpen, Play } from "lucide-react";
+import { ArrowRight, FolderInput, Plus, Server, Trash2, FolderOpen } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button, IconButton } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
@@ -14,6 +14,7 @@ import { timeAgo } from "@/lib/utils";
 export default function Instances() {
   const navigate = useNavigate();
   const instances = useConfig((s) => s.cfg.instances);
+  const setActive = useConfig((s) => s.setActiveInstance);
   const removeInstance = useConfig((s) => s.removeInstance);
   const updateInstance = useConfig((s) => s.updateInstance);
   const [creating, setCreating] = useState(false);
@@ -83,9 +84,15 @@ export default function Instances() {
 
                 <div className="mt-auto flex items-center gap-1.5">
                   {inst.dir ? (
-                    <Button size="sm" onClick={() => navigate(`/instances/${inst.id}`)}>
-                      <Play className="size-3.5" />
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        await setActive(inst.id);
+                        navigate("/");
+                      }}
+                    >
                       打开
+                      <ArrowRight className="size-3.5" />
                     </Button>
                   ) : (
                     <Button
@@ -103,7 +110,12 @@ export default function Instances() {
                       绑定目录
                     </Button>
                   )}
-                  <IconButton label="打开目录" size="sm" onClick={() => window.mcss.app.openPath(inst.dir)}>
+                  <IconButton
+                    label={inst.dir ? "打开目录" : "还没有绑定目录"}
+                    size="sm"
+                    disabled={!inst.dir}
+                    onClick={() => window.mcss.app.openPath(inst.dir)}
+                  >
                     <FolderOpen className="size-3.5" />
                   </IconButton>
                   <IconButton

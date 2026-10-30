@@ -5,7 +5,7 @@ import { Download, FolderOpen } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Slider } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { useConfig, makeInstance } from "@/stores/config";
 import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
 import { safeName } from "@/lib/utils";
@@ -185,9 +185,9 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：和朋友一起玩" />
           </Field>
           <Field label="Minecraft 版本">
-            <Select
+            <Picker
               value={mcVersion}
-              onChange={(e) => setMcVersion(e.target.value)}
+              onValueChange={setMcVersion}
               options={releaseOptions.length ? releaseOptions : [{ value: "", label: "加载中…" }]}
             />
           </Field>
@@ -195,9 +195,9 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="服务端核心" hint={CORES.find((c) => c.value === serverType)?.hint}>
-            <Select
+            <Picker
               value={serverType}
-              onChange={(e) => setServerType(e.target.value as ServerType)}
+              onValueChange={(v) => setServerType(v as ServerType)}
               options={CORES.map((c) => ({ value: c.value, label: serverTypeLabel(c.value) }))}
             />
           </Field>
@@ -215,10 +215,10 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
                   : "默认已选稳定版"
             }
           >
-            <Select
+            <Picker
               disabled={serverType === "vanilla" || builds.length === 0}
               value={build}
-              onChange={(e) => setBuild(e.target.value)}
+              onValueChange={setBuild}
               options={builds.length ? builds.map((l) => ({ value: l, label: l })) : [{ value: "", label: "—" }]}
             />
           </Field>
@@ -258,10 +258,10 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
 
         <Field label="Java 运行时" hint={javas.length ? "自动探测到的 Java 运行时" : "没探测到，点右侧手动指定"}>
           <div className="flex gap-2">
-            <Select
+            <Picker
               className="flex-1"
               value={javaPath}
-              onChange={(e) => setJavaPath(e.target.value)}
+              onValueChange={setJavaPath}
               options={javas.length ? javas.map((j) => ({ value: j.path, label: `${j.path}（Java ${j.major ?? "?"}）` })) : [{ value: "", label: "未找到 Java" }]}
             />
             <Button

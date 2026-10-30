@@ -4,7 +4,7 @@ import { Copy, FolderOpen, Link2, Plug, Power, RefreshCw, Unplug } from "lucide-
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { Badge, Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import { copyText, uid } from "@/lib/utils";
@@ -158,9 +158,9 @@ export default function Network() {
                   <Input value={String(draft.remotePort)} onChange={(e) => setDraft({ ...draft, remotePort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
                 <Field label="类型">
-                  <Select
+                  <Picker
                     value={draft.type}
-                    onChange={(e) => setDraft({ ...draft, type: e.target.value as FrpProfile["type"] })}
+                    onValueChange={(v) => setDraft({ ...draft, type: v as FrpProfile["type"] })}
                     options={[
                       { value: "tcp", label: "TCP（MC）" },
                       { value: "udp", label: "UDP" },

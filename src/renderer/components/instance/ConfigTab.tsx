@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { AlertCircle, RefreshCw, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Switch } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import type { Instance } from "@/lib/types";
 import { AiConfigDialog } from "@/components/instance/AiConfigDialog";
@@ -180,9 +180,9 @@ export function ConfigTab({ instance }: { instance: Instance }) {
               <h3 className="t-h-14 text-gray-1000">玩法</h3>
               {Object.keys(SELECTS).map((key) => (
                 <Field key={key} label={key}>
-                  <Select
+                  <Picker
                     value={draft[key] ?? SELECTS[key][0]}
-                    onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                    onValueChange={(v) => setDraft({ ...draft, [key]: v })}
                     options={SELECTS[key].map((v) => ({ value: v, label: v }))}
                   />
                 </Field>

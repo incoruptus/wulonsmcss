@@ -19,7 +19,7 @@ interface DiffRow {
 
 const EMPTY_INDEX: Record<string, { p: string; v: string; n?: string }> = {};
 
-export function ModsTab({ instance }: { instance: Instance }) {
+export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?: () => void }) {
   const modsDir = `${instance.dir}\\mods`;
   const [mods, setMods] = useState<ModMeta[]>([]);
   const [loading, setLoading] = useState(false);
@@ -260,12 +260,17 @@ export function ModsTab({ instance }: { instance: Instance }) {
         <Card>
           <EmptyState
             title="还没有装 Mod"
-            desc="把 jar 放进 mods 目录，或稍后从「资源库」一键安装。"
+            desc="把 jar 放进 mods 目录，或从资源库一键安装（会自动按版本和加载器过滤）。"
             action={
-              <Button variant="secondary" onClick={() => window.mcss.app.openPath(modsDir)}>
-                <FolderOpen className="size-4" />
-                打开 mods 目录
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={onBrowse} disabled={!onBrowse}>
+                  去资源库
+                </Button>
+                <Button variant="secondary" onClick={() => window.mcss.app.openPath(modsDir)}>
+                  <FolderOpen className="size-4" />
+                  打开 mods 目录
+                </Button>
+              </div>
             }
           />
         </Card>

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
@@ -8,7 +8,6 @@ import { FirstRunWizard } from "@/components/app/FirstRunWizard";
 import Overview from "@/pages/Overview";
 import Instances from "@/pages/Instances";
 import InstanceDetail from "@/pages/InstanceDetail";
-import Library from "@/pages/Library";
 import Network from "@/pages/Network";
 import Join from "@/pages/Join";
 import MyServers from "@/pages/MyServers";
@@ -53,9 +52,7 @@ export default function App() {
     if (theme !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const cfg = useConfig.getState().cfg;
       document.documentElement.classList.toggle("dark", mq.matches);
-      if (cfg.accent) document.documentElement.style.setProperty("--ui-accent-hex", cfg.accent);
     };
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
@@ -81,7 +78,9 @@ export default function App() {
             <Route path="/" element={mode === "player" ? <Join /> : <Overview />} />
             <Route path="/instances" element={<Instances />} />
             <Route path="/instances/:id" element={<InstanceDetail />} />
-            <Route path="/library" element={<Library />} />
+            <Route path="/instances/:id/:tab" element={<InstanceDetail />} />
+            {/* 旧链接兜底：资源库现在是「这个实例的内容页 → 资源库」 */}
+            <Route path="/library" element={<LibraryRedirect />} />
             <Route path="/network" element={<Network />} />
             <Route path="/mine" element={<MyServers />} />
             <Route path="/client" element={<Client />} />
@@ -101,4 +100,13 @@ export default function App() {
       {mode === "host" ? <FirstRunWizard open={!setupComplete && modeAsked} onDone={() => patch({ setupComplete: true })} /> : null}
     </div>
   );
+}
+
+/** 老书签 / 老版本里点过的「资源库」：落到当前实例的内容页 */
+function LibraryRedirect() {
+  const activeId = useConfig((s) => s.cfg.activeInstanceId);
+  const firstId = useConfig((s) => s.cfg.instances[0]?.id);
+  const id = activeId ?? firstId;
+  if (!id) return <Navigate to="/instances" replace />;
+  return <Navigate to={`/instances/${id}/content?view=browse`} replace />;
 }

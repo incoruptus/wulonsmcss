@@ -74,6 +74,28 @@ async function waitHealth(timeoutMs = 10000) {
     const status = await invoke("server:status");
     check("server:status 返回合法状态", ["stopped", "starting", "running", "stopping"].includes(status.data?.result), String(status.data?.result));
 
+    // 资源库三项：详情、中文简介、任意文本机翻（网页版与桌面版必须同能力）
+    const project = await invoke("modrinth:project", ["AANobbMI"]);
+    check(
+      "modrinth:project 返回项目详情",
+      project.data?.result?.title === "Sodium" && typeof project.data?.result?.body === "string",
+      `${project.data?.result?.title || project.data?.error} · body ${project.data?.result?.body?.length ?? 0} 字符`,
+    );
+
+    const zh = await invoke("modrinth:translate", ["AANobbMI"]);
+    check(
+      "modrinth:translate 返回中文简介",
+      typeof zh.data?.result?.translated === "string" && zh.data.result.translated.length > 5,
+      (zh.data?.result?.translated || zh.data?.error || "").slice(0, 40),
+    );
+
+    const tr = await invoke("translate:text", ["Server started in 5.2 seconds"]);
+    check(
+      "translate:text 能机翻任意文本",
+      typeof tr.data?.result?.text === "string" && tr.data.result.text.length > 0 && tr.data.result.text !== "Server started in 5.2 seconds",
+      tr.data?.result?.text || tr.data?.error,
+    );
+
     const unknown = await invoke("nope:nothing");
     check("未知 channel 返回可读错误", typeof unknown.data?.error === "string" && unknown.data.error.includes("还没有实现"), unknown.data?.error);
 

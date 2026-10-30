@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  ArrowRight,
   Clock,
+  Terminal,
   Copy,
   FolderOpen,
   Gauge,
@@ -159,9 +159,9 @@ export default function Overview() {
               <p className="t-mono-12 mt-0.5 truncate text-gray-700">{active.dir}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={() => navigate(`/instances/${active.id}`)}>
-                打开实例
-                <ArrowRight className="size-4" />
+              <Button variant="secondary" onClick={() => navigate(`/instances/${active.id}/console`)}>
+                <Terminal className="size-4" />
+                控制台
               </Button>
               <Button variant={running ? "error" : "default"} onClick={toggle} size="lg" className="min-w-[132px]">
                 {running ? <Square className="size-4" /> : <Play className="size-4" />}
@@ -396,8 +396,8 @@ export default function Overview() {
                 想要地皮保护、传送、经济这些，需要换成 Paper（玩家仍然用原版客户端就能进）。
               </p>
             </div>
-            <Button variant="secondary" onClick={() => navigate("/library")}>
-              去看看
+            <Button variant="secondary" onClick={() => navigate(`/instances/${activeId ?? ""}/content`)}>
+              换核心
             </Button>
           </Card>
         ) : null}

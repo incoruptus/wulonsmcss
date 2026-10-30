@@ -6,6 +6,7 @@ import {
   Copy,
   Download,
   Eraser,
+  Languages,
   Search,
   Send,
   Stethoscope,
@@ -16,6 +17,8 @@ import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
+import { ContextMenu, selectedText } from "@/components/ui/context-menu";
+import { TranslateDialog } from "@/components/ui/translate-dialog";
 import { useServer } from "@/stores/server";
 import { suggestCommands } from "@/lib/commands";
 import { diagnose, type Diagnosis } from "@/lib/crash";
@@ -58,9 +61,20 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   const [confirmStop, setConfirmStop] = useState(false);
   const [hideDiag, setHideDiag] = useState(false);
   const [showLag, setShowLag] = useState(false);
+  const [translate, setTranslate] = useState<string | null>(null);
   const lagEvents = useServer((s) => s.lagEvents);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function selectAllLogs() {
+    const el = listRef.current;
+    const sel = window.getSelection();
+    if (!el || !sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
 
   // 停服后如果日志里有异常，翻译成人话
   const diagnosis = useMemo(() => {
@@ -146,7 +160,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-232px)] min-h-[360px] flex-col gap-2">
+    <div className="flex h-[calc(100dvh-168px)] min-h-[360px] flex-col gap-2">
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[180px] flex-1">
@@ -296,7 +310,9 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
               className="py-10"
             />
           ) : (
-            filtered.map((log) => <LogRow key={log.id} log={log} query={query} />)
+            filtered.map((log) => (
+              <LogRow key={log.id} log={log} query={query} onTranslate={setTranslate} onSelectAll={selectAllLogs} />
+            ))
           )}
         </div>
 
@@ -429,18 +445,67 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
           </Button>
         </DialogFooter>
       </Dialog>
+
+      <TranslateDialog open={Boolean(translate)} onOpenChange={(v) => !v && setTranslate(null)} text={translate ?? ""} />
     </div>
   );
 }
 
 /* ---------------- 单行日志 ---------------- */
 
-function LogRow({ log, query }: { log: LogEntry; query: string }) {
+function LogRow({
+  log,
+  query,
+  onTranslate,
+  onSelectAll,
+}: {
+  log: LogEntry;
+  query: string;
+  onTranslate: (text: string) => void;
+  onSelectAll: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const hasStack = Boolean(log.stack);
+  const line = `[${log.timestamp}] [${log.level}] ${log.message}`;
+
+  const menu = [
+    {
+      label: "复制这一行",
+      icon: Copy,
+      onSelect: async () => {
+        (await copyText(line)) ? toast.success("已复制这一行") : toast.error("复制失败");
+      },
+    },
+    {
+      label: "复制选中",
+      icon: Copy,
+      onSelect: async () => {
+        const text = selectedText();
+        if (!text) return toast.info("先选中一段文字");
+        (await copyText(text)) ? toast.success("已复制") : toast.error("复制失败");
+      },
+    },
+    { label: "全选日志", icon: Terminal, onSelect: onSelectAll },
+    { separator: true, label: "" },
+    {
+      label: "翻译这一行",
+      icon: Languages,
+      onSelect: () => onTranslate(log.message),
+    },
+    {
+      label: "翻译选中",
+      icon: Languages,
+      onSelect: () => {
+        const text = selectedText();
+        if (!text) return toast.info("先选中一段文字");
+        onTranslate(text);
+      },
+    },
+  ];
 
   return (
-    <div className="group flex gap-2 py-[1px]" style={{ contentVisibility: "auto", containIntrinsicSize: "0 20px" }}>
+    <ContextMenu items={menu}>
+      <div className="group flex gap-2 py-[1px]" style={{ contentVisibility: "auto", containIntrinsicSize: "0 20px" }}>
       <span className="w-[62px] shrink-0 select-none text-[12px] tabular-nums text-gray-600">{log.timestamp}</span>
       <span className={cx("w-[42px] shrink-0 select-none text-[12px]", LEVEL_STYLE[log.level] ?? "text-gray-600")}>
         {log.level === "CHAT" ? "CHAT" : log.level}
@@ -490,7 +555,8 @@ function LogRow({ log, query }: { log: LogEntry; query: string }) {
       >
         <Copy className="size-3" />
       </button>
-    </div>
+      </div>
+    </ContextMenu>
   );
 }
 

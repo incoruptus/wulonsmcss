@@ -5,7 +5,7 @@ import { FolderSearch, Import } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { Badge } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import { serverTypeLabel } from "@/lib/config-model";
@@ -134,9 +134,9 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="核心类型" hint="识别错了可以手动改">
-            <Select
+            <Picker
               value={serverType}
-              onChange={(e) => setServerType(e.target.value as ServerType)}
+              onValueChange={(v) => setServerType(v as ServerType)}
               options={(["vanilla", "fabric", "forge", "neoforge", "paper", "purpur"] as ServerType[]).map((t) => ({
                 value: t,
                 label: serverTypeLabel(t),

@@ -10,11 +10,20 @@ import { isDesktopVisual } from "@/lib/shell";
 const TITLES: Record<string, string> = {
   "/": "概览",
   "/instances": "实例",
-  "/library": "资源库",
   "/network": "联机",
   "/join": "加入房间",
   "/mine": "我的服务器",
   "/settings": "设置",
+};
+
+/** 实例内页的名称：URL 里的 tab 和侧栏是同一套词 */
+const INSTANCE_TABS: Record<string, string> = {
+  overview: "概览",
+  console: "控制台",
+  config: "配置",
+  content: "模组 / 插件",
+  worlds: "世界",
+  players: "玩家",
 };
 
 /** 玩家模式里 "/" 不是"概览"，是"加入游戏" */
@@ -37,13 +46,10 @@ export function TitleBar() {
 
   const active = instances.find((i) => i.id === activeId);
   const table = mode === "player" ? PLAYER_TITLES : TITLES;
-  const section =
-    table[location.pathname] ??
-    (location.pathname.startsWith("/instances/")
-      ? active?.name ?? "实例"
-      : location.pathname.startsWith("/join/")
-        ? "加入房间"
-        : "");
+  const instanceMatch = location.pathname.match(/^\/instances\/([^/]+)(?:\/([a-z]+))?/);
+  const section = instanceMatch
+    ? `${active?.name ?? "实例"} / ${INSTANCE_TABS[instanceMatch[2] ?? "overview"] ?? "概览"}`
+    : (table[location.pathname] ?? (location.pathname.startsWith("/join/") ? "加入房间" : ""));
 
   useEffect(() => {
     window.mcss.window.isMaximized().then(setMaximized).catch(() => {});

@@ -271,9 +271,9 @@ export default function Join() {
   return (
     <>
       <PageHeader
-        title="加入房间"
+        title="加入游戏"
         desc="朋友发来的链接或房间码，粘进来就能看到要准备什么。"
-        actions={room ? <Button variant="secondary" onClick={() => navigate("/")}>回到概览</Button> : undefined}
+        actions={room ? <Button variant="secondary" onClick={() => navigate("/")}>换个房间</Button> : undefined}
       />
       <PageBody className="max-w-3xl space-y-4">
         {!room ? (

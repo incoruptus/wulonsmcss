@@ -5,7 +5,7 @@ import { SwitchRow } from "@/components/ui/field";
 import { useConfig } from "@/stores/config";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import type { Instance, WorldPack } from "@/lib/types";
@@ -237,10 +237,10 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           />
           <div className="mt-2 flex items-center gap-2">
             <span className="t-label-12 text-gray-700">保留最近</span>
-            <Select
+            <Picker
               className="w-[90px]"
               value={String(cfg.backupKeep ?? 5)}
-              onChange={(e) => patch({ backupKeep: Number(e.target.value) })}
+              onValueChange={(v) => patch({ backupKeep: Number(v) })}
               options={[
                 { value: "3", label: "3 份" },
                 { value: "5", label: "5 份" },
@@ -396,11 +396,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="挖矿世界" />
           </Field>
           <Field label="世界类型">
-            <Select
-              value={draft.type}
-              onChange={(e) => setDraft({ ...draft, type: e.target.value })}
-              options={TYPES}
-            />
+            <Picker value={draft.type} onValueChange={(v) => setDraft({ ...draft, type: v })} options={TYPES} />
           </Field>
           <Field label="描述">
             <Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="可留空" />

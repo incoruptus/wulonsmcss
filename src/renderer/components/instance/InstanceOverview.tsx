@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu, Send, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { Picker } from "@/components/ui/picker";
 import { Card } from "@/components/ui/misc";
 import { InviteDialog } from "@/components/instance/InviteDialog";
 import { useServer } from "@/stores/server";
@@ -11,6 +11,7 @@ import { useConfig } from "@/stores/config";
 import * as worldsApi from "@/lib/worlds";
 import type { Instance, InstanceSchedule } from "@/lib/types";
 import { formatDuration, timeAgo } from "@/lib/utils";
+import { contentKindOf, serverTypeOf } from "@/lib/config-model";
 
 export function InstanceOverview({ instance, onEdit }: { instance: Instance; onEdit: () => void }) {
   const status = useServer((s) => s.status);
@@ -130,7 +131,11 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
           <ul className="space-y-2.5">
             <li className="flex items-start gap-2 t-label-13 text-gray-900">
               <Puzzle className="mt-0.5 size-4 shrink-0 text-gray-700" />
-              <span>在「Mod」页安装 Mod，或从资源库挑现成的整合；装完记得重启服务器。</span>
+              <span>
+                {contentKindOf(serverTypeOf(instance)) === "plugin"
+                  ? "在「插件 → 资源库」里装地皮、传送、经济这些；装完重启服务器生效。"
+                  : "在「模组 → 资源库」里按版本挑 Mod；装完重启服务器生效。"}
+              </span>
             </li>
             <li className="flex items-start gap-2 t-label-13 text-gray-900">
               <Users className="mt-0.5 size-4 shrink-0 text-gray-700" />
@@ -168,9 +173,9 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
 
           <Field label="定时公告" hint={schedule.broadcastEvery ? `每 ${schedule.broadcastEvery} 分钟广播一次` : "关闭"}>
             <div className="space-y-1.5">
-              <Select
+              <Picker
                 value={String(schedule.broadcastEvery ?? 0)}
-                onChange={(e) => saveSchedule({ ...schedule, broadcastEvery: Number(e.target.value) })}
+                onValueChange={(v) => saveSchedule({ ...schedule, broadcastEvery: Number(v) })}
                 options={[
                   { value: "0", label: "关闭" },
                   { value: "30", label: "每 30 分钟" },
@@ -189,9 +194,9 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
           </Field>
 
           <Field label="定时备份" hint={schedule.backupEvery ? `每 ${schedule.backupEvery} 分钟备份一次` : "关闭"}>
-            <Select
+            <Picker
               value={String(schedule.backupEvery ?? 0)}
-              onChange={(e) => saveSchedule({ ...schedule, backupEvery: Number(e.target.value) })}
+              onValueChange={(v) => saveSchedule({ ...schedule, backupEvery: Number(v) })}
               options={[
                 { value: "0", label: "关闭" },
                 { value: "30", label: "每 30 分钟" },

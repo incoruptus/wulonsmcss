@@ -198,8 +198,13 @@ export function createHttpClient(base: string, token: string): McssApi {
     },
     modrinth: {
       search: (q, opts) => invoke("modrinth:search", q, opts),
+      project: (projectId) => invoke("modrinth:project", projectId),
+      translate: (projectId) => invoke("modrinth:translate", projectId),
       versions: (projectId, opts) => invoke("modrinth:versions", projectId, opts),
       install: (opts) => invoke("modrinth:install", opts),
+    },
+    translate: {
+      text: (text, opts) => invoke("translate:text", text, opts),
     },
     client: {
       prepare: (opts) => invoke("client:prepare", opts),
