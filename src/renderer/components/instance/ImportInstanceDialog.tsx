@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { FolderSearch, Import } from "lucide-react";
@@ -9,7 +9,8 @@ import { Picker } from "@/components/ui/picker";
 import { Badge } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import { serverTypeLabel } from "@/lib/config-model";
-import type { ServerType } from "@/lib/types";
+import type { McVersion, ServerType } from "@/lib/types";
+import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
 
 type Detected = Awaited<ReturnType<typeof window.mcss.versions.detectServer>>;
 
@@ -33,9 +34,18 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
   const [detected, setDetected] = useState<Detected>(null);
   const [probing, setProbing] = useState(false);
   const [name, setName] = useState("");
-  const [mcVersion, setMcVersion] = useState("26.1");
+  const [mcVersion, setMcVersion] = useState("");
   const [port, setPort] = useState("25565");
   const [serverType, setServerType] = useState<ServerType>("fabric");
+  const [versions, setVersions] = useState<McVersion[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    void window.mcss.versions
+      .minecraft()
+      .then((list) => setVersions(list.filter((v) => v.type === "release")))
+      .catch(() => {});
+  }, [open]);
 
   async function pick() {
     const picked = await window.mcss.dialog.openDirectory();
@@ -60,13 +70,17 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
 
   async function create() {
     if (!dir) return toast.error("先选一个服务器目录");
+    if (!mcVersion) return toast.error("选一下这个服务器用的 Minecraft 版本（识别不到时要手动确认）");
+    const javas = await window.mcss.app.detectJava().catch(() => []);
+    const java = pickJavaFor(javas, javaMajorFor(mcVersion));
+    if (!java) return toast.error(`需要 Java ${javaMajorFor(mcVersion)}，装好后再导入，或先导入再去设置里指定`);
     const inst = makeInstance({
       name: name.trim() || leafOf(dir),
       dir,
       mcVersion,
       serverType,
       loaderVersion: detected?.loaderVersion,
-      javaPath: "",
+      javaPath: java.path,
       port: Number(port) || 25565,
       importedFrom: dir,
     });
@@ -74,7 +88,7 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
     toast.success("已导入", { description: `${inst.name} · ${serverTypeLabel(serverType)} · ${inst.mcVersion}` });
     onOpenChange(false);
     reset();
-    navigate(`/instances/${inst.id}`);
+    navigate("/");
   }
 
   function reset() {
@@ -82,6 +96,7 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
     setDetected(null);
     setName("");
     setPort("25565");
+    setMcVersion("");
   }
 
   const confidence = detected?.confidence === "high" ? "确认" : detected?.confidence === "medium" ? "较可信" : "猜的";
@@ -127,8 +142,16 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
           <Field label="显示名称">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="我的服务器" />
           </Field>
-          <Field label="Minecraft 版本">
-            <Input value={mcVersion} onChange={(e) => setMcVersion(e.target.value)} placeholder="26.1" className="font-mono" />
+          <Field label="Minecraft 版本" hint="识别不到时手动选；版本不对，Mod 和客户端都会对不上">
+            <Picker
+              value={mcVersion}
+              onValueChange={setMcVersion}
+              options={
+                versions.length
+                  ? versions.map((v) => ({ value: v.id, label: v.id }))
+                  : [{ value: mcVersion, label: mcVersion || "读取中…" }]
+              }
+            />
           </Field>
         </div>
 

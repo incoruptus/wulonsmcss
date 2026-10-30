@@ -12,7 +12,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { needsReplace } = require("./client.js");
+const { needsReplace, safeFileName } = require("./client.js");
 
 function tmpFile(content) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-prep-"));
@@ -48,4 +48,13 @@ test("没有哈希时退回大小比较", async () => {
   assert.equal(await needsReplace(file, { size: 5 }), false, "大小相同就当同一份");
   assert.equal(await needsReplace(file, { size: 6 }), true, "大小不同要覆盖");
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("远端文件名不能带路径（防写到 mods/ 之外）", () => {
+  assert.equal(safeFileName("sodium.jar"), "sodium.jar");
+  assert.equal(safeFileName("..\\..\\Startup\\evil.jar"), "evil.jar");
+  assert.equal(safeFileName("C:\\temp\\a.jar"), "a.jar");
+  assert.equal(safeFileName(".."), "mod.jar");
+  assert.equal(safeFileName("a:b?.jar"), "b_.jar");
+  assert.equal(safeFileName(""), "mod.jar");
 });

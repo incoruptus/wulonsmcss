@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Copy, Link2, Package, QrCode, RefreshCw, Send } from "lucide-react";
+import { AlertTriangle, Check, Copy, Link2, Package, RefreshCw, Send } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Badge, SegmentedControl } from "@/components/ui/misc";
 import type { Instance } from "@/lib/types";
 import { encodeRoom, roomDeepLink, roomInstallLink, roomShareText, roomWebLink, type RoomDescriptorV1 } from "@/lib/room";
+import { publicWebOrigin } from "@/lib/links";
+import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 import { copyText } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
 
@@ -69,6 +71,8 @@ export function InviteDialog({
   }, [open, instance.dir]);
 
   const addr = mode === "lan" ? `${lanIp || "127.0.0.1"}:${instance.port}` : customAddr.trim();
+  // 网页版没部署时不要给朋友一条 404 链接；此时只发房间码/进服包
+  const webOrigin = publicWebOrigin();
 
   const room = useMemo<RoomDescriptorV1>(
     () => ({
@@ -139,7 +143,7 @@ export function InviteDialog({
           <Field label="版本">
             <div className="flex h-9 items-center gap-2">
               <Badge variant="gray">{instance.mcVersion}</Badge>
-              <Badge variant="gray">{instance.loader}</Badge>
+              <Badge variant="gray">{serverTypeLabel(serverTypeOf(instance))}</Badge>
               <span className="t-label-12 text-gray-700">
                 {resolving ? "正在匹配 Modrinth…" : modRefs.length ? `${modRefs.length} 个 Mod 会写进邀请` : "没有可自动分发的 Mod"}
               </span>
@@ -191,16 +195,22 @@ export function InviteDialog({
 
         {code ? (
           <>
-            <Field label="一键进服链接">
-              <div className="flex gap-2">
-                <Input value={roomWebLink(code)} readOnly className="font-mono text-[11.5px]" />
-                <Button variant="secondary" onClick={() => copy(roomWebLink(code), "链接")}>
-                  <Copy className="size-4" />
-                </Button>
+            {webOrigin ? (
+              <Field label="一键进服链接">
+                <div className="flex gap-2">
+                  <Input value={roomWebLink(code, webOrigin)} readOnly className="font-mono text-[11.5px]" />
+                  <Button variant="secondary" onClick={() => copy(roomWebLink(code, webOrigin), "链接")}>
+                    <Copy className="size-4" />
+                  </Button>
+                </div>
+              </Field>
+            ) : (
+              <div className="rounded-lg bg-background-200 p-2.5 t-label-12 text-gray-800">
+                先发下面的「房间码」或「进服包」：朋友在 MCSS 里粘贴房间码，或者在启动器里导入进服包，不用打开网页也能进。
               </div>
-            </Field>
+            )}
 
-            <Field label="房间码（短，可手抄）">
+            <Field label="房间码（复制粘贴；带 Mod 时会比较长）">
               <div className="flex gap-2">
                 <Input value={code} readOnly className="font-mono text-[11.5px]" />
                 <Button variant="secondary" onClick={() => copy(code, "房间码")}>
@@ -210,9 +220,9 @@ export function InviteDialog({
             </Field>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={() => copy(roomShareText(room, code), "邀请文案")}>
+              <Button size="sm" onClick={() => copy(roomShareText(room, code, webOrigin ?? undefined), "邀请文案")}>
                 <Send className="size-3.5" />
-                复制邀请文案
+                复制发给朋友的邀请
               </Button>
               <Button
                 size="sm"
@@ -240,27 +250,28 @@ export function InviteDialog({
                 <Package className="size-3.5" />
                 导出进服包
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => copy(roomDeepLink(code), "深链")}>
-                <Link2 className="size-3.5" />
-                复制 mcss:// 深链
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => copy(roomInstallLink(code), "一键准备好链接")}
-              >
-                <Package className="size-3.5" />
-                一键准备好链接
-              </Button>
               <Button size="sm" variant="ghost" onClick={generate} loading={busy}>
                 <RefreshCw className="size-3.5" />
                 重新生成
               </Button>
-              <span className="ml-auto inline-flex items-center gap-1 t-label-12 text-gray-700">
-                <QrCode className="size-3.5" />
-                二维码下一步接
+              <span className="ml-auto t-label-12 text-gray-700">
+                {webOrigin ? "链接里带着地址、版本和 Mod" : "先发房间码或进服包"}
               </span>
             </div>
+
+            <details className="rounded-lg bg-background-200 p-3">
+              <summary className="cursor-pointer t-label-12 text-gray-700">其他方式</summary>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button size="xs" variant="secondary" onClick={() => copy(roomDeepLink(code), "深链")}>
+                  <Link2 className="size-3" />
+                  复制 mcss:// 深链
+                </Button>
+                <Button size="xs" variant="secondary" onClick={() => copy(roomInstallLink(code), "一键准备好链接")}>
+                  <Package className="size-3" />
+                  复制一键准备好链接
+                </Button>
+              </div>
+            </details>
 
             <div className="rounded-lg bg-background-200 p-3">
               <div className="mb-1 flex items-center gap-1.5 t-label-12 text-gray-700">

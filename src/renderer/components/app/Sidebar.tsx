@@ -224,7 +224,7 @@ export function Sidebar() {
 
         <div className="flex flex-col gap-0.5">
           {host ? (
-            <NavLink to="/instances" end className={({ isActive }) => bottomItemClass(isActive)}>
+            <NavLink to="/instances" end title="一个实例 = 一台服务器" className={({ isActive }) => bottomItemClass(isActive)}>
               <Boxes className="size-3.5 shrink-0" />
               全部实例
               <span className="ml-auto t-label-12 tabular-nums text-gray-700">{instances.length}</span>

@@ -95,7 +95,8 @@ describe("页面渲染回归", () => {
     stubBridge();
     seedConfig();
     const html = render(<Network />, "/network");
-    expect(html).toContain("FRP");
+    expect(html).toContain("隧道配置");
+    expect(html).toContain("内网穿透");
   });
 
   it("配置为空时设置页也不崩", () => {

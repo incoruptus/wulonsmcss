@@ -46,6 +46,46 @@ async function listMinecraft() {
   return manifestCache;
 }
 
+/* ------------------------- 版本生态（给新手选版本用） ------------------------- */
+
+const ecoCache = new Map();
+
+async function countProjects(projectType, mc) {
+  const facets = JSON.stringify([[`project_type:${projectType}`], [`versions:${mc}`]]);
+  const params = new URLSearchParams({ limit: "1", facets });
+  try {
+    const data = await getJson(`https://api.modrinth.com/v2/search?${params.toString()}`);
+    return typeof data.total_hits === "number" ? data.total_hits : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 给候选版本返回「有多少 Mod / 插件支持」。
+ * 这不是精确兼容判断，只是给新手一个「选哪个版本资源多」的锚点；
+ * 网络失败返回 null，界面会隐藏数字而不是显示 0。
+ */
+async function ecosystem(versions) {
+  const list = Array.isArray(versions) ? versions.filter(Boolean).slice(0, 8) : [];
+  const out = {};
+  await Promise.all(
+    list.map(async (mc) => {
+      const key = String(mc);
+      const cached = ecoCache.get(key);
+      if (cached && Date.now() - cached.at < 30 * 60 * 1000) {
+        out[key] = cached.value;
+        return;
+      }
+      const [mods, plugins] = await Promise.all([countProjects("mod", key), countProjects("plugin", key)]);
+      const value = { mods, plugins };
+      out[key] = value;
+      ecoCache.set(key, { value, at: Date.now() });
+    })
+  );
+  return out;
+}
+
 /**
  * Fabric Loader 列表（带 stable 标记，内部用）
  * 排序：稳定版在前，其余按 Fabric 返回顺序
@@ -411,6 +451,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
 
 module.exports = {
   listMinecraft,
+  ecosystem,
   fabricLoaders,
   fabricLoaderList,
   installServer,

@@ -12,6 +12,9 @@ const zlib = require("zlib");
 const EOCD_SIG = 0x06054b50;
 const CD_SIG = 0x02014b50;
 const LFH_SIG = 0x04034b50;
+/** 只读元数据，不该这么大；防恶意 jar 用 zip bomb 把主进程内存打满 */
+const MAX_ENTRY = 16 * 1024 * 1024;
+const MAX_CD = 4 * 1024 * 1024;
 
 function readRange(fd, position, length) {
   const buf = Buffer.alloc(length);
@@ -41,7 +44,7 @@ function readZipEntry(filePath, entryName) {
 
     const cdSize = tail.readUInt32LE(eocd + 12);
     const cdOffset = tail.readUInt32LE(eocd + 16);
-    if (!cdSize || cdOffset + cdSize > size) return null;
+    if (!cdSize || cdSize > MAX_CD || cdOffset + cdSize > size) return null;
 
     const cd = readRange(fd, cdOffset, cdSize);
     let p = 0;
@@ -61,10 +64,12 @@ function readZipEntry(filePath, entryName) {
         if (lfh.readUInt32LE(0) !== LFH_SIG) return null;
         const lNameLen = lfh.readUInt16LE(26);
         const lExtraLen = lfh.readUInt16LE(28);
+        if (compSize > MAX_ENTRY) return null;
         const dataStart = localOffset + 30 + lNameLen + lExtraLen;
         const raw = readRange(fd, dataStart, compSize);
+        if (raw.length !== compSize) return null;
         if (method === 0) return raw;
-        if (method === 8) return zlib.inflateRawSync(raw);
+        if (method === 8) return zlib.inflateRawSync(raw, { maxOutputLength: MAX_ENTRY });
         return null;
       }
       p += 46 + nameLen + extraLen + commentLen;

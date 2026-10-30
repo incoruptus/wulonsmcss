@@ -44,8 +44,8 @@
 - **AI 配置助手**：描述需求 → 提示词 → 校验 AI 的 JSON（白名单 + 类型 + 枚举）→ 应用到表单
 
 **工程**
-- 网页版能力对齐 **100%**（70 个通道，`scripts/check-parity.cjs` 守门，`pnpm test` 里 `--strict`）
-- 测试：136 vitest + 58 node:test + 15 Rust；另有 `scripts/web-e2e.cjs` 10/10
+- 网页版能力对齐 **100%**（71 个通道，`scripts/check-parity.cjs` 守门，`pnpm test` 里 `--strict`）
+- 测试：157 vitest + 63 node:test + 15 Rust；另有 `scripts/web-e2e.cjs` 11/11
 - 增量备份「时间机」：sha1 内容寻址，磁盘 ≈ 一份世界 + 改动（Rust 自带零依赖 SHA-1）
 - 下载链路：断点续传 / 多源回退 / 哈希校验 / 缓存命中
 - 多世界生成逻辑在渲染层实现，CLI / 桌面 / 网页共用同一份代码
@@ -56,6 +56,14 @@
 - 下拉全部自绘（`Picker`）；右键菜单只在桌面版接管（复制/全选/翻译），网页版保留浏览器原生菜单
 - 移除自选强调色；控制台固定逐行等宽（删掉从未生效的「气泡」设置）
 - 中文名 5338 条、中文简介按需机翻；新增 `/instances/:id/content?view=browse&q=` 深链
+
+**2026-10-30 新手人体工学 + 对抗性审查**
+- 首次开服改为「意图卡 → 版本卡（带 Mod/插件数量、Java 25/21）→ 确认」；名称预填、高级项折叠、禁用按钮给原因
+- Java 版本矩阵（26→25、1.20.5+→21、1.18+→17），不再把 Java 21 塞给 26.x
+- 配置页 server.properties 全中文化（11 开关 + 3 枚举 + 7 文本键）；EULA 改为知情同意；停服统一确认
+- 加入页默认 `.minecraft` 修正；房间打开自动存“我的服务器”；直接启动标明离线身份
+- 安全：`?agent=` 只允许 loopback；config 原子写+备份；client.prepare 文件名清洗；下载无 hash 不缓存、跟随 3xx；openExternal 白名单；servers.dat 读不懂不覆盖；zip 解析上限
+- 网页边界：定时任务/停服备份/樱花穿透明确标注；Join 窄屏隐藏侧栏
 
 ## 没做完
 

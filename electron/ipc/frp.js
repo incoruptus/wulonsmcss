@@ -64,8 +64,12 @@ async function ensureFrpc(onProgress) {
   if (!asset) throw new Error("没有找到 Windows 版 frp 安装包");
   emitLog(`正在下载 ${asset.name} …`);
   const zip = path.join(frpDir(), "frp.zip");
+  // GitHub Release 现在会给 asset.digest（sha256:...）；有就校验，避免镜像投毒
+  const digest = typeof asset.digest === "string" ? asset.digest : "";
+  const hash = digest.startsWith("sha256:") ? { sha256: digest.slice(7) } : undefined;
   await download(asset.browser_download_url, zip, (got, total) => onProgress?.(got, total), {
     mirrors: GITHUB_MIRRORS,
+    hash,
     onRetry: (url, msg) => emitLog(`镜像不通（${new URL(url).host}）：${msg}`)
   });
 

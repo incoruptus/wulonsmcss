@@ -30,6 +30,7 @@ import { describeLag } from "@/lib/lag";
 import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { InviteDialog } from "@/components/instance/InviteDialog";
+import { StopServerDialog } from "@/components/instance/StopServerDialog";
 
 /**
  * 服主首页 = 当前实例的仪表盘
@@ -54,6 +55,7 @@ export default function Overview() {
   const [creating, setCreating] = useState(false);
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [stopOpen, setStopOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [lanIp, setLanIp] = useState("");
   const [frp, setFrp] = useState<{ running: boolean; address?: string }>({ running: false });
@@ -86,7 +88,7 @@ export default function Overview() {
   async function toggle() {
     if (!active) return;
     if (running) {
-      await window.mcss.server.stop();
+      setStopOpen(true);
       return;
     }
     setPreflightOpen(true);
@@ -185,7 +187,7 @@ export default function Overview() {
               icon={<Gauge className="size-4" />}
               title="性能"
               action={
-                <Button variant="ghost" size="sm" onClick={() => navigate(`/instances/${active.id}?tab=console`)}>
+                <Button variant="ghost" size="sm" onClick={() => navigate(`/instances/${active.id}/console`)}>
                   控制台
                 </Button>
               }
@@ -339,7 +341,7 @@ export default function Overview() {
                 icon={<Settings2 className="size-4" />}
                 label="编辑配置"
                 hint="server.properties"
-                onClick={() => navigate(`/instances/${active.id}?tab=config`)}
+                onClick={() => navigate(`/instances/${active.id}/config`)}
               />
               <Shortcut
                 icon={<FolderOpen className="size-4" />}
@@ -356,7 +358,7 @@ export default function Overview() {
               icon={<Server className="size-4" />}
               title="最近日志"
               action={
-                <Button variant="ghost" size="sm" onClick={() => navigate(`/instances/${active.id}?tab=console`)}>
+                <Button variant="ghost" size="sm" onClick={() => navigate(`/instances/${active.id}/console`)}>
                   控制台
                 </Button>
               }
@@ -415,6 +417,7 @@ export default function Overview() {
           })
         }
       />
+      <StopServerDialog open={stopOpen} onOpenChange={setStopOpen} players={players.length} />
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} instance={active} />
     </>
   );

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Loader2, Play, Wrench, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Play, Wrench, XCircle } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/field";
 import { Badge } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
+import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 import type { Instance, PreflightIssue, PreflightResult } from "@/lib/types";
 import * as worldsApi from "@/lib/worlds";
 
@@ -29,6 +31,9 @@ export function PreflightDialog({
   const [checking, setChecking] = useState(false);
   const [fixing, setFixing] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [eulaOpen, setEulaOpen] = useState(false);
+  const [portOpen, setPortOpen] = useState(false);
+  const [newPort, setNewPort] = useState("25566");
 
   async function check() {
     setChecking(true);
@@ -67,6 +72,16 @@ export function PreflightDialog({
   }
 
   async function applyFix(issue: PreflightIssue) {
+    // 这两条需要用户再做一次确认/输入，不能叫「修复」就替他做了
+    if (issue.fix === "accept-eula") {
+      setEulaOpen(true);
+      return;
+    }
+    if (issue.fix === "change-port") {
+      setNewPort(String((instance.port || 25565) + 1));
+      setPortOpen(true);
+      return;
+    }
     setFixing(issue.id);
     try {
       switch (issue.fix) {
@@ -76,11 +91,6 @@ export function PreflightDialog({
           toast.success(`已修复 ${res.fixed?.length ?? 0} 处维度定义`);
           break;
         }
-        case "accept-eula": {
-          await window.mcss.fs.write(`${instance.dir}\\eula.txt`, "eula=true\n");
-          toast.success("已同意 EULA");
-          break;
-        }
         case "set-java": {
           const picked = await window.mcss.app.pickJava();
           if (!picked) return;
@@ -88,10 +98,8 @@ export function PreflightDialog({
           toast.success("Java 路径已更新");
           break;
         }
-        case "change-port":
         case "lower-memory":
-          toast.info("在实例设置里改一下就好");
-          onOpenChange(false);
+          toast.info("请在「服务器设置」里把最大内存调低");
           return;
         default:
           toast.info("这条需要你手动处理");
@@ -109,10 +117,15 @@ export function PreflightDialog({
   const warns = result?.issues.filter((i) => i.level === "warn") ?? [];
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-lg">
       <DialogHeader
         title={checking ? "正在检查…" : errors.length ? "还不能开服" : warns.length ? "可以开服，但有提醒" : "一切就绪"}
-        desc={checking ? "Java、端口、EULA、数据包、内存、磁盘都会过一遍" : `${instance.name} · ${instance.mcVersion} · ${instance.loader}`}
+        desc={
+          checking
+            ? "Java、端口、EULA、数据包、内存、磁盘都会过一遍"
+            : `${instance.name} · ${instance.mcVersion} · ${serverTypeLabel(serverTypeOf(instance))}`
+        }
       />
       <DialogBody className="space-y-2">
         {checking ? (
@@ -152,6 +165,74 @@ export function PreflightDialog({
         </Button>
       </DialogFooter>
     </Dialog>
+
+    <Dialog open={eulaOpen} onOpenChange={setEulaOpen} widthClass="max-w-md">
+      <DialogHeader
+        title="先同意 Minecraft 使用条款"
+        desc="这是 Mojang 对服务端的许可，免费，同意一次即可。"
+      />
+      <DialogBody className="space-y-3">
+        <p className="t-label-13 leading-6 text-gray-900">
+          服务器第一次启动前必须表示同意（eula.txt 里的 <span className="t-mono-12">eula=true</span>）。
+          不同意的话，服务器会直接退出。
+        </p>
+        <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openExternal("https://aka.ms/MinecraftEULA")}>
+          <ExternalLink className="size-3.5" />
+          阅读完整条款
+        </Button>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="secondary" onClick={() => setEulaOpen(false)}>
+          我再想想
+        </Button>
+        <Button
+          onClick={async () => {
+            try {
+              await window.mcss.fs.write(`${instance.dir}\\eula.txt`, "eula=true\n");
+              setEulaOpen(false);
+              toast.success("已同意，继续检查");
+              await check();
+            } catch (e) {
+              toast.error(`写入 eula.txt 失败：${(e as Error).message}`);
+            }
+          }}
+        >
+          我同意并继续
+        </Button>
+      </DialogFooter>
+    </Dialog>
+
+    <Dialog open={portOpen} onOpenChange={setPortOpen} widthClass="max-w-md">
+      <DialogHeader title="换一个端口" desc="这通常是另一个服务器占着 25565；换一个不冲突的端口即可。" />
+      <DialogBody>
+        <label className="t-label-13 mb-1.5 block text-gray-900">新端口</label>
+        <Input
+          value={newPort}
+          onChange={(e) => setNewPort(e.target.value.replace(/\D/g, ""))}
+          className="font-mono"
+          aria-label="新端口"
+        />
+        <p className="mt-1 t-label-12 text-gray-700">建议 25566–25600；改完会重新检查，旧邀请需要重新发。</p>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="secondary" onClick={() => setPortOpen(false)}>
+          取消
+        </Button>
+        <Button
+          onClick={async () => {
+            const port = Number(newPort);
+            if (!port || port < 1024 || port > 65535) return toast.error("端口要在 1024–65535 之间");
+            await updateInstance(instance.id, { port });
+            setPortOpen(false);
+            toast.success(`端口已改为 ${port}`);
+            await check();
+          }}
+        >
+          用这个端口重试
+        </Button>
+      </DialogFooter>
+    </Dialog>
+    </>
   );
 }
 
@@ -188,7 +269,7 @@ function IssueRow({
         {issue.fix ? (
           <Button size="xs" variant="secondary" onClick={onFix} loading={busy} className="shrink-0">
             <Wrench className="size-3" />
-            修复
+            {issue.fix === "accept-eula" ? "我同意" : issue.fix === "change-port" ? "改端口" : "修复"}
           </Button>
         ) : null}
       </div>

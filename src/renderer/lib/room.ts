@@ -151,10 +151,9 @@ export function extractCode(input: string): string {
   throw new Error("没认出房间码，检查一下是不是漏了开头几位");
 }
 
-/** 邀请链接（给网页用） */
-export function roomWebLink(room: RoomDescriptorV1 | string, origin = "https://wulons.github.io/mcss"): string {
-  const code = typeof room === "string" ? room : "";
-  return `${origin}/#/join/${code}`;
+/** 邀请链接（给网页用）；origin 由调用方按当前部署地址传入 */
+export function roomWebLink(code: string, origin = "https://wulons.github.io/mcss"): string {
+  return `${origin.replace(/\/+$/, "")}/#/join/${code}`;
 }
 
 /** 深链（唤起本地助手） */
@@ -167,15 +166,32 @@ export function roomInstallLink(code: string): string {
   return `${ROOM_SCHEME}://install/${code}`;
 }
 
+const LOADER_NAME: Record<string, string> = {
+  vanilla: "原版",
+  paper: "Paper",
+  purpur: "Purpur",
+  fabric: "Fabric",
+  forge: "Forge",
+  neoforge: "NeoForge",
+};
+
 /** 人话版说明，方便直接发给朋友 */
 export function roomShareText(room: RoomDescriptorV1, code: string, origin?: string): string {
-  const mods = room.mods.length ? `\n需要的 Mod：${room.mods.length} 个（点开链接会自动准备）` : "";
-  return [
+  const loader = LOADER_NAME[room.loader] ?? room.loader;
+  const lines = [
     `来一起玩「${room.name}」吧！`,
     `地址：${room.addr}`,
-    `版本：Minecraft ${room.mc} · ${room.loader}${mods}`,
-    ``,
-    `一键进服：${roomWebLink(code, origin)}`,
-    `房间码：${code}`,
-  ].join("\n");
+    `版本：Minecraft ${room.mc}${loader ? ` · ${loader}` : ""}`,
+  ];
+  if (room.mods.length) lines.push(`朋友要准备：${room.mods.length} 个 Mod（打开链接会自动准备）`);
+  lines.push("");
+  if (origin) {
+    lines.push(`一键进服：${roomWebLink(code, origin)}`);
+    lines.push(`房间码：${code}`);
+  } else {
+    // 没有部署网页时不要伪造 404 链接：直接给码 + 粘贴位置
+    lines.push(`房间码：${code}`);
+    lines.push("（在 MCSS 的「加入游戏」里粘贴这个码）");
+  }
+  return lines.join("\n");
 }

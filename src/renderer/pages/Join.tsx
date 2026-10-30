@@ -21,6 +21,8 @@ import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
 import { checkClient, defaultClientDir, type CheckupResult } from "@/lib/checkup";
 import { planFromDisk, type DiskPlan } from "@/lib/launch";
 import { copyText, cx, safeName } from "@/lib/utils";
+import { useConfig } from "@/stores/config";
+import { serverTypeLabel } from "@/lib/config-model";
 
 interface Exported {
   file: string;
@@ -43,6 +45,13 @@ export default function Join() {
   const [exported, setExported] = useState<Exported | null>(null);
   const [preparedDir, setPreparedDir] = useState<string | null>(null);
   const [clientDir, setClientDir] = useState<string>("");
+  const [username, setUsername] = useState(() => {
+    try {
+      return localStorage.getItem("mcss.playerName") || "Steve";
+    } catch {
+      return "";
+    }
+  });
   const [checkup, setCheckup] = useState<CheckupResult | null>(null);
   const [lan, setLan] = useState<{ ok: boolean; ms: number } | null>(null);
   const [plan, setPlan] = useState<DiskPlan | null>(null);
@@ -93,6 +102,30 @@ export default function Join() {
 
   const effectiveAddr = lan?.ok && room?.lan ? room.lan : (room?.addr ?? "");
   const usingLan = Boolean(lan?.ok && room?.lan);
+  const saveServer = useConfig((s) => s.saveServer);
+
+  // 打开一个房间就记到「我的服务器」：玩家下次不用再翻聊天记录找地址
+  useEffect(() => {
+    if (!room || !effectiveAddr) return;
+    const idx = effectiveAddr.lastIndexOf(":");
+    if (idx <= 0) return;
+    const address = effectiveAddr.slice(0, idx);
+    const port = Number(effectiveAddr.slice(idx + 1)) || undefined;
+    // 同一个地址重复进不新增记录，只更新上次进入时间
+    const existing = useConfig
+      .getState()
+      .cfg.savedServers.find((s) => s.address === address && Number(s.port || 25565) === Number(port || 25565));
+    void saveServer({
+      id: existing?.id,
+      name: room.name,
+      address,
+      port,
+      mcVersion: room.mc,
+      loader: room.loader,
+      fromRoom: code,
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.name, room?.mc, room?.loader, effectiveAddr, code]);
 
   // 房间一确定就体检：读本地 .minecraft，回答「能不能直接进」
   useEffect(() => {
@@ -104,7 +137,10 @@ export default function Join() {
     void (async () => {
       const info = await window.mcss.app.info().catch(() => null);
       if (!info) return;
-      const dir = clientDir || defaultClientDir(info.appData);
+      // 桌面版 appData 是 %APPDATA%\wulons-mcss，不能直接拼 .minecraft；
+      // 主进程给 minecraftDir，老 agent 没这个字段时再退回 defaultClientDir。
+      const savedProfile = useConfig.getState().cfg.clientProfiles?.[0]?.dir;
+      const dir = clientDir || savedProfile || info.minecraftDir || defaultClientDir(info.appData);
       if (!clientDir) {
         setClientDir(dir);
         return;
@@ -138,7 +174,7 @@ export default function Join() {
       const result = await planFromDisk({
         mcDir: clientDir,
         room: { mc: room.mc, loader: room.loader, addr: effectiveAddr },
-        username: "Steve",
+        username: username.trim() || "Steve",
         javaPath,
         memoryGb: { min: 2, max: 4 },
       }).catch(() => null);
@@ -148,15 +184,24 @@ export default function Join() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, checkup, clientDir, effectiveAddr]);
+  }, [room, checkup, clientDir, effectiveAddr, username]);
 
-  const canLaunch = Boolean(plan && plan.command.length > 0 && plan.missing.length === 0);
+  useEffect(() => {
+    try {
+      localStorage.setItem("mcss.playerName", username.trim());
+    } catch {}
+  }, [username]);
+
+  const canLaunch = Boolean(plan && plan.command.length > 0 && plan.missing.length === 0 && username.trim());
 
   async function launchNow() {
     if (!plan?.command.length) return;
     const res = await window.mcss.client.launch({ command: plan.command, cwd: clientDir });
     if (res.ok) toast.success("游戏已启动，正在连接服务器…");
-    else toast.error(res.error || "启动失败");
+    else
+      toast.error("启动失败", {
+        description: `${res.error || "未知错误"}。如果服务器要求正版登录，请用下面的进服包从启动器进。`,
+      });
   }
 
   // 一键准备好：从 mcss://install/<code> 进来的，体检一出来就自己动手，不再让人找按钮
@@ -313,7 +358,9 @@ export default function Join() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <Badge variant="green" size="sm">邀请有效</Badge>
-                  <span className="t-label-12 text-gray-700">{room.mc} · {room.loader}</span>
+                  <span className="t-label-12 text-gray-700">
+                    {room.mc} · {serverTypeLabel((room.loader || "vanilla") as never)}
+                  </span>
                 </div>
                 <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
                 <p className="t-mono-12 mt-0.5 text-gray-700">
@@ -395,7 +442,7 @@ export default function Join() {
                   )}
                   <span className={cx("t-label-13 font-medium", checkup.verdict === "ready" ? "text-green-900" : "text-gray-1000")}>
                     {checkup.verdict === "ready"
-                      ? "你的客户端可以直接进"
+                      ? "客户端版本和 Mod 都齐了"
                       : checkup.verdict === "need-mods"
                         ? `版本对了，但本地没找到 ${checkup.mods.missing.length} 个 Mod`
                         : checkup.verdict === "need-version"
@@ -411,7 +458,7 @@ export default function Join() {
 
                 <p className="t-label-12 mt-1 text-gray-800">
                   {checkup.verdict === "ready"
-                    ? `已找到 ${checkup.match}，房间需要的 Mod 都在（${checkup.mods.present}/${checkup.mods.total}）。用启动器选这个实例就能进。`
+                    ? `已找到 ${checkup.match}，房间需要的 Mod 都在（${checkup.mods.present}/${checkup.mods.total}）。可以直接启动，也可以从启动器选这个实例。`
                     : checkup.verdict === "need-mods"
                       ? `缺：${checkup.mods.missing.map((m) => m.n).slice(0, 6).join("、")}${checkup.mods.missing.length > 6 ? " 等" : ""}。用下面的进服包最省事，不会动你现有的客户端。`
                       : checkup.verdict === "need-version"
@@ -429,7 +476,7 @@ export default function Join() {
                 {canLaunch ? (
                   <Button size="lg" onClick={launchNow}>
                     <Play className="size-4" />
-                    直接进游戏
+                    直接进游戏（离线）
                     <ArrowRight className="size-4" />
                   </Button>
                 ) : (
@@ -447,6 +494,22 @@ export default function Join() {
                       : "这个房间不需要额外 Mod，进游戏加地址即可"}
                 </span>
               </div>
+
+              {canLaunch ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-background-200 px-3 py-2">
+                  <span className="t-label-12 shrink-0 text-gray-700">游戏内名字</span>
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^0-9A-Za-z_]/g, "").slice(0, 16))}
+                    onBlur={() => !username.trim() && setUsername("Steve")}
+                    className="h-7 w-[150px] font-mono text-[12px]"
+                    aria-label="离线用户名"
+                  />
+                  <span className="t-label-12 text-gray-700">
+                    这是离线启动，只对关闭了正版验证的服务器有效；如果进不去，用下面的进服包从启动器登录。
+                  </span>
+                </div>
+              ) : null}
 
               {progress ? (
                 <div className="mt-3">
@@ -536,7 +599,7 @@ export default function Join() {
             ) : null}
 
             <p className="t-label-12 text-gray-700">
-              版本不对会连不上：本机客户端需要 {room.mc} + {room.loader}。
+              版本不对会连不上：本机客户端需要 {room.mc} + {serverTypeLabel((room.loader || "vanilla") as never)}。
             </p>
           </Card>
         )}

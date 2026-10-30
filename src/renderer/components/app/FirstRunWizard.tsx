@@ -1,64 +1,90 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Coffee, Download, FolderOpen, Play, Puzzle, Wifi } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Coffee,
+  Download,
+  ExternalLink,
+  FolderOpen,
+  Gamepad2,
+  Plug,
+  Puzzle,
+  Sparkles,
+} from "lucide-react";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Slider } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
-import { Badge, SegmentedControl } from "@/components/ui/misc";
+import { Badge } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
-import { cx, safeName } from "@/lib/utils";
+import { cx, formatCount, safeName } from "@/lib/utils";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
+import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
+import {
+  CORES,
+  INTENTS,
+  buildVersionPresets,
+  clientRequirementText,
+  coreMeta,
+  recommendedCore,
+  recommendedVersion,
+  serverLabel,
+  type ServerIntent,
+  type VersionPreset,
+} from "@/lib/server-guide";
 
-/** 和「新建实例」对话框保持同一份核心列表，别让首次向导比它少东西 */
-const CORE_OPTIONS: { value: ServerType; label: string }[] = [
-  { value: "paper", label: "Paper（插件服·推荐）" },
-  { value: "purpur", label: "Purpur" },
-  { value: "fabric", label: "Fabric（模组服）" },
-  { value: "neoforge", label: "NeoForge" },
-  { value: "forge", label: "Forge" },
-  { value: "vanilla", label: "原版" },
-];
+const STEPS = ["怎么玩", "选版本", "确认"] as const;
+const JAVA_DOWNLOAD = "https://adoptium.net/temurin/releases/?version=25&os=windows&arch=x64&package=jre";
 
-const CORE_HINTS: Record<ServerType, string> = {
-  paper: "插件服（水桶系）：玩家用原版客户端就能进",
-  purpur: "Paper 的增强版，多几百个玩法开关",
-  fabric: "轻量模组服，性能模组首选",
-  neoforge: "现代整合包的标准，装的时候要跑官方安装器",
-  forge: "老整合包用得多（1.12–1.19）",
-  vanilla: "原版服务端，不装任何东西",
-};
+interface Eco {
+  mods: number | null;
+  plugins: number | null;
+}
 
-const STEPS = ["运行环境", "服务器版本", "开服"] as const;
-
+/**
+ * 第一次开服：先问「你想怎么玩」，再给版本卡片，最后确认。
+ * 这里刻意不把 Java / 构建号 / 安装目录放在第一屏——那是给已经懂的人看的。
+ */
 export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => void }) {
   const navigate = useNavigate();
   const addInstance = useConfig((s) => s.addInstance);
 
   const [step, setStep] = useState(0);
-  const [javas, setJavas] = useState<JavaInfo[]>([]);
-  const [javaPath, setJavaPath] = useState("");
-  const [checking, setChecking] = useState(false);
+  const [intent, setIntent] = useState<ServerIntent>("vanilla");
 
   const [versions, setVersions] = useState<McVersion[]>([]);
+  const [presets, setPresets] = useState<VersionPreset[]>([]);
+  const [eco, setEco] = useState<Record<string, Eco>>({});
   const [mcVersion, setMcVersion] = useState("");
-  const [loader, setLoader] = useState<ServerType>("paper");
-  const [loaders, setLoaders] = useState<string[]>([]);
-  const [loaderVersion, setLoaderVersion] = useState("");
+  const [core, setCore] = useState<ServerType>("paper");
+  const [builds, setBuilds] = useState<string[]>([]);
+  const [build, setBuild] = useState("");
+  const [buildError, setBuildError] = useState<string | null>(null);
+
+  const [javas, setJavas] = useState<JavaInfo[]>([]);
+  const [javaOverride, setJavaOverride] = useState("");
+  const [checking, setChecking] = useState(false);
+
   const [name, setName] = useState("");
   const [baseDir, setBaseDir] = useState("");
   const [dir, setDir] = useState("");
-  const [memoryMax, setMemoryMax] = useState(8);
+  const [memoryMax, setMemoryMax] = useState(4);
+  const [totalMem, setTotalMem] = useState<number | null>(null);
 
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
-  // 打开时做环境探测
   useEffect(() => {
     if (!open) return;
+    // 重新打开时回到第一步；成功页不应该残留
+    setStep(0);
+    setCreatedId(null);
     let alive = true;
     void (async () => {
       setChecking(true);
@@ -68,12 +94,20 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
         window.mcss.app.detectJava().catch(() => [] as JavaInfo[]),
       ]);
       if (!alive) return;
-      if (info) setBaseDir(`${info.appData}\\instances`);
+      if (info) {
+        setBaseDir(`${info.appData}\\instances`);
+        setName((n) => n || "我的服务器");
+        const gb = Number(info.totalMemGb) || 0;
+        setTotalMem(gb || null);
+        setMemoryMax(Math.max(2, Math.min(8, gb ? Math.floor(gb / 2) : 4)));
+      }
       setVersions(list);
       setJavas(js);
-      const best = js.find((j) => (j.major ?? 0) >= 21) ?? js[0];
-      setJavaPath(best?.path ?? "");
-      setMcVersion((v) => v || list.find((x) => x.type === "release")?.id || "");
+      const nextPresets = buildVersionPresets(list);
+      setPresets(nextPresets);
+      const rec = recommendedVersion("vanilla", nextPresets);
+      setMcVersion((v) => v || rec);
+      setCore("paper");
       setChecking(false);
     })();
     return () => {
@@ -82,42 +116,96 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
   }, [open]);
 
   useEffect(() => {
+    if (!open || !presets.length) return;
+    let alive = true;
+    void window.mcss.versions
+      .ecosystem(presets.map((p) => p.id))
+      .then((data) => alive && setEco(data))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open, presets]);
+
+  // 版本 / 核心联动：拿构建列表；Paper 26.1 没构建时自动落到 26.1.2
+  useEffect(() => {
     if (!open || !mcVersion) return;
     let alive = true;
+    setBuildError(null);
     window.mcss.versions
-      .serverBuilds(loader, mcVersion)
+      .serverBuilds(core, mcVersion)
       .then((raw) => {
         if (!alive) return;
         const list = normalizeLoaders(raw);
-        setLoaders(list);
-        setLoaderVersion((v) => pickLoader(v, list));
+        if (!list.length && (core === "paper" || core === "purpur") && mcVersion === "26.1") {
+          setMcVersion("26.1.2");
+          return;
+        }
+        setBuilds(list);
+        setBuild((v) => pickLoader(v, list));
       })
-      .catch(() => {
-        if (alive) setLoaders([]);
+      .catch((e) => {
+        if (!alive) return;
+        setBuilds([]);
+        setBuild("");
+        setBuildError((e as Error).message);
       });
     return () => {
       alive = false;
     };
-  }, [open, mcVersion, loader]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mcVersion, core]);
 
   const finalDir = useMemo(() => {
     if (dir) return dir;
-    return baseDir ? `${baseDir}\\${safeName(name || `${mcVersion}-${loader}`)}` : "";
-  }, [dir, name, mcVersion, loader, baseDir]);
+    return baseDir ? `${baseDir}\\${safeName(name || `${mcVersion}-${core}`)}` : "";
+  }, [dir, name, mcVersion, core, baseDir]);
 
+  const requiredJava = javaMajorFor(mcVersion);
+  const manualJava = javas.find((j) => j.path === javaOverride);
+  const chosenJava =
+    manualJava && Number(manualJava.major) >= requiredJava ? manualJava : pickJavaFor(javas, requiredJava);
+  const javaOk = Boolean(chosenJava);
+  const coreInfo = coreMeta(core);
   const releaseOptions = useMemo(
     () =>
       versions
-        .filter((v) => v.type === "release" || v.type === "snapshot")
-        .slice(0, 240)
-        .map((v) => ({ value: v.id, label: `${v.id}${v.type === "release" ? "" : "（快照）"}` })),
+        .filter((v) => v.type === "release")
+        .map((v) => ({ value: v.id, label: v.id })),
     [versions],
   );
 
+  function chooseIntent(next: ServerIntent) {
+    setIntent(next);
+    const rec = recommendedVersion(next, presets);
+    if (rec) setMcVersion(rec);
+    setCore(recommendedCore(next, rec || mcVersion));
+    setStep(1);
+  }
+
+  function chooseVersion(v: string) {
+    setMcVersion(v);
+    if (intent === "mods") {
+      setCore((c) => {
+        if (v === "1.21.1" && c === "fabric") return "neoforge";
+        if (v !== "1.21.1" && c === "neoforge") return "fabric";
+        return c;
+      });
+    }
+  }
+
+  async function detectJava() {
+    setChecking(true);
+    const js = await window.mcss.app.detectJava().catch(() => []);
+    setJavas(js);
+    setChecking(false);
+    if (!pickJavaFor(js, requiredJava)) toast.warning(`还需要 Java ${requiredJava}`);
+  }
+
   async function install() {
-    if (!javaPath) return toast.error("先选一个 Java 运行时");
     if (!name.trim()) return toast.error("给服务器起个名字");
     if (!mcVersion) return toast.error("选一个 Minecraft 版本");
+    if (!chosenJava) return toast.error(`这个版本需要 Java ${requiredJava}`);
     setInstalling(true);
     setProgress({ stage: "准备中", percent: 0 });
     const off = window.mcss.versions.onProgress(setProgress);
@@ -125,19 +213,19 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
       const res = await window.mcss.versions.install({
         dir: finalDir,
         mc: mcVersion,
-        serverType: loader,
-        loaderVersion: loader === "fabric" ? loaderVersion : undefined,
-        build: loader === "paper" || loader === "purpur" || loader === "forge" || loader === "neoforge" ? loaderVersion : undefined,
-        javaPath,
+        serverType: core,
+        loaderVersion: core === "fabric" ? build : undefined,
+        build: core === "paper" || core === "purpur" || core === "forge" || core === "neoforge" ? build : undefined,
+        javaPath: chosenJava.path,
       });
       if (!res.ok) throw new Error(res.error || "安装失败");
       const inst = makeInstance({
         name: name.trim(),
         dir: finalDir,
         mcVersion,
-        serverType: loader,
-        loaderVersion: loader === "fabric" ? loaderVersion : undefined,
-        javaPath,
+        serverType: core,
+        loaderVersion: core === "fabric" ? build : undefined,
+        javaPath: chosenJava.path,
         memoryMin: Math.min(2, memoryMax),
         memoryMax,
       });
@@ -153,20 +241,22 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
     }
   }
 
-  function finish(then?: "library" | "network" | "open") {
+  function finish(then: "open" | "library" = "open") {
     onDone();
-    if (then === "library") navigate(createdId ? `/instances/${createdId}/content?view=browse` : "/instances");
-    else if (then === "network") navigate("/network");
-    else if (then === "open" && createdId) navigate("/");
+    if (!createdId) return;
+    if (then === "library") navigate(`/instances/${createdId}/content?view=browse`);
+    else navigate("/");
   }
 
-  const canNext = step === 0 ? Boolean(javaPath) : step === 1 ? Boolean(mcVersion && name.trim()) : true;
+  const canNext = step === 0 ? true : step === 1 ? Boolean(mcVersion) : true;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !installing && finish()} widthClass="max-w-2xl">
-      <div className="border-b border-gray-300 px-5 py-4">
-        <div className="t-h-20 text-gray-1000">欢迎使用 Wulon&apos;s MCSS</div>
-        <p className="t-label-13 mt-1 text-gray-800">三步开一个服务器。不想现在做也没关系，右上角关掉即可，之后随时能新建。</p>
+      <div className="border-b border-gray-300 px-5 pb-4 pt-5">
+        <div className="t-h-20 text-gray-1000">先把它开起来</div>
+        <p className="t-label-13 mt-1 text-gray-800">
+          你可以什么都不懂。回答三个问题，剩下的我替你选好。
+        </p>
         <div className="mt-4 flex items-center gap-2">
           {STEPS.map((label, i) => (
             <div key={label} className="flex flex-1 items-center gap-2">
@@ -187,190 +277,319 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
 
       <DialogBody className="space-y-4">
         {step === 0 ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Coffee className="size-4 text-gray-800" />
-              <span className="t-h-14 text-gray-1000">检测到的 Java</span>
-              <Badge variant={javas.length ? "green" : "amber"} size="sm">
-                {checking ? "检测中" : javas.length ? `${javas.length} 个` : "没找到"}
-              </Badge>
-              <Button
-                size="xs"
-                variant="secondary"
-                className="ml-auto"
-                onClick={async () => {
-                  setChecking(true);
-                  const js = await window.mcss.app.detectJava().catch(() => []);
-                  setJavas(js);
-                  if (!javaPath && js[0]) setJavaPath(js[0].path);
-                  setChecking(false);
-                }}
-              >
-                重新检测
-              </Button>
-            </div>
-
-            {javas.length === 0 ? (
-              <div className="rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
-                没有找到 Java。Minecraft 26.x 需要 Java 21+，点下面的「手动指定」选中 <span className="t-mono-12">javaw.exe</span>。
-              </div>
-            ) : null}
-
-            <div className="space-y-1.5">
-              {javas.map((j) => (
-                <label
-                  key={j.path}
+          <div className="space-y-2.5">
+            <p className="t-label-12 text-gray-700">选一个最像你的。选错了随时能改，不会锁死。</p>
+            {INTENTS.map((it) => {
+              const Icon = it.id === "vanilla" ? Gamepad2 : it.id === "plugins" ? Plug : Puzzle;
+              const active = intent === it.id;
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => chooseIntent(it.id)}
                   className={cx(
-                    "flex cursor-pointer items-center gap-2 rounded-lg p-2.5 transition-colors",
-                    javaPath === j.path ? "bg-gray-100" : "hover:bg-gray-100",
+                    "flex w-full items-start gap-3 rounded-xl p-3.5 text-left transition-colors",
+                    active ? "bg-gray-100 shadow-geist-border" : "bg-background-200 hover:bg-gray-100",
                   )}
                 >
-                  <input type="radio" checked={javaPath === j.path} onChange={() => setJavaPath(j.path)} />
-                  <span className="t-label-13 text-gray-1000">Java {j.major ?? "?"}</span>
-                  <span className="t-mono-12 truncate text-gray-700">{j.path}</span>
-                </label>
-              ))}
+                  <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-900">
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="t-label-14 block font-medium text-gray-1000">{it.title}</span>
+                    <span className="t-label-12 mt-0.5 block text-gray-800">{it.subtitle}</span>
+                    <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                      {it.points.map((p) => (
+                        <span key={p} className="t-label-12 text-gray-700">· {p}</span>
+                      ))}
+                    </span>
+                  </span>
+                  <ArrowRight className="mt-1 size-4 shrink-0 text-gray-600" />
+                </button>
+              );
+            })}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button variant="ghost" size="sm" onClick={() => chooseIntent("vanilla")}>
+                <Sparkles className="size-3.5" />
+                我不知道，用推荐配置
+              </Button>
+              <span className="t-label-12 text-gray-700">默认：Paper + 最新版，朋友不用装东西</span>
             </div>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                const p = await window.mcss.app.pickJava();
-                if (p) {
-                  setJavaPath(p);
-                  setJavas((list) => (list.some((j) => j.path === p) ? list : [...list, { path: p }]));
-                }
-              }}
-            >
-              手动指定 Java
-            </Button>
           </div>
         ) : null}
 
         {step === 1 ? (
-          <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="服务器名称">
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="和朋友一起玩" />
-              </Field>
-              <Field label="Minecraft 版本">
-                <Picker
-                  value={mcVersion}
-                  onValueChange={setMcVersion}
-                  options={releaseOptions.length ? releaseOptions : [{ value: "", label: "加载中…" }]}
-                />
-              </Field>
+          <div className="space-y-4">
+            <div>
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="t-h-14 text-gray-1000">选游戏版本</span>
+                <span className="t-label-12 text-gray-700">版本不同，能装的 Mod/插件数量差很多</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {presets.map((p) => {
+                  const selected = mcVersion === p.id;
+                  const stats = eco[p.id];
+                  const java = javaMajorFor(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => chooseVersion(p.id)}
+                      className={cx(
+                        "rounded-xl p-3 text-left transition-colors",
+                        selected ? "bg-gray-100 shadow-[0_0_0_2px_var(--ds-gray-1000)]" : "bg-background-200 hover:bg-gray-100",
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="t-mono-13 font-medium text-gray-1000">{p.id}</span>
+                        <Badge variant={p.tag === "最新" ? "green" : p.tag === "老 Mod 最多" ? "amber" : "blue"} size="sm">
+                          {p.tag}
+                        </Badge>
+                        {selected ? <Check className="ml-auto size-3.5 text-gray-1000" /> : null}
+                      </div>
+                      <p className="mt-1 t-label-12 leading-4 text-gray-800">{p.why}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 t-label-12 text-gray-700">
+                        <span>Java {java}</span>
+                        <span>
+                          Mod {stats?.mods != null ? formatCount(stats.mods) : "—"} · 插件{" "}
+                          {stats?.plugins != null ? formatCount(stats.plugins) : "—"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <Field label="服务端核心" hint={CORE_HINTS[loader]}>
-              <Picker value={loader} onValueChange={(v) => setLoader(v as ServerType)} options={CORE_OPTIONS} />
-            </Field>
-
-            {loader !== "vanilla" ? (
-              <Field label={loader === "fabric" ? "Fabric Loader" : "核心版本"}>
-                <Picker
-                  value={loaderVersion}
-                  onValueChange={setLoaderVersion}
-                  options={loaders.length ? loaders.map((l) => ({ value: l, label: l })) : [{ value: "", label: "—" }]}
-                />
-              </Field>
-            ) : null}
-
-            <Field label="安装目录" hint={finalDir}>
-              <div className="flex gap-2">
-                <Input value={finalDir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" />
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    const p = await window.mcss.dialog.openDirectory();
-                    if (p) setDir(p);
-                  }}
-                >
-                  <FolderOpen className="size-4" />
-                </Button>
-              </div>
-            </Field>
-
-            <Field label={`最大内存 ${memoryMax} GB`} hint="小服 4G 够用；装了大型 Mod 建议 8G 以上">
-              <Slider ariaLabel="最大内存" min={2} max={32} step={1} value={[memoryMax]} onValueChange={([v]) => setMemoryMax(v)} />
-            </Field>
-          </div>
-        ) : null}
-
-        {step === 2 ? (
-          <div className="space-y-4">
-            {createdId ? (
-              <div className="space-y-3">
-                <div className="rounded-lg bg-green-800/10 p-3">
-                  <div className="t-label-13 font-medium text-green-900">服务器已就绪</div>
-                  <div className="t-label-12 mt-0.5 text-gray-800">
-                    {name} · {mcVersion} · {loader}
-                    {loaderVersion ? ` ${loaderVersion}` : ""} · {finalDir}
-                  </div>
+            {intent === "mods" ? (
+              <div>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="t-h-14 text-gray-1000">选模组平台</span>
+                  <span className="t-label-12 text-gray-700">朋友也要装同样的平台</span>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <Button variant="secondary" onClick={() => finish("open")}>
-                    <Play className="size-4" />
-                    进入实例
-                  </Button>
-                  <Button variant="secondary" onClick={() => finish("library")}>
-                    <Puzzle className="size-4" />
-                    装点 Mod
-                  </Button>
-                  <Button variant="secondary" onClick={() => finish("network")}>
-                    <Wifi className="size-4" />
-                    配置联机
-                  </Button>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {CORES.filter((c) => c.intents.includes("mods") && (c.type === "fabric" || c.type === "neoforge")).map((c) => (
+                    <button
+                      key={c.type}
+                      onClick={() => setCore(c.type)}
+                      className={cx(
+                        "rounded-xl p-3 text-left transition-colors",
+                        core === c.type ? "bg-gray-100 shadow-[0_0_0_2px_var(--ds-gray-1000)]" : "bg-background-200 hover:bg-gray-100",
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="t-label-14 font-medium text-gray-1000">{c.label}</span>
+                        {core === c.type ? <Check className="ml-auto size-3.5" /> : null}
+                      </div>
+                      <p className="mt-1 t-label-12 text-gray-800">{c.tagline}</p>
+                      <p className="mt-0.5 t-label-12 text-gray-700">{c.client}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : (
-              <>
-                <p className="t-label-13 text-gray-800">
-                  会把 {loader === "fabric" ? "Fabric" : "原版"} {mcVersion} 的服务端下载到：
-                </p>
-                <p className="t-mono-12 break-all rounded-lg bg-background-200 p-2.5 text-gray-900">{finalDir}</p>
-                {progress ? (
-                  <div className="rounded-lg bg-background-200 p-3">
-                    <div className="mb-2 flex items-center justify-between t-label-12 text-gray-800">
-                      <span>{progress.stage}</span>
-                      <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
-                      <div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${Math.max(2, progress.percent)}%` }} />
-                    </div>
-                  </div>
-                ) : null}
-                <Button onClick={install} loading={installing} size="lg">
-                  {installing ? null : <Download className="size-4" />}
-                  下载并安装服务端
-                </Button>
-              </>
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-200 px-3 py-2">
+                <span className="t-label-13 text-gray-1000">服务端：{serverLabel(core)}</span>
+                <span className="t-label-12 text-gray-700">· {coreInfo?.client}</span>
+                <button
+                  className="ml-auto t-label-12 text-blue-900 hover:underline"
+                  onClick={() => setCore(core === "paper" ? "vanilla" : "paper")}
+                >
+                  {core === "paper" ? "想要纯原版？换成 Vanilla" : "换回更推荐的 Paper"}
+                </button>
+              </div>
             )}
+
+            <div className={cx("flex flex-wrap items-center gap-2 rounded-lg p-2.5", javaOk ? "bg-green-800/10" : "bg-amber-700/10")}>
+              <Coffee className={cx("size-4", javaOk ? "text-green-900" : "text-amber-900")} />
+              <span className={cx("t-label-13", javaOk ? "text-green-900" : "text-amber-900")}>
+                {javaOk
+                  ? `运行环境已就绪：Java ${chosenJava?.major}`
+                  : `这个版本需要 Java ${requiredJava}，当前没找到`}
+              </span>
+              {javaOk ? (
+                <span className="t-label-12 text-gray-700">已检测到，点下一步继续</span>
+              ) : (
+                <span className="ml-auto flex items-center gap-2">
+                  <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openExternal(JAVA_DOWNLOAD)}>
+                    <ExternalLink className="size-3" />
+                    下载 Java
+                  </Button>
+                  <Button size="xs" variant="ghost" onClick={detectJava} loading={checking}>
+                    重新检测
+                  </Button>
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {step === 2 && !createdId ? (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-background-200 p-3.5">
+              <div className="t-label-12 text-gray-700">你会得到</div>
+              <div className="mt-1 t-h-16 text-gray-1000">
+                {serverLabel(core)} {mcVersion}
+              </div>
+              <ul className="mt-2 space-y-1">
+                <li className="flex items-center gap-1.5 t-label-13 text-gray-900">
+                  <Check className="size-3.5 text-green-900" />
+                  {clientRequirementText(core)}
+                </li>
+                <li className="flex items-center gap-1.5 t-label-13 text-gray-900">
+                  <Check className="size-3.5 text-green-900" />
+                  需要 Java {requiredJava}：{chosenJava ? `已找到 Java ${chosenJava.major}` : "还没找到"}
+                </li>
+                <li className="flex items-center gap-1.5 t-label-13 text-gray-900">
+                  <Check className="size-3.5 text-green-900" />
+                  {intent === "mods" ? "之后可以在「模组 → 资源库」里加 Mod" : "之后可以在「插件 → 资源库」里加插件"}
+                </li>
+              </ul>
+            </div>
+
+            <Field label="服务器名称" hint="朋友在游戏里看到的名字，之后能改">
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="我的服务器" />
+            </Field>
+
+            {!javaOk ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-3">
+                <AlertTriangle className="size-4 shrink-0 text-amber-900" />
+                <span className="t-label-13 text-amber-900">
+                  还差 Java {requiredJava}。装好之后点「重新检测」；没有 Java 服务端起不来。
+                </span>
+                <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openExternal(JAVA_DOWNLOAD)}>
+                  下载 Java {requiredJava}
+                </Button>
+                <Button size="xs" variant="ghost" onClick={detectJava} loading={checking}>
+                  重新检测
+                </Button>
+              </div>
+            ) : null}
+
+            {core !== "vanilla" && builds.length === 0 ? (
+              <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
+                {buildError
+                  ? `拿不到 ${serverLabel(core)} ${mcVersion} 的构建：${buildError}`
+                  : `${serverLabel(core)} 目前没有 ${mcVersion} 的构建。换一个版本，或换一个核心。`}
+              </div>
+            ) : null}
+
+            <details className="rounded-lg bg-background-200 p-3">
+              <summary className="cursor-pointer t-label-13 text-gray-900">高级选项（内存 / 安装目录 / Java / 构建号）</summary>
+              <div className="mt-3 space-y-3">
+                <Field label={`最大内存 ${memoryMax} GB`} hint={totalMem ? `本机约 ${totalMem} GB；小服 4G 够用` : "小服 4G 够用"}>
+                  <Slider
+                    ariaLabel="最大内存"
+                    min={2}
+                    max={Math.max(2, Math.min(32, totalMem || 32))}
+                    step={1}
+                    value={[memoryMax]}
+                    onValueChange={([v]) => setMemoryMax(v)}
+                  />
+                </Field>
+                <Field label="安装目录" hint={finalDir}>
+                  <div className="flex gap-2">
+                    <Input value={finalDir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" />
+                    <Button
+                      variant="secondary"
+                      onClick={async () => {
+                        const p = await window.mcss.dialog.openDirectory();
+                        if (p) setDir(p);
+                      }}
+                    >
+                      <FolderOpen className="size-4" />
+                    </Button>
+                  </div>
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="其他版本">
+                    <Picker value={mcVersion} onValueChange={chooseVersion} options={releaseOptions} />
+                  </Field>
+                  <Field label="Java 运行时">
+                    <Picker
+                      value={chosenJava?.path ?? ""}
+                      onValueChange={setJavaOverride}
+                      options={javas.map((j) => ({ value: j.path, label: `Java ${j.major ?? "?"}`, disabled: false }))}
+                    />
+                  </Field>
+                </div>
+                {core !== "vanilla" && builds.length > 0 ? (
+                  <Field label={core === "fabric" ? "Fabric Loader" : "构建号"} hint="默认已选最新稳定版">
+                    <Picker value={build} onValueChange={setBuild} options={builds.map((b) => ({ value: b, label: b }))} />
+                  </Field>
+                ) : null}
+              </div>
+            </details>
+
+            {progress ? (
+              <div className="rounded-lg bg-background-200 p-3">
+                <div className="mb-2 flex items-center justify-between t-label-12 text-gray-800">
+                  <span>{progress.stage}</span>
+                  <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
+                  <div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${Math.max(2, progress.percent)}%` }} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {createdId ? (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-green-800/10 p-4">
+              <div className="t-h-16 text-green-900">服务器已就绪</div>
+              <p className="mt-1 t-label-13 text-gray-800">
+                {name} · {serverLabel(core)} {mcVersion} · {finalDir}
+              </p>
+              <p className="mt-1 t-label-12 text-gray-700">
+                下一步：启动服务器，然后生成一条邀请发给朋友。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => finish("open")}>
+                进入主界面
+                <ArrowRight className="size-4" />
+              </Button>
+              <Button variant="secondary" onClick={() => finish("library")}>
+                <Plug className="size-4" />
+                {intent === "mods" ? "去装 Mod" : "去装插件"}
+              </Button>
+            </div>
           </div>
         ) : null}
       </DialogBody>
 
       <DialogFooter>
-        {step > 0 ? (
-          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={installing}>
-            <ArrowLeft className="size-4" />
-            上一步
-          </Button>
-        ) : (
+        {step === 0 ? (
           <Button variant="ghost" onClick={() => finish()} disabled={installing}>
             稍后再说
           </Button>
+        ) : (
+          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={installing || Boolean(createdId)}>
+            <ArrowLeft className="size-4" />
+            上一步
+          </Button>
         )}
         <div className="ml-auto flex gap-2">
-          {step < 2 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext || installing}>
+          {createdId ? null : step < 2 ? (
+            <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext || checking}>
               下一步
               <ArrowRight className="size-4" />
             </Button>
           ) : (
-            <Button onClick={() => finish("open")} disabled={!createdId}>
-              进入主界面
+            <Button
+              onClick={install}
+              loading={installing}
+              disabled={!chosenJava || (core !== "vanilla" && builds.length === 0) || !name.trim()}
+              title={
+                !chosenJava
+                  ? `需要 Java ${requiredJava}`
+                  : core !== "vanilla" && builds.length === 0
+                    ? "这个核心/版本没有可用构建"
+                    : undefined
+              }
+            >
+              {installing ? null : <Download className="size-4" />}
+              下载并安装服务端
             </Button>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 import type { AppConfig, AppMode, ClientProfile, Instance, SavedServer, ServerType } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import { CONFIG_VERSION, normalizeConfig } from "@/lib/config-model";
@@ -64,6 +65,8 @@ export const useConfig = create<ConfigState>((set, get) => ({
       set({ cfg: normalizeConfig(saved, { defaultMode: defaultMode() }).cfg });
       return saved;
     } catch (e) {
+      // 只读目录/磁盘满时不能假装保存成功
+      toast.error("设置没有写进磁盘", { description: (e as Error).message });
       return optimistic;
     }
   },

@@ -8,6 +8,7 @@ import { Picker } from "@/components/ui/picker";
 import { Badge, Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import { copyText, uid } from "@/lib/utils";
+import { isDesktopVisual } from "@/lib/shell";
 import type { FrpProfile } from "@/lib/types";
 
 const EMPTY: FrpProfile = {
@@ -34,6 +35,12 @@ export default function Network() {
   const [logs, setLogs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // 网页 agent 不支持樱花穿透；别让配置停在一个跑不了的模式上
+    if (!isDesktopVisual() && draft.kind === "sakura") setDraft((d) => ({ ...d, kind: "frpc" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.kind]);
 
   useEffect(() => {
     const offLog = window.mcss.frp.onLog((line) => setLogs((l) => [...l.slice(-299), line]));
@@ -90,8 +97,8 @@ export default function Network() {
   return (
     <>
       <PageHeader
-        title="联机"
-        desc="把本机服务器通过 FRP 暴露到公网，朋友用地址就能连进来。"
+        title="让外网的朋友进来"
+        desc="同一个 WiFi 不用这页：直接发 192.168.x.x:25565。只有不在同一个网络时才需要内网穿透。"
         actions={
           <Badge variant={running ? "green" : "gray"} size="md">
             {running ? "隧道已连接" : "未连接"}
@@ -105,15 +112,19 @@ export default function Network() {
             <h3 className="t-h-14 text-gray-1000">隧道配置</h3>
           </div>
 
-          <Field label="方案">
+          <Field label="用哪种隧道" hint="没有自己的 frp 服务器？选樱花穿透（桌面版）或先找现成服务">
             <SegmentedControl
               grow
               value={draft.kind}
               onValueChange={(v) => setDraft({ ...draft, kind: v as FrpProfile["kind"] })}
-              options={[
-                { value: "frpc", label: "通用 frp（自备服务器）" },
-                { value: "sakura", label: "樱花穿透" },
-              ]}
+              options={
+                isDesktopVisual()
+                  ? [
+                      { value: "frpc", label: "通用 frp（自备服务器）" },
+                      { value: "sakura", label: "樱花穿透" },
+                    ]
+                  : [{ value: "frpc", label: "通用 frp（自备服务器）" }]
+              }
             />
           </Field>
 
@@ -140,24 +151,24 @@ export default function Network() {
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="服务端地址">
+                <Field label="frp 服务器地址" hint="填隧道服务商给你的地址，不是你的 Minecraft 服务器地址">
                   <Input value={draft.serverAddr} onChange={(e) => setDraft({ ...draft, serverAddr: e.target.value.trim() })} placeholder="frp.example.com" />
                 </Field>
                 <Field label="服务端端口">
                   <Input value={String(draft.serverPort)} onChange={(e) => setDraft({ ...draft, serverPort: Number(e.target.value.replace(/\D/g, "")) || 7000 })} />
                 </Field>
               </div>
-              <Field label="Token" hint="frps 配置里的 auth.token">
+              <Field label="访问密码（Token）" hint="隧道服务商给你的密码，不是 Minecraft 的">
                 <Input type="password" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="本地端口">
+                <Field label="本机 MC 端口" hint="一般就是 25565">
                   <Input value={String(draft.localPort)} onChange={(e) => setDraft({ ...draft, localPort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
-                <Field label="远端端口">
+                <Field label="公网端口" hint="朋友连接时用的端口；服务商给的说明里会写">
                   <Input value={String(draft.remotePort)} onChange={(e) => setDraft({ ...draft, remotePort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
-                <Field label="类型">
+                <Field label="协议" hint="Minecraft 一般选 TCP">
                   <Picker
                     value={draft.type}
                     onValueChange={(v) => setDraft({ ...draft, type: v as FrpProfile["type"] })}

@@ -10,6 +10,7 @@ import { CreateInstanceDialog } from "@/components/instance/CreateInstanceDialog
 import { ImportInstanceDialog } from "@/components/instance/ImportInstanceDialog";
 import { useConfig } from "@/stores/config";
 import { timeAgo } from "@/lib/utils";
+import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 
 export default function Instances() {
   const navigate = useNavigate();
@@ -26,8 +27,8 @@ export default function Instances() {
   return (
     <>
       <PageHeader
-        title="服务器实例"
-        desc="每个实例有独立的版本、核心、内容与存档，互不干扰。"
+        title="全部服务器"
+        desc="每个服务器有独立的版本、核心、内容与存档，互不干扰。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={() => setImporting(true)}>
@@ -36,7 +37,7 @@ export default function Instances() {
             </Button>
             <Button onClick={() => setCreating(true)}>
               <Plus className="size-4" />
-              新建实例
+              新建服务器
             </Button>
           </div>
         }
@@ -46,7 +47,7 @@ export default function Instances() {
           <Card>
             <EmptyState
               icon={<Server className="size-5" />}
-              title="还没有服务器实例"
+              title="还没有服务器"
               desc="新建时会自动下载对应版本的服务端；Fabric 实例可以直接装 Mod。"
               action={
                 <Button onClick={() => setCreating(true)}>
@@ -68,7 +69,7 @@ export default function Instances() {
                     <div className="min-w-0">
                       <div className="t-h-14 truncate text-gray-1000">{inst.name}</div>
                       <div className="t-label-12 text-gray-700">
-                        {inst.mcVersion} · {inst.loader}
+                        {inst.mcVersion} · {serverTypeLabel(serverTypeOf(inst))}
                         {inst.loaderVersion ? ` ${inst.loaderVersion}` : ""}
                       </div>
                     </div>

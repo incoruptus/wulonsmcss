@@ -70,9 +70,13 @@ export interface McssApi {
       version: string;
       isPackaged: boolean;
       appData: string;
+      /** 玩家的 .minecraft（%APPDATA%\.minecraft），与 appData 不是上下级 */
+      minecraftDir?: string;
       documents: string;
       userName: string;
       platform: string;
+      /** 物理内存 GB；agent 侧可能拿不到 */
+      totalMemGb?: number | null;
       electron: string;
       node: string;
     }>;
@@ -140,6 +144,8 @@ export interface McssApi {
   };
   versions: {
     minecraft: () => Promise<McVersion[]>;
+    /** 每个版本的 Mod/插件数量（网络失败为 null，界面隐藏数字） */
+    ecosystem: (list: string[]) => Promise<Record<string, { mods: number | null; plugins: number | null }>>;
     fabricLoaders: (mc: string) => Promise<string[]>;
     /** 某个核心在某个 MC 版本下的构建列表（Paper/Purpur 的 build、Fabric 的 loader） */
     serverBuilds: (serverType: ServerType, mc: string) => Promise<string[]>;

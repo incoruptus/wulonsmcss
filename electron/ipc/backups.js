@@ -194,7 +194,9 @@ function restoreSnapshot(serverDir, name) {
   // 先整份校验，再动磁盘：任何一条路径不合法都整体拒绝，绝不留半截状态
   const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
   if (!entries.length) return { ok: false, error: "这个快照是空的，不能恢复" };
-  const bad = entries.find((e) => !e || !isSafeRelPath(e.path));
+  const bad = entries.find(
+    (e) => !e || !isSafeRelPath(e.path) || !/^[0-9a-f]{40}$/i.test(String(e.hash || "")),
+  );
   if (bad) return { ok: false, error: `快照内容不合法（路径 ${String(bad.path ?? "?").slice(0, 40)}），已拒绝恢复` };
 
   const worldDir = path.join(serverDir, "world");

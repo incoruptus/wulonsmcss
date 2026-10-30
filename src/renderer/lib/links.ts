@@ -26,3 +26,19 @@ export function agentDownloadUrl(): string {
 export function agentDownloadReady(): boolean {
   return agentDownloadUrl().length > 0;
 }
+
+/**
+ * 当前网页版的公开地址（用来拼「一键进服」链接）。
+ * - 网页版：就是浏览器地址栏的 origin + 部署子路径（Hash 路由下可直接用）
+ * - 桌面版：没有网页地址，返回 null；这时不要伪造一条 404 链接，改发房间码
+ * - 构建时可用 VITE_PUBLIC_URL 覆盖（例如 https://mcss.example.com）
+ */
+export function publicWebOrigin(): string | null {
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  const override = env?.VITE_PUBLIC_URL || "";
+  if (override) return override.replace(/\/+$/, "");
+  if (typeof window === "undefined") return null;
+  if (!/^https?:$/.test(window.location.protocol)) return null;
+  const path = window.location.pathname.replace(/index\.html$/i, "").replace(/\/+$/, "");
+  return `${window.location.origin}${path}`;
+}

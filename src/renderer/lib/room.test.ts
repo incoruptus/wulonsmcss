@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeRoom, encodeRoom, extractCode, roomDeepLink, roomInstallLink, roomWebLink, type RoomDescriptorV1 } from "./room";
+import { decodeRoom, encodeRoom, extractCode, roomDeepLink, roomInstallLink, roomShareText, roomWebLink, type RoomDescriptorV1 } from "./room";
 
 const ROOM: RoomDescriptorV1 = {
   v: 1,
@@ -67,6 +67,20 @@ describe("房间描述符", () => {
   it("过期房间会被拒绝", async () => {
     const code = await encodeRoom({ ...ROOM, exp: Date.now() - 1000 });
     await expect(decodeRoom(code)).rejects.toThrow(/过期/);
+  });
+
+  it("没有网页地址时不伪造 404 链接，只发房间码", async () => {
+    const code = await encodeRoom(ROOM);
+    const text = roomShareText(ROOM, code);
+    expect(text).not.toContain("http");
+    expect(text).toContain("房间码");
+    expect(text).toContain("加入游戏");
+  });
+
+  it("有部署地址时，邀请里带正确的 join 链接", async () => {
+    const code = await encodeRoom(ROOM);
+    const text = roomShareText(ROOM, code, "https://mcss.example.com/sub");
+    expect(text).toContain(`https://mcss.example.com/sub/#/join/${code}`);
   });
 
   it("乱输入给中文错误", async () => {

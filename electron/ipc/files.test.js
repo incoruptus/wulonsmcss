@@ -24,6 +24,13 @@ test("拒绝盘符根目录", () => {
   }
 });
 
+test("拒绝系统目录（深度 2 也不行）", () => {
+  if (process.platform !== "win32") return;
+  for (const bad of ["C:\\Windows", "C:\\Users", "C:\\Program Files"]) {
+    assert.throws(() => remove(bad), /拒绝删除/, `${bad} 应被拒绝`);
+  }
+});
+
 test("正常目录能删，且真的删掉了", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-rm-"));
   const target = path.join(dir, "world");

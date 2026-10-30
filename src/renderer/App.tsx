@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
@@ -20,6 +20,7 @@ import { buildDeps, runSync } from "@/lib/sync/engine";
 import { detectShell } from "@/lib/shell";
 
 export default function App() {
+  const location = useLocation();
   const load = useConfig((s) => s.load);
   const loaded = useConfig((s) => s.loaded);
   const patch = useConfig((s) => s.patch);
@@ -28,6 +29,8 @@ export default function App() {
   const modeAsked = useConfig((s) => s.cfg.modeAsked);
   const bind = useServer((s) => s.bind);
   const theme = useConfig((s) => s.cfg.theme);
+  const maxLogLines = useConfig((s) => s.cfg.maxLogLines);
+  const animationsEnabled = useConfig((s) => s.cfg.animationsEnabled);
 
   useEffect(() => {
     void load();
@@ -46,6 +49,16 @@ export default function App() {
     }, 1500);
     return () => clearTimeout(timer);
   }, [loaded]);
+
+  // 设置项必须真的生效：日志上限写进 server store，动画开关落到 <html>
+  useEffect(() => {
+    const n = Number(maxLogLines) || 1000;
+    useServer.setState({ maxLogs: Math.max(200, n) });
+  }, [maxLogLines]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("no-anim", animationsEnabled === false);
+  }, [animationsEnabled]);
 
   // 跟随系统主题
   useEffect(() => {
@@ -71,7 +84,10 @@ export default function App() {
       <TitleBar />
       <WebAgentBanner />
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
+        {/* 朋友在手机上点开邀请时，不该先看到一条 228px 的侧栏 */}
+        <div className={location.pathname.startsWith("/join") ? "hidden shrink-0 md:flex" : "flex shrink-0"}>
+          <Sidebar />
+        </div>
         <main className="min-w-0 flex-1 overflow-y-auto scroll-thin">
           <Routes>
             {/* 两个模式各自的首页：服主=实例仪表盘，玩家=加入游戏 */}

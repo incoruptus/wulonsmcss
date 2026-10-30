@@ -16,6 +16,7 @@ import { copyText, timeAgo } from "@/lib/utils";
 export default function MyServers() {
   const servers = useConfig((s) => s.cfg.savedServers);
   const remove = useConfig((s) => s.removeSavedServer);
+  const saveServer = useConfig((s) => s.saveServer);
   const mode = useConfig((s) => s.cfg.mode);
   const setMode = useConfig((s) => s.setMode);
   const navigate = useNavigate();
@@ -78,11 +79,14 @@ export default function MyServers() {
                 复制地址
               </Button>
               <button
-                aria-label="删除"
-                title="删除"
-                onClick={() => {
-                  void remove(s.id);
-                  toast.success("已从列表移除");
+                aria-label="从列表移除"
+                title="从我的列表移除（不影响服务器和存档）"
+                onClick={async () => {
+                  await remove(s.id);
+                  toast.success("已从列表移除", {
+                    description: "只是不再显示在这个列表里，服务器本身没事",
+                    action: { label: "撤销", onClick: () => void saveServer(s) },
+                  });
                 }}
                 className="grid size-8 place-items-center rounded-md text-gray-700 transition-colors hover:bg-red-700/10 hover:text-red-900"
               >

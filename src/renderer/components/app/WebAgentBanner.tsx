@@ -58,17 +58,7 @@ export function WebAgentBanner() {
             下载助手
           </Button>
         ) : (
-          <Button
-            size="xs"
-            variant="ghost"
-            className="text-amber-900"
-            title="发布时要先把仓库地址填进 src/renderer/lib/links.ts 的 REPO"
-            onClick={() => {}}
-            disabled
-          >
-            <Download className="size-3" />
-            助手下载地址待配置
-          </Button>
+          <span className="t-label-12 text-amber-900/80">安装包请向发你链接的人要</span>
         )}
       </div>
     </div>

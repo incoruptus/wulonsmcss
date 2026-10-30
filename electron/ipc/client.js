@@ -25,6 +25,16 @@ async function getJson(url, timeoutMs = 20000) {
   }
 }
 
+/**
+ * 远端文件名不可信：只能保留最后一段并清掉 Windows 非法字符。
+ * 之前直接 path.join(modsDir, filename)，`..\..\Startup\x.jar` 能写到 mods 之外。
+ */
+function safeFileName(raw) {
+  const base = path.basename(String(raw || "mod.jar")).replace(/[\\/:*?"<>|]+/g, "_").trim();
+  if (!base || base === "." || base === "..") return "mod.jar";
+  return base;
+}
+
 /** 解析单个 Modrinth 版本 id → 首选文件 */
 async function resolveFile(versionId) {
   const v = await getJson(`${API}/version/${encodeURIComponent(versionId)}`);
@@ -68,17 +78,19 @@ async function prepare({ dir, mods = [], onProgress }) {
     onProgress?.({ stage: `准备 ${label}`, percent: Math.round(((index - 1) / Math.max(mods.length, 1)) * 100), detail: `${index}/${mods.length}` });
     try {
       const file = await resolveFile(mod.v);
-      const dest = path.join(modsDir, file.filename);
+      const safeName = safeFileName(file.filename);
+      const dest = path.resolve(modsDir, safeName);
+      if (path.dirname(dest) !== path.resolve(modsDir)) throw new Error(`文件名不安全：${file.filename}`);
       const existed = fs.existsSync(dest);
       if (existed && !(await needsReplace(dest, file))) {
-        results.push({ ok: true, name: label, file: file.filename, skipped: true });
+        results.push({ ok: true, name: label, file: safeName, skipped: true });
         continue;
       }
       await download(file.url, dest, undefined, {
         mirrors: ["", "https://gh-proxy.com/"],
         hash: { sha1: file.sha1, sha512: file.sha512 },
       });
-      results.push({ ok: true, name: label, file: file.filename, replaced: existed || undefined });
+      results.push({ ok: true, name: label, file: safeName, replaced: existed || undefined });
     } catch (e) {
       results.push({ ok: false, name: label, error: e.message });
     }
@@ -88,4 +100,4 @@ async function prepare({ dir, mods = [], onProgress }) {
   return { ok: results.every((r) => r.ok), dir, modsDir, results };
 }
 
-module.exports = { prepare, resolveFile, needsReplace };
+module.exports = { prepare, resolveFile, needsReplace, safeFileName };

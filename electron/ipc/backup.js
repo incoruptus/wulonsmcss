@@ -48,7 +48,7 @@ function list(serverDir) {
 function stamp() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-${String(d.getMilliseconds()).padStart(3, "0")}`;
 }
 
 /**
@@ -60,7 +60,9 @@ async function create(serverDir, server) {
 
   const dir = backupDir(serverDir);
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `world-${stamp()}.zip`);
+  let file = path.join(dir, `world-${stamp()}.zip`);
+  let seq = 2;
+  while (fs.existsSync(file)) file = path.join(dir, `world-${stamp()}-${seq++}.zip`);
   const running = server && server.getStatus() === "running";
 
   let resumed = false;

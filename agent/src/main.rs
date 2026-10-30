@@ -86,9 +86,13 @@ fn config_path() -> PathBuf {
 }
 
 fn load_config(path: &Path) -> Json {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|text| Json::parse(text.trim_start_matches('\u{feff}')).ok())
+    let read = |p: &Path| {
+        std::fs::read_to_string(p)
+            .ok()
+            .and_then(|text| Json::parse(text.trim_start_matches('\u{feff}')).ok())
+    };
+    read(path)
+        .or_else(|| read(&path.with_extension("json.bak")))
         .unwrap_or_else(default_config)
 }
 
@@ -96,7 +100,13 @@ fn save_config(path: &Path, config: &Json) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let _ = std::fs::write(path, config.to_string());
+    // 原子写：tmp → rename，覆盖前留 .bak；避免断电留下半截 JSON
+    let tmp = path.with_extension("json.tmp");
+    if std::fs::write(&tmp, config.to_string()).is_ok() {
+        let bak = path.with_extension("json.bak");
+        let _ = std::fs::copy(path, &bak);
+        let _ = std::fs::rename(&tmp, path);
+    }
 }
 
 fn local_ip() -> String {
@@ -243,6 +253,39 @@ fn instance_by_id<'a>(config: &'a Json, id: &str) -> Option<&'a Json> {
         .and_then(|list| list.iter().find(|i| i.get("id").and_then(|v| v.str()) == Some(id)))
 }
 
+const JVM_START: &str = "# >>> Wulon's MCSS 管理的内存参数（不要手改这一段）>>>";
+const JVM_END: &str = "# <<< Wulon's MCSS 管理的内存参数 <<<";
+
+/// 只替换我们管理的那一段，保留用户手写的注释/参数
+fn write_managed_jvm_args(path: &Path, args: &str) {
+    let existing = std::fs::read_to_string(path).unwrap_or_default();
+    let mut keep = Vec::new();
+    let mut skip = false;
+    for line in existing.lines() {
+        if line == JVM_START {
+            skip = true;
+            continue;
+        }
+        if line == JVM_END {
+            skip = false;
+            continue;
+        }
+        if !skip {
+            keep.push(line);
+        }
+    }
+    while keep.last().map(|l| l.trim().is_empty()).unwrap_or(false) {
+        keep.pop();
+    }
+    let block = format!("{JVM_START}\n{args}\n{JVM_END}");
+    let content = if keep.is_empty() {
+        format!("{block}\n")
+    } else {
+        format!("{}\n\n{block}\n", keep.join("\n"))
+    };
+    let _ = std::fs::write(path, content);
+}
+
 fn start_server(shared: &Shared, instance_id: &str) -> Result<Json, String> {
     let mut state = shared.lock().unwrap();
     if state.child.is_some() {
@@ -291,7 +334,7 @@ fn start_server(shared: &Shared, instance_id: &str) -> Result<Json, String> {
             user_args.push(' ');
             user_args.push_str(jvm.trim());
         }
-        let _ = std::fs::write(dir_path.join("user_jvm_args.txt"), format!("{user_args}\n"));
+        write_managed_jvm_args(&dir_path.join("user_jvm_args.txt"), &user_args);
         cmd.arg("@user_jvm_args.txt")
             .arg(format!("@{}", af.display()))
             .arg("nogui");
@@ -333,6 +376,26 @@ fn start_server(shared: &Shared, instance_id: &str) -> Result<Json, String> {
     state.child = Some(child);
     state.stdin = state.child.as_mut().and_then(|c| c.stdin.take());
     set_status(&mut state, "starting");
+
+    // 盯住进程自然退出（崩溃 / 正常 stop）：否则 status 会永远停在 running，
+    // 用户点启动只会得到“已在运行”，也看不到退出码。
+    let shared_mon = Arc::clone(shared);
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(1));
+        let mut st = shared_mon.lock().unwrap();
+        if st.child.is_none() {
+            break;
+        }
+        let code = match st.child.as_mut().and_then(|c| c.try_wait().ok()).flatten() {
+            Some(status) => status.code(),
+            None => continue,
+        };
+        st.child = None;
+        st.stdin = None;
+        emit_log(&mut st, "INFO", &format!("服务器进程已退出（代码 {}）", code.map(|c| c.to_string()).unwrap_or_else(|| "未知".into())));
+        set_status(&mut st, "stopped");
+        break;
+    });
 
     Ok(Json::obj(vec![("ok", Json::Bool(true)), ("pid", Json::n(pid as f64))]))
 }
@@ -1585,13 +1648,30 @@ fn toggle_mod(jar_path: &str, enable: bool) -> Result<Json, String> {
 
 /* ---------------------------- 桌面能力对齐 ---------------------------- */
 
-/// 打开文件/文件夹/URL（等价于双击）
+/// 打开文件/文件夹（等价于双击）
 fn open_path(target: &str) -> Result<Json, String> {
     if target.is_empty() {
         return Err("缺少路径".into());
     }
+    // 不用 cmd /c start：路径里的 & 会被当命令分隔符。explorer 直接收参数。
+    Command::new("explorer")
+        .arg(target)
+        .spawn()
+        .map_err(|e| format!("打开失败：{e}"))?;
+    Ok(Json::obj(vec![("ok", Json::Bool(true))]))
+}
+
+/// 打开 http(s) 链接：只允许这两种协议，并整体加引号交给 cmd
+fn open_external(target: &str) -> Result<Json, String> {
+    let lower = target.to_ascii_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return Err("只打开 http/https 链接".into());
+    }
     Command::new("cmd")
-        .args(["/c", "start", "", target])
+        .arg("/c")
+        .arg("start")
+        .arg("")
+        .arg(format!("\"{}\"", target))
         .spawn()
         .map_err(|e| format!("打开失败：{e}"))?;
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
@@ -1939,9 +2019,9 @@ fn check_eula(dir: &Path) -> Option<Json> {
     if !path.exists() {
         return Some(issue(
             "eula-missing",
-            "warn",
-            "还没同意 EULA",
-            "首次启动会自动生成 eula.txt，需要改成 eula=true",
+            "error",
+            "还没同意 Minecraft 使用条款",
+            "这是 Mojang 对服务端的许可，免费，同意一次即可。不同意服务器不会启动。",
             Some("accept-eula"),
         ));
     }
@@ -1958,8 +2038,8 @@ fn check_eula(dir: &Path) -> Option<Json> {
         Some(issue(
             "eula-false",
             "error",
-            "EULA 未接受",
-            "eula.txt 里不是 true，服务器会直接退出",
+            "还没同意 Minecraft 使用条款",
+            "这是 Mojang 对服务端的许可，免费，同意一次即可。不同意服务器会直接退出。",
             Some("accept-eula"),
         ))
     }
@@ -2167,6 +2247,31 @@ const PURPUR_API: &str = "https://api.purpurmc.org/v2";
 const MARKER: &str = ".mcss-server.json";
 /// GitHub 直连在国内常不通，按顺序回退；空串表示直连
 const MIRRORS: [&str; 4] = ["", "https://gh-proxy.com/", "https://ghfast.top/", "https://ghproxy.net/"];
+
+fn count_projects(project_type: &str, mc: &str) -> Option<f64> {
+    let facets = format!(r#"[["project_type:{}"],["versions:{}"]]"#, project_type, mc);
+    let path = format!("/search?query=&limit=1&facets={}", urlencode(&facets));
+    modrinth_get(&path)
+        .ok()
+        .and_then(|j| j.get("total_hits").and_then(|v| v.num()))
+}
+
+fn versions_ecosystem(list: &Json) -> Result<Json, String> {
+    let versions = list.arr().cloned().unwrap_or_default();
+    let mut out = Vec::new();
+    for v in versions.iter().take(8) {
+        let mc = v.str().unwrap_or("");
+        if mc.is_empty() {
+            continue;
+        }
+        let value = Json::obj(vec![
+            ("mods", count_projects("mod", mc).map(Json::n).unwrap_or(Json::Null)),
+            ("plugins", count_projects("plugin", mc).map(Json::n).unwrap_or(Json::Null)),
+        ]);
+        out.push((mc.to_string(), value));
+    }
+    Ok(Json::Obj(out))
+}
 
 fn versions_minecraft() -> Result<Json, String> {
     let json = get_json(MC_MANIFEST)?;
@@ -3475,6 +3580,9 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
     for entry in &entries {
         let hash = entry.get("hash").and_then(|v| v.str()).unwrap_or("");
         let rel = entry.get("path").and_then(|v| v.str()).unwrap_or("");
+        if hash.len() != 40 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err("快照里的对象哈希不合法，已拒绝恢复".into());
+        }
         let source = snapshots_objects(server_dir).join(hash);
         if !source.exists() {
             let _ = std::fs::remove_dir_all(&world);
@@ -3544,7 +3652,9 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                 ("version", Json::s(PRODUCT_VERSION)),
                 ("isPackaged", Json::Bool(true)),
                 ("appData", Json::s(&appdata)),
+                ("minecraftDir", Json::s(&Path::new(&appdata).join(".minecraft").to_string_lossy())),
                 ("documents", Json::s(&Path::new(&profile).join("Documents").to_string_lossy())),
+                ("totalMemGb", Json::Null),
                 ("userName", Json::s(&std::env::var("USERNAME").unwrap_or_default())),
                 ("platform", Json::s("agent")),
                 ("electron", Json::s("")),
@@ -3597,7 +3707,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         }
         "app:pick-java" => dialog_open_file("选择 java.exe", "Java|java.exe|所有文件|*.*"),
         "app:open-path" => open_path(arg0),
-        "app:open-external" => open_path(arg0),
+        "app:open-external" => open_external(arg0),
         "app:detect-java" => detect_java(),
         // 与桌面版保持一致：目前只做「探测并回报」，真正的自动安装是后续版本的事
         "app:ai-docs" => ai_docs_path(),
@@ -3616,7 +3726,6 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             let roaming = std::env::var("APPDATA").unwrap_or_default();
             let candidates = [
                 ("Plain Craft Launcher 2", format!("{home}\\Desktop\\Plain Craft Launcher 2.exe")),
-                ("Plain Craft Launcher 2", "D:\\Games\\Minecraft\\Plain Craft Launcher 2.exe".to_string()),
                 ("Minecraft Launcher", "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe".to_string()),
                 ("Minecraft Launcher", "C:\\Program Files\\Minecraft Launcher\\MinecraftLauncher.exe".to_string()),
                 ("Modrinth App", format!("{local}\\Programs\\Modrinth App\\Modrinth App.exe")),
@@ -3745,6 +3854,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         "frp:stop" => Ok(frp_stop(shared)),
         "frp:status" => Ok(frp_status_live(shared)),
         "versions:minecraft" => versions_minecraft(),
+        "versions:ecosystem" => versions_ecosystem(&args.first().cloned().unwrap_or(Json::Arr(vec![]))),
         "versions:fabric-loaders" => fabric_loaders(arg0),
         "versions:server-builds" => {
             let server_type = args.first().and_then(|v| v.str()).unwrap_or("");

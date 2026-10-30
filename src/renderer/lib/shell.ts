@@ -24,16 +24,51 @@ export function detectShell(): ShellKind {
   return "web";
 }
 
-/** agent 地址：允许 ?agent=http://127.0.0.1:1234 覆盖（调试多个实例时用） */
+/**
+ * 只信任本机地址。
+ * 之前 `?agent=http://attacker.tld` 会被存进 localStorage，随后每个请求都把
+ * x-mcss-token 发给攻击者——这是配对令牌外泄链的入口。agent 永远只该在本机。
+ */
+export function isLoopbackUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return host === "127.0.0.1" || host === "localhost" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeAgentBase(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (!isLoopbackUrl(raw)) return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
+/** agent 地址：允许 ?agent=http://127.0.0.1:1234 覆盖（调试多个实例时用），但只接受本机 */
 export function agentBaseUrl(): string {
   try {
     const url = new URL(window.location.href);
     const custom = url.searchParams.get("agent");
     if (custom) {
-      localStorage.setItem("mcss.agent.base", custom);
-      return custom.replace(/\/$/, "");
+      const safe = normalizeAgentBase(custom);
+      if (safe) {
+        localStorage.setItem("mcss.agent.base", safe);
+        return safe;
+      }
+      // 非本机地址：不保存、不使用，清掉以前可能存下的坏值
+      localStorage.removeItem("mcss.agent.base");
+      return AGENT_DEFAULT;
     }
-    return (localStorage.getItem("mcss.agent.base") || AGENT_DEFAULT).replace(/\/$/, "");
+    const stored = localStorage.getItem("mcss.agent.base") || "";
+    const safe = stored ? normalizeAgentBase(stored) : null;
+    if (stored && !safe) localStorage.removeItem("mcss.agent.base");
+    return safe || AGENT_DEFAULT;
   } catch {
     return AGENT_DEFAULT;
   }

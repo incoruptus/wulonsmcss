@@ -11,21 +11,13 @@ import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
 import { safeName } from "@/lib/utils";
 import { contentKindOf, serverTypeLabel } from "@/lib/config-model";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
+import { CORES as GUIDE_CORES, coreMeta } from "@/lib/server-guide";
+import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }
-
-/** 现在真正支持安装的核心（NeoForge / Forge 要走 installer，还没接） */
-const CORES: { value: ServerType; hint: string }[] = [
-  { value: "fabric", hint: "轻量模组服，性能模组首选" },
-  { value: "paper", hint: "插件服（水桶系），玩家用原版客户端就能进" },
-  { value: "purpur", hint: "Paper 的增强版，多几百个玩法开关" },
-  { value: "forge", hint: "老整合包用得多（1.12–1.19）；装的时候要跑官方安装器" },
-  { value: "neoforge", hint: "现代整合包的标准（1.20.2+）；同样要跑安装器" },
-  { value: "vanilla", hint: "原版服务端，不装任何东西" },
-];
 
 export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
@@ -63,8 +55,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
       setVersions(list);
       setJavas(jlist);
       setMcVersion((v) => v || list.find((x) => x.type === "release")?.id || list[0]?.id || "");
-      const best = jlist.find((j) => (j.major ?? 0) >= 21) ?? jlist[0];
-      setJavaPath((p) => p || best?.path || "");
+      setName((n) => n || "我的服务器");
     })();
     return () => {
       alive = false;
@@ -112,6 +103,17 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   );
 
   const kind = contentKindOf(serverType);
+  const coreInfo = coreMeta(serverType);
+  const activeJava = javas.find((j) => j.path === javaPath);
+  const requiredJava = javaMajorFor(mcVersion);
+
+  // 版本决定 Java：26.x 要 25、1.20.5+ 要 21、1.18+ 要 17；选错 Java 起不来
+  useEffect(() => {
+    if (!mcVersion || !javas.length) return;
+    const picked = pickJavaFor(javas, javaMajorFor(mcVersion));
+    if (picked) setJavaPath(picked.path);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mcVersion, javas]);
 
   async function browseDir() {
     const picked = await window.mcss.dialog.openDirectory();
@@ -122,6 +124,11 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
     if (!name.trim()) return toast.error("先给服务器起个名字");
     if (!mcVersion) return toast.error("先选一个 Minecraft 版本");
     if (!javaPath) return toast.error("没有找到 Java，请先手动指定");
+    const need = javaMajorFor(mcVersion);
+    const picked = javas.find((j) => j.path === javaPath);
+    if (picked && Number(picked.major) < need) {
+      return toast.error(`Minecraft ${mcVersion} 需要 Java ${need}，当前选的是 Java ${picked.major}`);
+    }
 
     setInstalling(true);
     setProgress({ stage: "准备中", percent: 0 });
@@ -154,7 +161,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
       });
       onOpenChange(false);
       reset();
-      navigate(`/instances/${inst.id}`);
+      navigate("/");
     } catch (e) {
       toast.error(`安装失败：${(e as Error).message}`);
     } finally {
@@ -176,8 +183,8 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !installing && onOpenChange(v)} widthClass="max-w-2xl">
       <DialogHeader
-        title="新建服务器实例"
-        desc="选版本 → 选核心 → 下载服务端，装好即可开服。插件服用 Paper/Purpur，模组服用 Fabric。"
+        title="新建服务器"
+        desc="先选游戏版本，再选怎么玩。插件服玩家不用装东西；模组服朋友也要装同样的模组。"
       />
       <DialogBody className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -194,11 +201,22 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="服务端核心" hint={CORES.find((c) => c.value === serverType)?.hint}>
+          <Field
+            label="服务端核心"
+            hint={
+              coreInfo
+                ? `${coreInfo.client}。${coreInfo.caveat}${
+                    kind === "mod" && mcVersion.startsWith("26.")
+                      ? "；26.x 的模组还少，建议 1.21.11（Fabric）或 1.21.1（NeoForge）"
+                      : ""
+                  }`
+                : "决定能装插件还是模组"
+            }
+          >
             <Picker
               value={serverType}
               onValueChange={(v) => setServerType(v as ServerType)}
-              options={CORES.map((c) => ({ value: c.value, label: serverTypeLabel(c.value) }))}
+              options={GUIDE_CORES.map((c) => ({ value: c.type, label: `${c.label} — ${c.tagline}` }))}
             />
           </Field>
           <Field
@@ -256,7 +274,16 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
           </Field>
         </div>
 
-        <Field label="Java 运行时" hint={javas.length ? "自动探测到的 Java 运行时" : "没探测到，点右侧手动指定"}>
+        <Field
+          label="Java 运行时"
+          hint={
+            activeJava
+              ? `这个版本需要 Java ${requiredJava}；当前选的是 Java ${activeJava.major ?? "?"}${Number(activeJava.major ?? 0) < requiredJava ? "（不够）" : ""}`
+              : javas.length
+                ? "自动探测到的 Java 运行时"
+                : "没探测到，点右侧手动指定"
+          }
+        >
           <div className="flex gap-2">
             <Picker
               className="flex-1"
@@ -295,7 +322,18 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={installing}>
           取消
         </Button>
-        <Button onClick={install} loading={installing}>
+        <Button
+          onClick={install}
+          loading={installing}
+          disabled={!javaPath || (serverType !== "vanilla" && builds.length === 0)}
+          title={
+            !javaPath
+              ? "先选一个 Java"
+              : serverType !== "vanilla" && builds.length === 0
+                ? "这个核心/版本没有可用构建"
+                : undefined
+          }
+        >
           {installing ? null : <Download className="size-4" />}
           下载并创建
         </Button>

@@ -80,6 +80,7 @@ contextBridge.exposeInMainWorld("mcss", {
   },
   versions: {
     minecraft: () => invoke("versions:minecraft"),
+    ecosystem: (list: string[]) => invoke("versions:ecosystem", list),
     fabricLoaders: (mc: string) => invoke("versions:fabric-loaders", mc),
     serverBuilds: (serverType: string, mc: string) => invoke("versions:server-builds", serverType, mc),
     detectServer: (dir: string) => invoke("versions:detect-server", dir),

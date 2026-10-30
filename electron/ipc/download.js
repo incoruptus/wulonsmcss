@@ -53,7 +53,7 @@ function sizeOf(file) {
  * 而下载器要的是「一次一个连接、用完就关」这种可控行为。
  * @returns {Promise<{bytes:number, resumed:boolean}>}
  */
-function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60 * 1000 } = {}) {
+function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60 * 1000, redirects = 0 } = {}) {
   const part = `${dest}.part`;
   fs.mkdirSync(path.dirname(dest), { recursive: true });
 
@@ -68,17 +68,39 @@ function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60
     let timer = null;
     let watchdog = null;
 
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      if (watchdog) clearInterval(watchdog);
+    };
     const finish = (fn, value) => {
       if (settled) return;
       settled = true;
-      if (timer) clearTimeout(timer);
-      if (watchdog) clearInterval(watchdog);
+      cleanup();
       fn(value);
     };
 
     const req = lib.get(url, { headers, agent: false }, (res) => {
       lastActivity = Date.now();
       const resumable = res.statusCode === 206;
+      // GitHub Release / CDN 会 302；以前这里直接失败，桌面版下不了 frpc
+      if ([301, 302, 303, 307, 308].includes(res.statusCode || 0)) {
+        const location = res.headers.location;
+        res.resume();
+        if (!location || redirects >= 5) {
+          finish(reject, new Error(`HTTP ${res.statusCode}（重定向过多或缺少 Location）`));
+          return;
+        }
+        // 不要先 resolve，交给下一跳；只做清理并标记已交接
+        settled = true;
+        cleanup();
+        fetchOnce(new URL(location, url).toString(), dest, {
+          onProgress,
+          stallMs,
+          timeoutMs,
+          redirects: redirects + 1,
+        }).then(resolve, reject);
+        return;
+      }
       if (res.statusCode !== 200 && !resumable) {
         res.resume();
         finish(reject, new Error(`HTTP ${res.statusCode}`));
@@ -105,7 +127,14 @@ function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60
         onProgress?.(received, total || 0);
       });
       res.on("end", () => {
-        out.end(() => finish(resolve, { bytes: received, resumed: resumable }));
+        out.end(() => {
+          // 有 Content-Length 就必须对得上；否则截断的文件会被当成成功
+          if (total > 0 && received !== total) {
+            finish(reject, new Error(`下载不完整（${received}/${total} 字节）`));
+            return;
+          }
+          finish(resolve, { bytes: received, resumed: resumable });
+        });
       });
       res.on("error", (e) => {
         out.destroy();
@@ -144,14 +173,18 @@ function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60
  * @returns {Promise<{ok:boolean, path:string, bytes:number, cached?:boolean, source?:string}>}
  */
 async function download({ url, mirrors, dest, hash, onProgress, onRetry, stallMs, timeoutMs }) {
-  // 1) 缓存：目标已存在且哈希对得上
+  // 1) 缓存：**只有带哈希且对得上**才算命中。
+  //    没有哈希时绝不能跳过下载——否则换核心会“成功”但文件还是旧的。
   if (fs.existsSync(dest)) {
-    if (!hash || (await matches(dest, hash))) {
+    if (hash && (await matches(dest, hash))) {
       return { ok: true, path: dest, bytes: sizeOf(dest), cached: true };
     }
-    try {
-      fs.unlinkSync(dest);
-    } catch {}
+    // 无 hash 时保留旧文件：新文件先写 .part，成功后才覆盖；失败不能把旧核心删了
+    if (hash) {
+      try {
+        fs.unlinkSync(dest);
+      } catch {}
+    }
   }
 
   const candidates = (mirrors?.length ? mirrors : [""]).map((prefix) => (prefix ? `${prefix}${url}` : url));

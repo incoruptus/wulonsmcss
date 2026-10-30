@@ -289,6 +289,16 @@
     background-image: radial-gradient(var(--ds-gray-a200) 1px, transparent 1px);
     background-size: 16px 16px;
   }
+  /* 设置里关掉「界面动画」时：过渡/动画全部压到 0（不是删掉，避免布局跳） */
+  .no-anim *,
+  .no-anim *::before,
+  .no-anim *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+
   /* 无边框窗口拖拽 */
   .drag-region {
     -webkit-app-region: drag;

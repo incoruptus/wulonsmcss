@@ -3,7 +3,7 @@ productName: 乌龙味MC开服茶
 copyright: Copyright © 2026 隐刻INCO
 
 directories:
-  output: D:\Games\Minecraft\MCServer\wulons-mcss-b26.7.02
+  output: release
   buildResources: .
 
 files:

@@ -89,6 +89,13 @@ async function waitHealth(timeoutMs = 10000) {
       (zh.data?.result?.translated || zh.data?.error || "").slice(0, 40),
     );
 
+    const eco = await invoke("versions:ecosystem", [["26.3", "1.21.1"]]);
+    check(
+      "versions:ecosystem 返回版本的 Mod/插件数量",
+      typeof eco.data?.result?.["26.3"]?.mods === "number" && eco.data.result["26.3"].mods > 100,
+      `26.3 Mod ${eco.data?.result?.["26.3"]?.mods ?? "—"}`,
+    );
+
     const tr = await invoke("translate:text", ["Server started in 5.2 seconds"]);
     check(
       "translate:text 能机翻任意文本",

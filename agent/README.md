@@ -78,7 +78,11 @@ node scripts/web-e2e.cjs   # 7 项契约校验：健康/令牌/配置/状态/未
 
 ## 还没做
 
-- `versions:*` / `modrinth:*` / `worlds:*` / `mods:*` / `frp:*`（网页版暂时用不到）
-- `backup:*` / `ai:export-bundle`（服主侧，网页版后续再补）
-- 配对令牌的生成与 `mcss://` 协议注册（下一步）
+- 自动下载/安装 Java（只做探测与“去哪儿下载”的指引）
+- 微软账号登录（客户端启动仍是离线身份）
+- 真实 Gist / NeoForge / 移动端等环境性验证（见 `docs/REVIEW-2026-10-30.md`）
 - Windows 防火墙提示与开机自启
+
+> `versions:*`、`modrinth:*`、`worlds:*`、`mods:*`、`frp:*`、`backup:*`、`ai:export-bundle`
+> 已经在 agent 里实现（包括 26.x 的 argsfile 启动、资源库中文简介/机翻）。旧版本文档的
+> “还没做”清单已过期，以 `scripts/check-parity.cjs` 的 100% 与 `scripts/web-e2e.cjs` 为准。

@@ -126,6 +126,53 @@ describe("下载器", () => {
     expect(res.ok).toBe(true);
   });
 
+  it("没有哈希时绝不命中缓存（否则换核心会拿到旧 jar）", async () => {
+    let hits = 0;
+    const { port } = await serve((req, res) => {
+      hits += 1;
+      rangeAware(req, res);
+    });
+    const dest = tmpFile();
+    fs.writeFileSync(dest, "OLD-CORE");
+    const res = await download({ url: `http://127.0.0.1:${port}/f`, dest });
+    expect(hits).toBe(1);
+    expect(res.cached).toBeUndefined();
+    expect(fs.readFileSync(dest).length).toBe(PAYLOAD.length);
+  });
+
+  it("无 hash 下载失败时不删旧核心文件", async () => {
+    const bad = await serve((_req, res) => {
+      res.writeHead(500);
+      res.end("nope");
+    });
+    const dest = tmpFile();
+    fs.writeFileSync(dest, "OLD-CORE");
+    await expect(download({ url: `http://127.0.0.1:${bad.port}/f`, dest })).rejects.toThrow(/HTTP 500/);
+    expect(fs.readFileSync(dest, "utf8")).toBe("OLD-CORE");
+  });
+
+  it("跟随 302 重定向（GitHub Release 资产）", async () => {
+    const target = await serve(rangeAware);
+    const redirect = await serve((_req, res) => {
+      res.writeHead(302, { location: `http://127.0.0.1:${target.port}/f` });
+      res.end();
+    });
+    const dest = tmpFile();
+    await download({ url: `http://127.0.0.1:${redirect.port}/f`, dest, hash: { sha1: SHA1 } });
+    expect(fs.readFileSync(dest).length).toBe(PAYLOAD.length);
+  });
+
+  it("Content-Length 对不上时拒绝（截断文件不能当成功）", async () => {
+    const { port } = await serve((_req, res) => {
+      res.writeHead(200, { "content-length": PAYLOAD.length });
+      res.end(PAYLOAD.subarray(0, 1024));
+      res.destroy();
+    });
+    const dest = tmpFile();
+    await expect(download({ url: `http://127.0.0.1:${port}/f`, dest, hash: { sha1: SHA1 } })).rejects.toThrow();
+    expect(fs.existsSync(dest)).toBe(false);
+  });
+
   it("[all-fail] 全部源都失败时抛错且不留半成品在目标路径", async () => {
     const bad = await serve((_req, res) => {
       res.writeHead(500);

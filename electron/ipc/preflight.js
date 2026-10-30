@@ -39,19 +39,33 @@ function checkJar(dir) {
   return {
     id: "jar-missing",
     level: "error",
-    title: "找不到服务端 jar",
-    detail: `在 ${dir} 下既没有 Forge/NeoForge 的启动参数文件，也没有 fabric-server-launch.jar / server.jar`,
-    fix: "reinstall",
+    title: "服务端文件不完整",
+    detail: `在 ${dir} 下没找到 server.jar / fabric-server-launch.jar，也没有 Forge/NeoForge 的启动参数。需要在「服务器设置」里重新安装服务端，或新建一个服务器。`,
+    fix: null,
   };
 }
 
 function checkEula(dir) {
   const p = path.join(dir, "eula.txt");
-  if (!fs.existsSync(p)) return { id: "eula-missing", level: "warn", title: "还没同意 EULA", detail: "首次启动会自动生成 eula.txt，需要改成 eula=true", fix: "accept-eula" };
+  if (!fs.existsSync(p)) {
+    return {
+      id: "eula-missing",
+      level: "error",
+      title: "还没同意 Minecraft 使用条款",
+      detail: "这是 Mojang 对服务端的许可，免费，同意一次即可。不同意服务器不会启动。",
+      fix: "accept-eula",
+    };
+  }
   try {
     const text = fs.readFileSync(p, "utf-8");
     if (/eula\s*=\s*true/i.test(text)) return null;
-    return { id: "eula-false", level: "error", title: "EULA 未接受", detail: "eula.txt 里不是 true，服务器会直接退出", fix: "accept-eula" };
+    return {
+      id: "eula-false",
+      level: "error",
+      title: "还没同意 Minecraft 使用条款",
+      detail: "这是 Mojang 对服务端的许可，免费，同意一次即可。不同意服务器会直接退出。",
+      fix: "accept-eula",
+    };
   } catch (e) {
     return null;
   }
@@ -138,8 +152,8 @@ function checkMemory(maxGb) {
       id: "memory-too-high",
       level: "warn",
       title: `最大内存 ${maxGb}G 超过物理内存`,
-      detail: `本机只有约 ${totalGb}G，设这么高容易触发系统换页反而更卡`,
-      fix: "lower-memory",
+      detail: `本机只有约 ${totalGb}G。请在服务器设置里把最大内存调到 ${Math.max(2, totalGb - 2)}G 或更低；设太高会触发系统换页，反而更卡。`,
+      fix: null,
     };
   }
   return null;

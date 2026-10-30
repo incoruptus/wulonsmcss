@@ -12,6 +12,7 @@ import * as worldsApi from "@/lib/worlds";
 import type { Instance, InstanceSchedule } from "@/lib/types";
 import { formatDuration, timeAgo } from "@/lib/utils";
 import { contentKindOf, serverTypeOf } from "@/lib/config-model";
+import { isDesktopVisual } from "@/lib/shell";
 
 export function InstanceOverview({ instance, onEdit }: { instance: Instance; onEdit: () => void }) {
   const status = useServer((s) => s.status);
@@ -155,6 +156,12 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
           <span className="t-label-12 text-gray-700">只在这个实例运行中生效</span>
         </div>
 
+        {!isDesktopVisual() ? (
+          <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
+            定时重启、定时公告、定时备份需要桌面版常驻进程；网页版现在不会触发。
+            先用桌面版设置，或者手动在控制台操作。
+          </div>
+        ) : (
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="每日重启" hint={schedule.restartAt ? `每天 ${schedule.restartAt} 自动重启` : "留空不重启"}>
             <div className="flex gap-2">
@@ -206,6 +213,7 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
             />
           </Field>
         </div>
+        )}
       </Card>
       </div>
 

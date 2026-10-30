@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { spawn } = require("child_process");
 const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require("electron");
 
@@ -27,7 +28,23 @@ const { createConfigStore } = require(path.join(IPC_DIR, "config.js"));
 
 let mainWindow = null;
 let configStore = null;
+
+// 双开会各自起服务器、各自写 config.json，后写覆盖前写；只允许一个主进程
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 let activeInstanceId = null;
+/** 真正在跑的那个实例：自动备份必须认它，不能认 UI 当前选中的实例 */
+let runningInstanceId = null;
+/** 退出前要等的自动备份 */
+let pendingBackup = null;
 
 /* ------------------------------ 渲染进程诊断 ------------------------------ */
 
@@ -103,6 +120,20 @@ function send(channel, payload) {
 }
 
 /* ---------------------------------- 窗口 ---------------------------------- */
+
+/** 只允许 http/https 交给系统浏览器；file:/ms- 或 UNC 路径会拉起本地程序、泄漏 NTLM */
+async function openExternalSafe(raw) {
+  let u;
+  try {
+    u = new URL(String(raw || ""));
+  } catch {
+    throw new Error("链接格式不对");
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new Error(`不打开这种链接：${u.protocol}`);
+  }
+  return shell.openExternal(u.toString());
+}
 
 function createWindow() {
   const iconPath = path.join(__dirname, "..", "..", "resources", "app-icon.png");
@@ -194,7 +225,7 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalSafe(url).catch(() => {});
     return { action: "deny" };
   });
 
@@ -228,7 +259,8 @@ ipcMain.on("window:close", async () => {
       detail: "建议先在控制台用 say 通知玩家，再关闭。"
     });
     if (response === 0) return;
-    server.stop();
+    // 等服务器真的退出再关窗；否则 java 可能变孤儿，自动备份也来不及跑
+    await server.stopAndWait(12000);
   }
   mainWindow.close();
 });
@@ -250,10 +282,14 @@ ipcMain.handle("config:reset", () => {
 ipcMain.handle("app:info", () => ({
   version: app.getVersion(),
   isPackaged: app.isPackaged,
+  // appData 是**应用自己的**目录（%APPDATA%\wulons-mcss），不是 %APPDATA%
   appData: app.getPath("userData"),
+  // 玩家真正要用的 .minecraft 在 %APPDATA% 下：单独给一个字段，别让每个页面自己剥路径
+  minecraftDir: path.join(app.getPath("appData"), ".minecraft"),
   documents: app.getPath("documents"),
   userName: process.env.USERNAME || "",
   platform: process.platform,
+  totalMemGb: Math.floor(os.totalmem() / 1024 ** 3),
   electron: process.versions.electron,
   node: process.versions.node
 }));
@@ -327,6 +363,7 @@ ipcMain.handle("mods:enable", (_e, jarPath) => {
 /* -------------------------------- 版本/下载 ------------------------------- */
 
 ipcMain.handle("versions:minecraft", () => versions.listMinecraft());
+ipcMain.handle("versions:ecosystem", (_e, list) => versions.ecosystem(list));
 ipcMain.handle("versions:fabric-loaders", (_e, mc) => versions.fabricLoaders(mc));
 /** 某个核心在某个 MC 版本下的构建列表（Paper 的 build / Purpur 的 build / Fabric 的 loader） */
 ipcMain.handle("versions:server-builds", async (_e, serverType, mc) => {
@@ -438,7 +475,10 @@ ipcMain.handle("app:detect-launchers", () => {
   const env = process.env;
   const candidates = [
     { name: "Plain Craft Launcher 2", path: path.join(home, "Desktop", "Plain Craft Launcher 2.exe") },
-    { name: "Plain Craft Launcher 2", path: "D:\\Games\\Minecraft\\Plain Craft Launcher 2.exe" },
+    {
+      name: "Plain Craft Launcher 2",
+      path: path.join(process.env.LOCALAPPDATA || "", "Programs", "Plain Craft Launcher 2", "Plain Craft Launcher 2.exe"),
+    },
     { name: "Minecraft Launcher", path: "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe" },
     { name: "Minecraft Launcher", path: "C:\\Program Files\\Minecraft Launcher\\MinecraftLauncher.exe" },
     { name: "Modrinth App", path: path.join(env.LOCALAPPDATA || "", "Programs", "Modrinth App", "Modrinth App.exe") },
@@ -497,6 +537,7 @@ function startInstance(instanceId) {
   const jvmArgs = [mem, inst.jvmArgs || ""].filter(Boolean).join(" ");
   const res = server.start(inst.javaPath || "java", inst.dir, jvmArgs);
   if (res?.ok) {
+    runningInstanceId = instanceId;
     const cfg = readConfig();
     configStore.write({
       instances: cfg.instances.map((i) => (i.id === instanceId ? { ...i, lastStartedAt: Date.now(), updatedAt: Date.now() } : i)),
@@ -519,15 +560,17 @@ server.onOutput((entry) => send("server:output", entry));
 server.onStatus((status) => {
   send("server:status", status);
 
-  // 停服后自动备份（可在世界页开关）
-  if (status === "stopped" && activeInstanceId) {
+  // 停服后自动备份（可在世界页开关）——只备份真正在跑的那个实例
+  if (status === "stopped" && runningInstanceId) {
+    const stoppedId = runningInstanceId;
+    runningInstanceId = null;
     const cfg = readConfig();
     if (cfg.autoBackupOnStop) {
-      const inst = findInstance(activeInstanceId);
+      const inst = findInstance(stoppedId);
       if (inst) {
         // 备份现在是异步的：不能在第 528 行的同步 try 里 await，
         // 而且失败也不能影响停服流程
-        void backup
+        pendingBackup = backup
           .create(inst.dir, null)
           .then((res) => {
             if (res.ok) {
@@ -535,7 +578,10 @@ server.onStatus((status) => {
               send("server:output", { timestamp: new Date().toLocaleTimeString("zh-CN"), level: "INFO", message: `已自动备份 ${res.name}` });
             }
           })
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => {
+            pendingBackup = null;
+          });
       }
     }
   }
@@ -555,8 +601,15 @@ server.onStatus((status) => {
 
 /* ---------------------------------- 系统 ---------------------------------- */
 
-ipcMain.handle("app:open-path", (_e, p) => shell.openPath(p));
-ipcMain.handle("app:open-external", (_e, url) => shell.openExternal(url));
+ipcMain.handle("app:open-path", (_e, p) => {
+  const target = String(p || "");
+  // 打开目录/文档没问题；不要因为一个路径字符串就去执行程序
+  if (!target || /\.(bat|cmd|ps1|vbs|js|msi|scr|com|pif)$/i.test(target)) {
+    throw new Error("这个路径不能直接打开");
+  }
+  return shell.openPath(target);
+});
+ipcMain.handle("app:open-external", (_e, url) => openExternalSafe(String(url || "")));
 
 /* --------------------------------- 备份 ---------------------------------- */
 
@@ -722,12 +775,22 @@ function startScheduler() {
 }
 
 app.on("window-all-closed", () => {
-  server.stop();
+  // 让 before-quit 统一负责「停服并等待」；这里不要先 stop 再立即 quit
   if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => {
-  server.stop();
+let quitting = false;
+app.on("before-quit", (e) => {
+  if (quitting) return;
+  if (server.getStatus() === "stopped") return;
+  e.preventDefault();
+  quitting = true;
+  void (async () => {
+    await server.stopAndWait(12000);
+    // 等停服自动备份写完再退，否则备份会被 app.quit 掐断
+    if (pendingBackup) await pendingBackup;
+    app.quit();
+  })();
 });
 
 app.on("activate", () => {

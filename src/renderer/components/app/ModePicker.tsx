@@ -12,9 +12,15 @@ import { cx } from "@/lib/utils";
  */
 export function ModePicker({ open }: { open: boolean }) {
   const setMode = useConfig((s) => s.setMode);
+  const patch = useConfig((s) => s.patch);
 
   function choose(mode: AppMode) {
     void setMode(mode);
+  }
+
+  /** 不确定的人不该被三道门逼着选；先让人看看界面，之后随时能切 */
+  function lookAround() {
+    void patch({ mode: "host", modeAsked: true, setupComplete: true });
   }
 
   return (
@@ -45,6 +51,9 @@ export function ModePicker({ open }: { open: boolean }) {
         <p className="pt-1 t-label-12 text-gray-700">
           提示：同一个程序里两种模式共存，服务器、Mod、存档都在本机，不会因为切换模式丢东西。
         </p>
+        <button className="pt-1 text-left t-label-12 text-blue-900 hover:underline" onClick={lookAround}>
+          我还不确定，先看看界面 →
+        </button>
       </DialogBody>
     </Dialog>
   );

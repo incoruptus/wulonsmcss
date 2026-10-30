@@ -15,6 +15,8 @@ import { ContentTab } from "@/components/instance/ContentTab";
 import { InstanceSettingsDialog } from "@/components/instance/InstanceSettingsDialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { InviteDialog } from "@/components/instance/InviteDialog";
+import { StopServerDialog } from "@/components/instance/StopServerDialog";
+import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 
 /** 侧栏能点的「当前实例的面」；URL 用同一个词，刷新/深链都不会丢 */
 const TABS = ["overview", "console", "config", "content", "worlds", "players"] as const;
@@ -26,9 +28,11 @@ export default function InstanceDetail() {
   const instance = useConfig((s) => s.cfg.instances.find((i) => i.id === id));
   const setActive = useConfig((s) => s.setActiveInstance);
   const status = useServer((s) => s.status);
+  const players = useServer((s) => s.players);
   const [editing, setEditing] = useState(false);
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [stopOpen, setStopOpen] = useState(false);
 
   const current: TabId = TABS.includes(tab as TabId) ? (tab as TabId) : "overview";
 
@@ -51,7 +55,7 @@ export default function InstanceDetail() {
 
   async function toggle() {
     if (running) {
-      await window.mcss.server.stop();
+      setStopOpen(true);
       return;
     }
     setPreflightOpen(true);
@@ -69,7 +73,7 @@ export default function InstanceDetail() {
               </Badge>
             </div>
             <p className="t-label-12 mt-0.5 text-gray-700">
-              {instance.mcVersion} · {instance.loader}
+              {instance.mcVersion} · {serverTypeLabel(serverTypeOf(instance))}
               {instance.loaderVersion ? ` ${instance.loaderVersion}` : ""} · 端口 {instance.port}
             </p>
           </div>
@@ -113,6 +117,7 @@ export default function InstanceDetail() {
           })
         }
       />
+      <StopServerDialog open={stopOpen} onOpenChange={setStopOpen} players={players.length} />
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} instance={instance} />
     </>
   );

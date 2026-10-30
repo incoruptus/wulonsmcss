@@ -54,6 +54,10 @@ function remove(p) {
   if (resolved === path.parse(resolved).root) throw new Error("拒绝删除：这是根目录");
   const depth = resolved.split(/[\\/]+/).filter(Boolean).length;
   if (depth < 2) throw new Error(`拒绝删除：路径太浅（${resolved}）`);
+  // 深度 2 也可能是 C:\Windows / C:\Users / C:\Program Files：这些不是实例目录
+  if (/^[A-Za-z]:[\\/](windows|users|program files|program files \(x86\)|programdata)$/i.test(resolved)) {
+    throw new Error(`拒绝删除：这是系统目录（${resolved}）`);
+  }
   fs.rmSync(resolved, { recursive: true, force: true });
 }
 

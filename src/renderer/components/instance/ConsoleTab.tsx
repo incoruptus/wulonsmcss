@@ -19,6 +19,7 @@ import { Badge, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { ContextMenu, selectedText } from "@/components/ui/context-menu";
 import { TranslateDialog } from "@/components/ui/translate-dialog";
+import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { useServer } from "@/stores/server";
 import { suggestCommands } from "@/lib/commands";
 import { diagnose, type Diagnosis } from "@/lib/crash";
@@ -62,6 +63,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   const [hideDiag, setHideDiag] = useState(false);
   const [showLag, setShowLag] = useState(false);
   const [translate, setTranslate] = useState<string | null>(null);
+  const [preflightOpen, setPreflightOpen] = useState(false);
   const lagEvents = useServer((s) => s.lagEvents);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -297,14 +299,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
               }
               action={
                 logs.length === 0 && status === "stopped" ? (
-                  <Button
-                    onClick={async () => {
-                      const res = await window.mcss.server.start(instance.id);
-                      if (!res.ok) toast.error(res.error || "启动失败");
-                    }}
-                  >
-                    启动服务器
-                  </Button>
+                  <Button onClick={() => setPreflightOpen(true)}>启动服务器</Button>
                 ) : undefined
               }
               className="py-10"
@@ -447,6 +442,12 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
       </Dialog>
 
       <TranslateDialog open={Boolean(translate)} onOpenChange={(v) => !v && setTranslate(null)} text={translate ?? ""} />
+      <PreflightDialog
+        open={preflightOpen}
+        onOpenChange={setPreflightOpen}
+        instance={instance}
+        onStarted={() => toast.success("服务器已启动")}
+      />
     </div>
   );
 }

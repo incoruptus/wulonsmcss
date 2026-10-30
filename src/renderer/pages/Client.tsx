@@ -28,15 +28,14 @@ export default function Client() {
   const [loaders, setLoaders] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
 
-  // 默认指向本机 .minecraft。
-  // 注意 info.appData 是 %APPDATA%\wulons-mcss（应用自己的目录），
-  // .minecraft 在它的上一层，所以要剥掉最后一段。
+  // 默认指向本机 .minecraft：主进程直接给 minecraftDir（网页 agent 也有），
+  // 老版本没有这个字段时才退回 appData 的上一层。
   useEffect(() => {
     void window.mcss.app
       .info()
       .then((info) => {
-        const roaming = info.appData.replace(/[\\/][^\\/]+$/, "");
-        setDir((d) => d || `${roaming}\\.minecraft`);
+        const fallback = info.appData.replace(/[\\/][^\\/]+$/, "") + "\\.minecraft";
+        setDir((d) => d || info.minecraftDir || fallback);
       })
       .catch(() => {});
   }, []);

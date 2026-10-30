@@ -1,6 +1,6 @@
 const { spawn } = require('child_process')
 const { join } = require('path')
-const { existsSync, writeFileSync, readdirSync } = require('fs')
+const { existsSync, writeFileSync, readFileSync, readdirSync } = require('fs')
 const { createInterface } = require('readline')
 
 /**
@@ -93,10 +93,11 @@ function start(java, dir, jvmArgs) {
   const jvm = splitArgs(jvmArgs)
   let args
   if (argsFile) {
-    // 这两家把内存写在 user_jvm_args.txt 里，命令行只引用它
+    // 这两家把内存写在 user_jvm_args.txt 里，命令行只引用它。
+    // 只更新我们自己的 managed 块，保留用户手写的注释/参数。
     const userArgs = join(serverDir, 'user_jvm_args.txt')
     try {
-      writeFileSync(userArgs, `${jvm.join(' ')}\n`.trim() + '\n', 'utf-8')
+      writeManagedJvmArgs(userArgs, jvm)
     } catch (e) {
       emitOutput('WARN', `写 user_jvm_args.txt 失败：${e.message}`)
     }
@@ -181,6 +182,55 @@ function stop() {
   return true
 }
 
+/**
+ * 停止并等进程真的退出（退出应用时用）。
+ * stop() 只是发指令 + 10 秒后强杀；如果主进程紧接着 quit，这两个回调都不会再跑，
+ * java 会变成孤儿并占着端口。这里返回一个 Promise，让 before-quit 能等。
+ */
+function stopAndWait(timeoutMs = 12000) {
+  return new Promise((resolve) => {
+    const proc = serverProcess;
+    if (!proc) return resolve(true);
+    let done = false;
+    const off = onStatus((s) => {
+      if (s !== "stopped" || done) return;
+      done = true;
+      off();
+      if (stopKillTimer) { clearTimeout(stopKillTimer); stopKillTimer = null; }
+      resolve(true);
+    });
+    stop();
+    setTimeout(() => {
+      if (done) return;
+      done = true;
+      off();
+      try { proc.kill(); } catch (e) {}
+      if (serverProcess === proc) {
+        serverProcess = null;
+        cleanupStreams();
+        emitStatus("stopped");
+      }
+      resolve(false);
+    }, timeoutMs);
+  });
+}
+
+const JVM_START = "# >>> Wulon's MCSS 管理的内存参数（不要手改这一段）>>>";
+const JVM_END = "# <<< Wulon's MCSS 管理的内存参数 <<<";
+
+/** 保留用户自己的行，只替换我们管理的那一段 */
+function writeManagedJvmArgs(file, args) {
+  let existing = "";
+  try {
+    existing = readFileSync(file, "utf-8");
+  } catch (e) {}
+  const cleaned = existing
+    .replace(new RegExp(`^${JVM_START.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?^${JVM_END.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\n?`, "m"), "")
+    .trimEnd();
+  const block = [JVM_START, ...args, JVM_END].join("\n");
+  writeFileSync(file, `${cleaned ? `${cleaned}\n\n` : ""}${block}\n`, "utf-8");
+}
+
 function sendCommand(cmd) {
   const line = String(cmd == null ? '' : cmd).replace(/[\r\n]+/g, ' ').trim()
   if (!line) return false
@@ -230,4 +280,4 @@ function getMemory() {
   return 0
 }
 
-module.exports = { start, stop, sendCommand, onOutput, onStatus, getStatus, getPid, getMemory, findArgsFile }
+module.exports = { start, stop, stopAndWait, sendCommand, onOutput, onStatus, getStatus, getPid, getMemory, findArgsFile }

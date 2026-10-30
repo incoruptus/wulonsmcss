@@ -8,38 +8,12 @@ import { Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import type { Instance } from "@/lib/types";
 import { AiConfigDialog } from "@/components/instance/AiConfigDialog";
 
+import { BOOL_META, BOOL_ORDER, SELECT_META, TEXT_META } from "@/lib/server-properties";
+
 type Props = Record<string, string>;
 
-const BOOL_KEYS = [
-  "pvp",
-  "online-mode",
-  "allow-flight",
-  "white-list",
-  "enforce-whitelist",
-  "enable-command-block",
-  "hardcore",
-  "allow-nether",
-  "spawn-animals",
-  "spawn-monsters",
-  "spawn-npcs",
-  "force-gamemode",
-] as const;
-
-const SELECTS: Record<string, string[]> = {
-  difficulty: ["peaceful", "easy", "normal", "hard"],
-  gamemode: ["survival", "creative", "adventure", "spectator"],
-  leveltype: ["minecraft:normal", "minecraft:flat", "minecraft:large_biomes", "minecraft:amplified"],
-};
-
-const TEXT_FIELDS: { key: string; label: string; hint?: string }[] = [
-  { key: "motd", label: "服务器标语（MOTD）", hint: "支持 § 颜色代码" },
-  { key: "max-players", label: "最大玩家数" },
-  { key: "server-port", label: "端口" },
-  { key: "view-distance", label: "视距（区块）" },
-  { key: "simulation-distance", label: "模拟距离（区块）" },
-  { key: "spawn-protection", label: "出生点保护半径" },
-  { key: "level-seed", label: "世界种子" },
-];
+const BOOL_KEYS = BOOL_ORDER;
+const TEXT_FIELDS = Object.entries(TEXT_META).map(([key, meta]) => ({ key, ...meta }));
 
 export function ConfigTab({ instance }: { instance: Instance }) {
   const path = `${instance.dir}\\server.properties`;
@@ -130,20 +104,30 @@ export function ConfigTab({ instance }: { instance: Instance }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SegmentedControl
-          value={mode}
-          onValueChange={setMode}
-          options={[
-            { value: "form", label: "表单" },
-            { value: "raw", label: "源码" },
-          ]}
-        />
+        <div className="flex items-center gap-2">
+          <SegmentedControl
+            value={mode}
+            onValueChange={setMode}
+            options={[
+              { value: "form", label: "表单" },
+              { value: "raw", label: "原始文件（高级）" },
+            ]}
+          />
+          {dirty ? <span className="t-label-12 text-amber-900">● 未保存</span> : null}
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setAiOpen(true)}>
             <Sparkles className="size-3.5" />
             AI 助手
           </Button>
-          <Button variant="secondary" size="sm" onClick={load}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (dirty && !window.confirm("有未保存的修改，放弃并重新载入？")) return;
+              void load();
+            }}
+          >
             <RefreshCw className="size-3.5" />
             重新载入
           </Button>
@@ -178,12 +162,12 @@ export function ConfigTab({ instance }: { instance: Instance }) {
           <div className="space-y-4">
             <Card className="space-y-3">
               <h3 className="t-h-14 text-gray-1000">玩法</h3>
-              {Object.keys(SELECTS).map((key) => (
-                <Field key={key} label={key}>
+              {Object.entries(SELECT_META).map(([key, meta]) => (
+                <Field key={key} label={meta.label} hint={meta.hint}>
                   <Picker
-                    value={draft[key] ?? SELECTS[key][0]}
+                    value={draft[key] ?? meta.options[0].value}
                     onValueChange={(v) => setDraft({ ...draft, [key]: v })}
-                    options={SELECTS[key].map((v) => ({ value: v, label: v }))}
+                    options={meta.options}
                   />
                 </Field>
               ))}
@@ -199,11 +183,24 @@ export function ConfigTab({ instance }: { instance: Instance }) {
               <h3 className="t-h-14 mb-2 text-gray-1000">开关</h3>
               <div className="grid gap-2 sm:grid-cols-2">
                 {BOOL_KEYS.map((key) => (
-                  <label key={key} className="flex items-center justify-between gap-2">
-                    <span className="t-label-13 text-gray-900">{key}</span>
+                  <label key={key} className="flex items-start justify-between gap-3 rounded-md px-1 py-1">
+                    <span className="min-w-0">
+                      <span className="t-label-13 block text-gray-900">{BOOL_META[key]?.label ?? key}</span>
+                      {BOOL_META[key]?.hint ? (
+                        <span className="t-label-12 mt-0.5 block leading-4 text-gray-700">{BOOL_META[key].hint}</span>
+                      ) : null}
+                    </span>
                     <Switch
                       checked={draft[key] === "true"}
-                      onCheckedChange={(v) => setDraft({ ...draft, [key]: String(v) })}
+                      onCheckedChange={(v) => {
+                        if (key === "online-mode" && !v) {
+                          if (!window.confirm("关掉后任何客户端都能进，用户名也可能被冒用。确定要关吗？")) return;
+                        }
+                        if (key === "hardcore" && v) {
+                          if (!window.confirm("极限模式死亡后不能复活，且很难改回来。确定要开吗？")) return;
+                        }
+                        setDraft({ ...draft, [key]: String(v) });
+                      }}
                     />
                   </label>
                 ))}

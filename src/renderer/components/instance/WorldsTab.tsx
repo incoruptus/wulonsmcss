@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw, History } from "lucide-react";
 import { SwitchRow } from "@/components/ui/field";
 import { useConfig } from "@/stores/config";
+import { useServer } from "@/stores/server";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
@@ -11,6 +12,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import type { Instance, WorldPack } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
 import * as worldsApi from "@/lib/worlds";
+import { isDesktopVisual } from "@/lib/shell";
 
 const TYPES = [
   { value: "overworld", label: "主世界风格" },
@@ -26,6 +28,8 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ name: "", label: "", type: "overworld", description: "" });
   const [busy, setBusy] = useState(false);
+  const status = useServer((s) => s.status);
+  const serverBusy = status === "running" || status === "starting" || status === "stopping";
   const [backups, setBackups] = useState<{ name: string; size: number; mtime: number }[]>([]);
   const [backupBusy, setBackupBusy] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
@@ -205,7 +209,13 @@ export function WorldsTab({ instance }: { instance: Instance }) {
                 <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{b.name}</span>
                 <span className="t-label-12 shrink-0 text-gray-700">{formatBytes(b.size)}</span>
                 <span className="t-label-12 shrink-0 text-gray-700">{formatDateTime(b.mtime)}</span>
-                <Button variant="ghost" size="xs" onClick={() => setRestoring(b.name)}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  disabled={serverBusy}
+                  title={serverBusy ? "先停止服务器再恢复" : "恢复这份备份"}
+                  onClick={() => setRestoring(b.name)}
+                >
                   <RotateCcw className="size-3.5" />
                   恢复
                 </Button>
@@ -214,6 +224,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
                   size="xs"
                   className="hover:text-red-900"
                   onClick={async () => {
+                    if (!window.confirm(`删除备份 ${b.name}（${formatBytes(b.size)}）？当前世界不受影响。`)) return;
                     const res = await window.mcss.backup.remove(instance.dir, b.name);
                     if (res.ok) {
                       toast.success("已删除备份");
@@ -229,12 +240,18 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         )}
 
         <div className="mt-3 border-t border-gray-300 pt-3">
-          <SwitchRow
-            label="停止服务器后自动备份"
-            hint="停服时自动打包 world，并按下面的份数清理旧备份"
-            checked={Boolean(cfg.autoBackupOnStop)}
-            onCheckedChange={(v) => patch({ autoBackupOnStop: v })}
-          />
+          {isDesktopVisual() ? (
+            <SwitchRow
+              label="停止服务器后自动备份"
+              hint="停服时自动打包 world，并按下面的份数清理旧备份"
+              checked={Boolean(cfg.autoBackupOnStop)}
+              onCheckedChange={(v) => patch({ autoBackupOnStop: v })}
+            />
+          ) : (
+            <div className="rounded-lg bg-amber-700/10 p-2.5 t-label-12 text-amber-900">
+              停服自动备份需要桌面版常驻进程；网页版可以点上面的「手动备份」。
+            </div>
+          )}
           <div className="mt-2 flex items-center gap-2">
             <span className="t-label-12 text-gray-700">保留最近</span>
             <Picker
@@ -253,7 +270,9 @@ export function WorldsTab({ instance }: { instance: Instance }) {
               variant="secondary"
               disabled={!backups.length}
               onClick={async () => {
-                const res = await window.mcss.backup.remove(instance.dir, backups[backups.length - 1].name);
+                const target = backups[backups.length - 1];
+                if (!window.confirm(`删除最旧的备份 ${target.name}（${formatBytes(target.size)}）？`)) return;
+                const res = await window.mcss.backup.remove(instance.dir, target.name);
                 if (!res.ok) return toast.error(res.error || "清理失败");
                 toast.success("已删除最旧的一份");
                 await loadBackups();
@@ -344,7 +363,9 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           <Button variant="secondary" onClick={() => setRestoringSnap(null)}>取消</Button>
           <Button
             variant="error"
+            disabled={serverBusy}
             onClick={async () => {
+              if (serverBusy) return toast.error("先停止服务器再还原");
               const name = restoringSnap!;
               setRestoringSnap(null);
               const res = await window.mcss.backup.restoreSnapshot(instance.dir, name);
@@ -372,7 +393,9 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           <Button variant="secondary" onClick={() => setRestoring(null)}>取消</Button>
           <Button
             variant="error"
+            disabled={serverBusy}
             onClick={async () => {
+              if (serverBusy) return toast.error("先停止服务器再恢复");
               const name = restoring!;
               setRestoring(null);
               const res = await window.mcss.backup.restore(instance.dir, name);

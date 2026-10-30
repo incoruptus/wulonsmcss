@@ -80,10 +80,10 @@ export function InstanceSettingsDialog({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="端口">
+          <Field label="端口" hint="朋友连进来的门牌号；改了之后旧邀请会失效，要重新发">
             <Input value={port} onChange={(e) => setPort(e.target.value.replace(/[^\d]/g, ""))} />
           </Field>
-          <Field label="JVM 附加参数" hint="例如 -javaagent:authlib-injector.jar=...">
+          <Field label="JVM 附加参数" hint="高级选项；不确定就留空。只有服务端明确要求时才填">
             <Input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} className="font-mono text-[12px]" />
           </Field>
         </div>

@@ -6,6 +6,7 @@
  */
 
 import type { McssApi } from "./api";
+import { isLoopbackUrl } from "./shell";
 
 interface InvokeEnvelope {
   channel: string;
@@ -18,9 +19,11 @@ interface EventMessage {
 }
 
 export function createHttpClient(base: string, token: string): McssApi {
+  // 纵深防御：即使调用方传了非本机地址，也绝不把配对令牌发出去
+  const trusted = isLoopbackUrl(base);
   const headers = (): Record<string, string> => ({
     "content-type": "application/json",
-    ...(token ? { "x-mcss-token": token } : {}),
+    ...(trusted && token ? { "x-mcss-token": token } : {}),
   });
 
   async function invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T> {
@@ -82,7 +85,7 @@ export function createHttpClient(base: string, token: string): McssApi {
 
   function ensureStream() {
     if (source) return;
-    const url = `${base}/api/events?token=${encodeURIComponent(token)}`;
+    const url = trusted ? `${base}/api/events?token=${encodeURIComponent(token)}` : `${base}/api/events`;
     source = new EventSource(url);
     source.onmessage = (e) => {
       try {
@@ -190,6 +193,7 @@ export function createHttpClient(base: string, token: string): McssApi {
     },
     versions: {
       minecraft: () => invoke("versions:minecraft"),
+      ecosystem: (list) => invoke("versions:ecosystem", list),
       fabricLoaders: (mc) => invoke("versions:fabric-loaders", mc),
       serverBuilds: (serverType, mc) => invoke("versions:server-builds", serverType, mc),
       detectServer: (dir) => invoke("versions:detect-server", dir),

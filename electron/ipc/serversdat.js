@@ -23,10 +23,13 @@ function writeString(text) {
   return Buffer.concat([head, bytes]);
 }
 
-/** 解析 servers.dat，返回 [{name, ip}]；解析不了就返回 [] */
+/**
+ * 解析 servers.dat，返回 [{name, ip}]；**读不懂返回 null**（不是空数组）。
+ * 空数组代表“文件确实没有服务器”；null 代表“别覆盖，先备份”。
+ */
 function parse(buf) {
   try {
-    if (buf.length < 3 || buf[0] !== 0x0a) return [];
+    if (buf.length < 3 || buf[0] !== 0x0a) return null;
     let off = 3; // root: type(0x0a) + name(len=0)
     const servers = [];
     while (off < buf.length) {
@@ -34,12 +37,11 @@ function parse(buf) {
       if (type === 0x00) break;
       const name = readString(buf, off + 1);
       off = name.next;
-      if (type !== 0x09 || name.value !== "servers") return servers;
-      const elemType = buf[off];
+      if (type !== 0x09 || name.value !== "servers") return null;
       const count = buf.readInt32BE(off + 1);
       off += 5;
       for (let i = 0; i < count; i++) {
-        if (buf[off] !== 0x0a) return servers;
+        if (buf[off] !== 0x0a) return null;
         const compName = readString(buf, off + 1);
         off = compName.next;
         const entry = { name: "", ip: "" };
@@ -55,7 +57,7 @@ function parse(buf) {
           } else if (t === 0x01) off += 1;
           else if (t === 0x03) off += 4;
           else if (t === 0x04) off += 8;
-          else return servers;
+          else return null;
         }
         off += 1; // TAG_End
         servers.push(entry);
@@ -64,7 +66,7 @@ function parse(buf) {
     }
     return servers;
   } catch (e) {
-    return [];
+    return null;
   }
 }
 
@@ -98,11 +100,15 @@ function addServer(mcDir, { name, ip }) {
   const file = path.join(mcDir, "servers.dat");
   let servers = [];
   if (fs.existsSync(file)) {
-    try {
-      servers = parse(fs.readFileSync(file));
-    } catch (e) {
-      servers = [];
+    const parsed = parse(fs.readFileSync(file));
+    if (!parsed) {
+      // 读不懂就绝不清空覆盖：先留一份 .bak，让玩家/启动器自己决定
+      try {
+        fs.copyFileSync(file, `${file}.bak`);
+      } catch (e) {}
+      throw new Error("servers.dat 里有无法识别的内容，已备份为 servers.dat.bak，没有改动原文件");
     }
+    servers = parsed;
   }
   const existing = servers.find((s) => s.ip === ip);
   if (existing) existing.name = name || existing.name;

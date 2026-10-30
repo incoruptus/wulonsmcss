@@ -63,7 +63,7 @@ export function formatCount(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "0";
   if (n >= 1e8) return `${(n / 1e8).toFixed(n >= 1e9 ? 0 : 1)} 亿`;
   if (n >= 1e4) return `${(n / 1e4).toFixed(n >= 1e5 ? 0 : 1)} 万`;
-  return String(Math.round(n));
+  return Math.round(n).toLocaleString("zh-CN");
 }
 
 export function formatDuration(seconds: number): string {

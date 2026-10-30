@@ -93,20 +93,50 @@ function migrate(raw) {
 }
 
 function createConfigStore(configPath) {
+  const backupPath = `${configPath}.bak`;
+
+  /**
+   * 原子写：tmp → fsync → rename，并在覆盖前留一份 .bak。
+   * 之前直接 truncate 写，断电/磁盘满会留下半截 JSON，下次启动实例全丢。
+   */
   function persist(cfg) {
+    const json = JSON.stringify(cfg, null, 2);
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    const tmp = `${configPath}.tmp`;
+    const fd = fs.openSync(tmp, "w");
     try {
-      fs.mkdirSync(path.dirname(configPath), { recursive: true });
-      fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), "utf-8");
-    } catch (e) {
-      /* 只读环境（如安装目录）下不阻断启动 */
+      fs.writeFileSync(fd, json, "utf-8");
+      try {
+        fs.fsyncSync(fd);
+      } catch (e) {}
+    } finally {
+      fs.closeSync(fd);
     }
+    try {
+      if (fs.existsSync(configPath)) fs.copyFileSync(configPath, backupPath);
+    } catch (e) {}
+    fs.renameSync(tmp, configPath);
   }
 
   function read() {
-    const raw = readJson(configPath);
+    let raw = readJson(configPath);
+    // 主文件坏了/被删了就先从 .bak 恢复，而不是静默当成“没有实例”
+    if (!raw) {
+      const bak = readJson(backupPath);
+      if (bak) {
+        raw = bak;
+        try {
+          persist(bak);
+        } catch (e) {}
+      }
+    }
     const cfg = migrate(raw);
     // 只对真正的老结构（v26 及以前）落盘；v27/v28 的字段补全由渲染层负责
-    if (raw && Number(raw.version) < 27) persist(cfg);
+    if (raw && Number(raw.version) < 27) {
+      try {
+        persist(cfg);
+      } catch (e) {}
+    }
     return cfg;
   }
 
@@ -119,9 +149,11 @@ function createConfigStore(configPath) {
   }
 
   function reset() {
-    try {
-      if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
-    } catch (e) {}
+    for (const p of [configPath, backupPath]) {
+      try {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      } catch (e) {}
+    }
   }
 
   return { read, write, reset };
