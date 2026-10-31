@@ -42,10 +42,10 @@ export const PALETTES: PaletteMeta[] = [
     id: "white",
     tea: "白茶",
     name: "白毫银针",
-    note: "黑白底，蓝作强调",
+    note: "黑白底，按钮也是黑白",
     swatch: {
-      light: ["#1673e8", "#e2efff", "#f4f4f4"],
-      dark: ["#64b4f5", "#132b40", "#0b0b0b"],
+      light: ["#171717", "#e5e5e5", "#f4f4f4"],
+      dark: ["#f2f2f2", "#242424", "#0b0b0b"],
     },
   },
   {
@@ -80,12 +80,12 @@ export const PALETTES: PaletteMeta[] = [
   },
 ];
 
-export const DEFAULT_PALETTE: PaletteId = "green";
+export const DEFAULT_PALETTE: PaletteId = "white";
 
 export function isPaletteId(value: unknown): value is PaletteId {
   return PALETTES.some((p) => p.id === value);
 }
 
 export function paletteOf(value: unknown): PaletteMeta {
-  return PALETTES.find((p) => p.id === value) ?? PALETTES[0];
+  return PALETTES.find((p) => p.id === value) ?? PALETTES.find((p) => p.id === DEFAULT_PALETTE) ?? PALETTES[0];
 }

@@ -156,6 +156,8 @@ export interface AppConfig {
   theme: ThemeMode;
   /** 茶色主题（西湖龙井 / 白毫银针 / 祁门工夫 / 君山银针 / 云南普洱） */
   palette: PaletteId;
+  /** 用户是否主动选过茶色；没选过时按默认白茶迁移，不把旧默认绿茶当成选择 */
+  palettePicked: boolean;
   accent: string;
   instances: Instance[];
   activeInstanceId: string | null;

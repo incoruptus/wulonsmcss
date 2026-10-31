@@ -174,14 +174,14 @@
   --ds-gray-a700: #00000070;
   --ds-gray-a800: #00000082;
   --ds-gray-a900: #000000b3;
-  --ds-brand-100: #eef6ff;
-  --ds-brand-200: #e2efff;
-  --ds-brand-300: #cfe5ff;
-  --ds-brand-500: #4b9bf5;
-  --ds-brand-600: #1673e8;
-  --ds-brand-700: #0d5dbb;
+  --ds-brand-100: #f0f0f0;
+  --ds-brand-200: #e5e5e5;
+  --ds-brand-300: #d4d4d4;
+  --ds-brand-500: #333333;
+  --ds-brand-600: #171717;
+  --ds-brand-700: #000000;
   --ds-brand-ink: #ffffff;
-  --ds-focus-color: #1673e8;
+  --ds-focus-color: #171717;
   --ds-panel-highlight: #ffffff;
 }
 
@@ -207,14 +207,14 @@
   --ds-gray-a700: #f2f2f288;
   --ds-gray-a800: #f2f2f29c;
   --ds-gray-a900: #f2f2f2b3;
-  --ds-brand-100: #102334;
-  --ds-brand-200: #132b40;
-  --ds-brand-300: #173751;
-  --ds-brand-500: #55a9ed;
-  --ds-brand-600: #64b4f5;
-  --ds-brand-700: #8ac8f7;
-  --ds-brand-ink: #0a1620;
-  --ds-focus-color: #64b4f5;
+  --ds-brand-100: #1c1c1c;
+  --ds-brand-200: #242424;
+  --ds-brand-300: #2e2e2e;
+  --ds-brand-500: #d4d4d4;
+  --ds-brand-600: #f2f2f2;
+  --ds-brand-700: #ffffff;
+  --ds-brand-ink: #141414;
+  --ds-focus-color: #f2f2f2;
   --ds-panel-highlight: #1b1b1b;
 }
 

@@ -144,14 +144,29 @@ describe("核心类型 → 内容类型", () => {
 });
 
 describe("茶色主题迁移", () => {
-  it("老配置没有 palette 时补默认绿茶", () => {
+  it("老配置没有 palette 时补默认白茶", () => {
     const { cfg, changed } = normalizeConfig(V27, { defaultMode: "host" });
-    expect(cfg.palette).toBe("green");
+    expect(cfg.palette).toBe("white");
+    expect(cfg.palettePicked).toBe(false);
     expect(changed).toBe(true);
   });
 
-  it("合法茶色保留，非法茶色回退", () => {
-    expect(normalizeConfig({ ...V27, version: 28, palette: "red" }, { defaultMode: "host" }).cfg.palette).toBe("red");
-    expect(normalizeConfig({ ...V27, version: 28, palette: "oolong" }, { defaultMode: "host" }).cfg.palette).toBe("green");
+  it("没主动选过的旧默认绿茶也迁到白茶；主动选过的保留", () => {
+    const untouched = normalizeConfig({ ...V27, version: 28, palette: "green" }, { defaultMode: "host" }).cfg;
+    expect(untouched.palette).toBe("white");
+    expect(untouched.palettePicked).toBe(false);
+
+    const picked = normalizeConfig(
+      { ...V27, version: 28, palette: "red", palettePicked: true },
+      { defaultMode: "host" },
+    ).cfg;
+    expect(picked.palette).toBe("red");
+    expect(picked.palettePicked).toBe(true);
+  });
+
+  it("非法茶色回退白茶", () => {
+    expect(
+      normalizeConfig({ ...V27, version: 28, palette: "oolong", palettePicked: true }, { defaultMode: "host" }).cfg.palette,
+    ).toBe("white");
   });
 });

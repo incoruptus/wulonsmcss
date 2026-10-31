@@ -17,10 +17,10 @@ describe("茶色主题清单", () => {
     }
   });
 
-  it("未知值回退到默认绿茶，不抛错", () => {
+  it("未知值回退到默认白茶，不抛错", () => {
     expect(isPaletteId("green")).toBe(true);
     expect(isPaletteId("oolong")).toBe(false);
     expect(paletteOf("oolong").id).toBe(DEFAULT_PALETTE);
-    expect(paletteOf(undefined).id).toBe("green");
+    expect(paletteOf(undefined).id).toBe("white");
   });
 });

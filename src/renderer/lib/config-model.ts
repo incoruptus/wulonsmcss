@@ -93,6 +93,7 @@ function emptyConfig(mode: AppMode): AppConfig {
     modeAsked: false,
     theme: "dark",
     palette: DEFAULT_PALETTE,
+    palettePicked: false,
     accent: "#2f6feb",
     instances: [],
     activeInstanceId: null,
@@ -213,8 +214,9 @@ export function normalizeConfig(
   const mode = asMode(r.mode, opts.defaultMode);
   if (r.mode !== mode) changed = true;
 
-  const palette = asPalette(r.palette);
-  if (r.palette !== palette) changed = true;
+  const palettePicked = r.palettePicked === true;
+  const palette = palettePicked ? asPalette(r.palette) : DEFAULT_PALETTE;
+  if (r.palette !== palette || r.palettePicked !== palettePicked) changed = true;
 
   const cfg: AppConfig = {
     ...base,
@@ -225,6 +227,7 @@ export function normalizeConfig(
     modeAsked: r.modeAsked === true,
     theme: asTheme(r.theme),
     palette,
+    palettePicked,
     accent: typeof r.accent === "string" ? r.accent : base.accent,
     instances,
     activeInstanceId: activeId,

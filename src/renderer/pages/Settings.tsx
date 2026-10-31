@@ -48,7 +48,7 @@ export default function Settings() {
                 key={palette.id}
                 palette={palette}
                 selected={cfg.palette === palette.id}
-                onSelect={() => void patch({ palette: palette.id })}
+                onSelect={() => void patch({ palette: palette.id, palettePicked: true })}
               />
             ))}
           </div>

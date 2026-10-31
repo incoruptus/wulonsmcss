@@ -22,10 +22,10 @@ installGlobalErrorHandlers();
 try {
   const saved = localStorage.getItem("mcss.dark");
   document.documentElement.classList.toggle("dark", saved ? saved === "1" : true);
-  document.documentElement.dataset.palette = localStorage.getItem("mcss.palette") || "green";
+  document.documentElement.dataset.palette = localStorage.getItem("mcss.palette") || "white";
 } catch {
   document.documentElement.classList.add("dark");
-  document.documentElement.dataset.palette = "green";
+  document.documentElement.dataset.palette = "white";
 }
 
 // Sora：拉丁字形随包（OFL）；中文由 globals.css 里的系统黑体链兜底
