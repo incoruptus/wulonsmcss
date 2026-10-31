@@ -102,6 +102,10 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         </Callout>
       ) : null}
 
+      <Callout tone="info" title="备份前先选对方式">
+        想保存一份完整存档发给朋友，用「导出存档」；想回到之前的某个时间点，用下面的「时间机」。
+      </Callout>
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">
         <p className="t-label-13 text-gray-800">
           数据包生成的维度会出现在 <span className="t-mono-12">world/datapacks/</span> 下，同一台服务器可共用一套。
