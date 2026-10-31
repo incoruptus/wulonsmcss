@@ -93,7 +93,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               mtime: 0,
             }));
       if (source === "cloud" && serverList.length === 0) {
-        toast.error("云端尚无该服务器的模组清单，请先在运行服务器的那台机器上同步一次");
+        toast.error("还没有拿到这台服务器的模组清单，请先在运行服务器的那台电脑上打开「设置 → 跨端同步」同步一次");
         return;
       }
       const byId = (list: ModMeta[]) => {
@@ -159,7 +159,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
     const clientSide = selectedRows.filter((r) => r.client?.environment === "client");
     if (clientSide.length) {
       const ok = window.confirm(
-        `有 ${clientSide.length} 个模组标记为「仅客户端」，下载到服务端可能报错或导致无法启动，仍要继续？`,
+        `有 ${clientSide.length} 个模组只该装在玩家电脑上，装到服务器可能报错或导致无法启动，仍要继续？`,
       );
       if (!ok) return;
     }
@@ -211,7 +211,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-700" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索已装 Mod…" className="h-8 pl-8 text-[13px]" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索已装模组…" className="h-8 pl-8 text-[13px]" />
         </div>
         <Button variant="secondary" size="sm" onClick={load} loading={loading}>
           <RefreshCw className="size-3.5" />
@@ -256,8 +256,8 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       <Card>
         <div className="flex flex-wrap items-center gap-2">
           <GitCompare className="size-4 text-gray-800" />
-          <span className="t-label-14 font-medium text-gray-1000">Mod 适格性审查</span>
-          <span className="t-label-12 text-gray-700">比对服务端与本机客户端的 mods，找出缺失或版本不一致的模组</span>
+          <span className="t-label-14 font-medium text-gray-1000">检查模组是否齐全</span>
+          <span className="t-label-12 text-gray-700">对比服务器的模组和朋友的客户端，找出缺少或版本不一致的模组</span>
           <div className="ml-auto flex items-center gap-2">
             <Input
               value={clientDir}
@@ -269,16 +269,16 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               选择
             </Button>
             <Button size="sm" onClick={() => compare("local")} loading={comparing} disabled={!clientDir}>
-              用本机服务端比对
+              对比本机客户端
             </Button>
             <Button
               size="sm"
               variant="secondary"
               onClick={() => compare("cloud")}
               disabled={!clientDir || !catalog}
-              title={catalog ? `云端清单更新于 ${formatDateTime(catalog.fetchedAt)}` : "还没有从云端拉到该服务器的清单"}
+              title={catalog ? `已同步清单更新于 ${formatDateTime(catalog.fetchedAt)}` : "还没有从另一台设备同步到清单"}
             >
-              用云端清单比对
+              对比已同步清单
             </Button>
           </div>
         </div>
@@ -286,11 +286,11 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
         <div className="mt-2 t-label-12 text-gray-700">
           {catalog ? (
             <>
-              云端清单：{catalog.mods.length} 个 Mod · 由另一台设备于 {formatDateTime(catalog.updatedAt)} 同步
+              已同步清单：{catalog.mods.length} 个模组 · 由另一台设备于 {formatDateTime(catalog.updatedAt)} 同步
               （本机拉取于 {formatDateTime(catalog.fetchedAt)}）
             </>
           ) : (
-            "尚无云端清单。在运行服务器的机器上打开「设置 → 跨端同步」同步一次，之后即可用云端清单与本机客户端比对。"
+            "还没有同步过这台服务器的清单。在运行服务器的那台电脑上打开「设置 → 跨端同步」同步一次，之后就能用这份清单和本机客户端对比。"
           )}
         </div>
 

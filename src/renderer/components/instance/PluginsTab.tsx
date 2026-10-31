@@ -88,7 +88,7 @@ export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrows
           <EmptyState
             icon={<Plug className="size-5" />}
             title="还没有装插件"
-            desc="领地保护、传送、经济、权限等插件均可在「资源库」中搜索并安装，安装后存放于 plugins/ 目录。"
+            desc="领地保护、传送、经济、权限等插件都可以在「资源库」里搜索安装，安装后重启服务器生效。"
             action={
               <Button onClick={onBrowse} disabled={!onBrowse}>
                 去资源库
