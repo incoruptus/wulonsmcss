@@ -87,15 +87,18 @@ export function SyncCard() {
               ? `上次同步 ${formatDateTime(sync.lastSyncAt)}`
               : configured
                 ? "还没有同步过"
-                : "配置一次配对码与 Token，即可在多台设备间共用同一份 Gist"}
+                : "换电脑时同步服务器清单；不换电脑可以不开"}
         </span>
       </div>
 
       <p className="t-label-12 mb-3 text-gray-700">
-        上传前会使用配对码进行 AES-GCM 加密，Gist 中仅保存密文。同步内容包括服务器清单、服务端模组清单、快捷操作与 FRP 配置；本机目录与 Java 路径不会上传。
+        换一台电脑继续管理时用。内容会先加密再上传，GitHub Gist 里只有密文；本机目录和 Java 路径不会上传。
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <details className="rounded-lg bg-background-200 p-3" open={configured ? true : undefined}>
+        <summary className="cursor-pointer t-label-12 text-gray-700">配对码与 GitHub Token（高级）</summary>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Field label="配对码" hint="同一配对码请配置到各台设备，避免外传">
           <div className="flex gap-2">
             <Input
@@ -188,6 +191,12 @@ export function SyncCard() {
         />
       </div>
 
+      <div className="mt-2 flex items-center gap-1.5 t-label-12 text-gray-700">
+        <ShieldCheck className="size-3.5" />
+        加密细节：先 gzip 压缩，再用 AES-GCM-256 加密（PBKDF2-SHA256，60 万次迭代）
+      </div>
+      </details>
+
       <Dialog open={confirmReset} onOpenChange={setConfirmReset} widthClass="max-w-md">
         <DialogHeader title="断开同步？" desc="将清空本机的 Token 与配对信息，Gist 中的密文不会被删除。" />
         <DialogBody>
@@ -209,11 +218,6 @@ export function SyncCard() {
           </Button>
         </DialogFooter>
       </Dialog>
-
-      <div className="mt-2 flex items-center gap-1.5 t-label-12 text-gray-700">
-        <ShieldCheck className="size-3.5" />
-        内容先经 gzip 压缩，再使用 AES-GCM-256 加密（PBKDF2-SHA256，60 万次迭代）
-      </div>
     </Card>
   );
 }
