@@ -18,17 +18,17 @@
 
 | 页面 / 状态 | 截图 |
 |---|---|
-| 联机：下一步 + 直连地址 + 技术详情折叠 | `_probe-network-newcomer.png` |
-| 新建服务器：不知道怎么选 + 推荐配置 | `_probe-create-final.png` |
-| 加入游戏：首次玩 MC 说明 | `_probe-join-newcomer.png` |
-| 配置：这里改什么 | `_probe-config-newcomer.png` |
-| 内容：管理什么、何时生效 | `_probe-content-newcomer.png` |
-| 模组：检查模组是否齐全 | `_probe-mods-newcomer.png` |
-| 控制台空状态 | `_probe-console-empty.png` |
-| AI 配置：三步用法 | `_probe-ai-newcomer.png` |
-| 客户端空目录 + 选择按钮 | `_probe-client-empty.png` |
-| 世界/备份：先选对备份方式 | `_probe-worlds-newcomer.png` |
-| 设置：运行与外观 | `_probe-settings-newcomer.png` |
+| 联机：下一步 + 直连地址 + 技术详情折叠 | `./screenshots/network.png` |
+| 新建服务器：不知道怎么选 + 推荐配置 | `./screenshots/create-server.png` |
+| 加入游戏：首次玩 MC 说明 | `./screenshots/join.png` |
+| 配置：这里改什么 | `./screenshots/config.png` |
+| 内容：管理什么、何时生效 | `./screenshots/content.png` |
+| 模组：检查模组是否齐全 | `./screenshots/mods.png` |
+| 控制台空状态 | `./screenshots/console-empty.png` |
+| AI 配置：三步用法 | `./screenshots/ai-config.png` |
+| 客户端空目录 + 选择按钮 | `./screenshots/client-empty.png` |
+| 世界/备份：先选对备份方式 | `./screenshots/worlds.png` |
+| 设置：运行与外观 | `./screenshots/settings.png` |
 
 ## 3. 空态 / 错误态
 
@@ -49,11 +49,15 @@
 ## 4. 验证
 
 - `pnpm typecheck`：通过
-- `pnpm test`：**208 vitest + 72 node:test**
-- `cargo test` / agent 检查：20 Rust
-- parity：100%
+- `pnpm test`：**208 vitest + 72 node:test**，parity 100%
+- `cargo test`：**20 Rust** 全过
+- `pnpm build` / `pnpm build:web`：通过
+- `node scripts/web-e2e.cjs`：**16/16**
 - `node scripts/check-release.cjs --package`：**37/37**
-- v28 包：`D:\Games\Minecraft\MCServer\wulons-mcss-b28.0.0\WulonsMCSS-win32-x64\WulonsMCSS.exe`
+- 桌面包：`D:\Games\Minecraft\MCServer\wulons-mcss-b28.0.0\WulonsMCSS-win32-x64\WulonsMCSS.exe`（约 273 MB）
+  - SHA256 `F12EBC300DD9C95EF4B711716561FFCFA20E8DC28E505BC7E98BA3AFC5E42BC8`
+- Agent 发布包：`release\mcss-agent-28.0.0-win64.zip` / `release\mcss-agent-win64.zip`
+  - SHA256 `c766486824b0ea2f91cb661ec32f7c76af01b858692c631fae2fa68a0e459cf2`
 
 ## 5. 非阻塞事项
 

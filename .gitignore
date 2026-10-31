@@ -40,3 +40,6 @@ docs/copy-apply-report.json
 .env.local
 !.env.example
 
+
+# Local dev app config (contains machine paths; never commit)
+config.json
