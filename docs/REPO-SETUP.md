@@ -42,7 +42,13 @@ git push origin v28.0.0
 
 ## 5. 上传 Release 资产
 
-桌面包在仓库外：
+桌面包在仓库外，已打成可直接上传的 zip：
+
+```text
+release\WulonsMCSS-28.0.0-win64.zip
+```
+
+原始目录：
 
 ```text
 D:\Games\Minecraft\MCServer\wulons-mcss-b28.0.0\WulonsMCSS-win32-x64\
@@ -62,6 +68,9 @@ release\mcss-agent-win64.zip
 ```text
 WulonsMCSS.exe
 F12EBC300DD9C95EF4B711716561FFCFA20E8DC28E505BC7E98BA3AFC5E42BC8
+
+WulonsMCSS-28.0.0-win64.zip
+6FA057FA06B9AF41AD29B726F8D67B13B18EB791905909AEEED95693D54C0396
 
 mcss-agent-28.0.0-win64.zip
 c766486824b0ea2f91cb661ec32f7c76af01b858692c631fae2fa68a0e459cf2
