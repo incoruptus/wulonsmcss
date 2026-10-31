@@ -119,7 +119,12 @@ if (fs.existsSync(agentExe)) {
 
 // Step 4: Write metadata
 fs.writeFileSync(path.join(OUT_DIR, 'version'), pkg.version)
-fs.writeFileSync(path.join(OUT_DIR, 'LICENSE'), 'ISC License\nCopyright (c) 2026 隐刻INCO')
+const ownLicense = path.join(APP_DIR, 'LICENSE')
+if (fs.existsSync(ownLicense)) {
+  fs.copyFileSync(ownLicense, path.join(OUT_DIR, 'LICENSE'))
+} else {
+  fs.writeFileSync(path.join(OUT_DIR, 'LICENSE'), 'ISC License\nCopyright (c) 2026 隐刻INCO')
+}
 
 // 第三方许可证：Lucide/React/Radix 等随包分发，必须把版权与许可声明一起带上
 const notices = path.join(APP_DIR, 'THIRD-PARTY-NOTICES.md')
