@@ -12,12 +12,12 @@
 复制 `.env.example` 为 `.env.local`：
 
 ```dotenv
-VITE_REPO=owner/wulons-mcss
-VITE_AUTHOR_URL=https://你的作者主页
-VITE_PUBLIC_URL=https://你的网页版地址
+VITE_REPO=incoruptus/wulonsmcss
+VITE_AUTHOR_URL=https://github.com/incoruptus
+VITE_PUBLIC_URL=https://incoruptus.github.io/wulonsmcss
 ```
 
-只填已知项；`VITE_PUBLIC_URL` 还没部署时留空，邀请会退回房间码，不会生成坏链接。
+`VITE_PUBLIC_URL` 还没部署时留空，邀请会退回房间码，不会生成坏链接。
 
 ## 3. 检查与提交
 
@@ -77,7 +77,7 @@ WulonsMCSS.exe
 F12EBC300DD9C95EF4B711716561FFCFA20E8DC28E505BC7E98BA3AFC5E42BC8
 
 WulonsMCSS-28.0.0-win64.zip
-4BD1D165A3D45DBA7B232B2442F95BB17F3B82D2C29E8E97CD01BD248BDA56CB
+141FD25F1EC8FBBE8391FC43B0C7B8BA1510CAE542D9302518A7E9A7C57B9FB8
 
 mcss-agent-28.0.0-setup.exe
 cdb372ce2ea43e1a1529ae1a0509d663e1ed5688ddb8f2bafc5143f276dd11a5
