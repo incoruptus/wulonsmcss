@@ -141,8 +141,8 @@ export default function Overview() {
           <Card className="xl:col-span-7">
             <CardHead
               icon={<Link2 className="size-[18px]" />}
-              title="联机状态"
-              desc="建议先确认朋友能够连接，再发送邀请。"
+              title="朋友能不能进来"
+              desc="先检测；通了哪条，就把哪条地址发给朋友。"
               action={<Button variant="ghost" size="sm" onClick={() => navigate("/network")}>联机设置<ArrowUpRight className="size-3.5" /></Button>}
             />
             <div className="mt-5 space-y-3">

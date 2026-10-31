@@ -102,7 +102,7 @@ export default function Network() {
       <PageHeader
         className="max-w-6xl"
         title="联机与内网穿透"
-        desc="建议先执行一次联机体检。同一网络下可直接使用内网地址，朋友在外网时再配置隧道。"
+        desc="先看网络体检：能直连就把地址复制给朋友；不能直连，再在下面开隧道。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDiagOpen(true)}>
@@ -118,10 +118,10 @@ export default function Network() {
           <NetDoctorCard port={activeInstance?.port ?? 25565} />
         </Card>
 
-        <Card className="space-y-3">
+        <Card id="frp-tunnel" className="space-y-3">
           <div className="flex items-center gap-2">
             <Link2 className="size-[18px] text-brand-600" />
-            <div><h3 className="t-h-16 text-gray-1000">隧道配置</h3><p className="t-copy-13 mt-1 text-gray-800">把本机服务器安全地映射到公网。</p></div>
+            <div><h3 className="t-h-16 text-gray-1000">隧道配置</h3><p className="t-copy-13 mt-1 text-gray-800">直连不通时用这里：把本机服务器映射到公网；没有自建 frp 就选樱花穿透。</p></div>
           </div>
 
           <Field label="用哪种隧道" hint="若没有自建 frp 服务器，可选择樱花穿透（桌面版），或先使用现成服务">

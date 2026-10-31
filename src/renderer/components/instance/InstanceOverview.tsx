@@ -82,7 +82,7 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
 
         <div className="grid items-start gap-5 xl:grid-cols-12">
           <Card className="xl:col-span-7">
-            <SectionHead icon={<Send />} title="邀请朋友来玩" desc="先检查联机状态，再分享最合适的地址。" />
+            <SectionHead icon={<Send />} title="邀请朋友来玩" desc="先确认哪条线路能用，再把地址发给朋友。" />
             <div className="mt-5"><ReachabilityPanel port={instance.port} onInvite={() => setInviting(true)} /></div>
           </Card>
 

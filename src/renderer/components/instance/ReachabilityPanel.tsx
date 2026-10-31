@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { CircleHelp, Globe, Laptop, Link2, Loader2, RefreshCw, Send, Wifi } from "lucide-react";
+import { CircleHelp, Copy, Globe, Laptop, Link2, Loader2, RefreshCw, Send, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { useReach } from "@/hooks/useReach";
 import { useServer } from "@/stores/server";
-import { hostSummary, hostTone, hostVerdict, kindLabel, probeText, type ReachKind, type ReachProbe } from "@/lib/reach";
-import { cx } from "@/lib/utils";
+import { hostSummary, hostTone, hostVerdict, kindLabel, probeText, chooseBest, type ReachKind, type ReachProbe } from "@/lib/reach";
+import { copyText, cx } from "@/lib/utils";
 
 const ICON: Record<ReachKind, React.ReactNode> = {
   local: <Laptop className="size-3.5" />,
@@ -66,6 +66,8 @@ export function ReachabilityPanel({
   const summary = hostSummary(verdict);
   const tone = checking ? "gray" : hostTone(verdict);
   const canInvite = probes.some((p) => p.ok && p.target.kind !== "local");
+  const best = chooseBest(probes);
+  const copyAddr = best && best.target.kind !== "local" ? best.addr : "";
 
   return (
     <div className="space-y-2.5">
@@ -115,6 +117,27 @@ export function ReachabilityPanel({
       {report?.externalError ? <p className="t-label-12 text-amber-900">{report.externalError}</p> : null}
       {report?.probes.some((p) => p.via === "external") ? (
         <p className="t-label-12 text-gray-700">公网结论来自一次外部回连探测，探测失败时按「未知」处理，不会直接判定服务器不可用。</p>
+      ) : null}
+
+      {copyAddr ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-300/40 bg-brand-100/40 px-2.5 py-2">
+          <span className="t-label-12 text-gray-800">
+            {best?.target.kind === "lan" ? "同一 Wi-Fi 的朋友在 Minecraft 里填：" : "朋友在 Minecraft「直接连接」里填："}
+          </span>
+          <code className="t-mono-12 min-w-0 flex-1 break-all text-gray-1000">{copyAddr}</code>
+          <Button
+            size="xs"
+            variant="secondary"
+            onClick={async () => {
+              const ok = await copyText(copyAddr);
+              if (ok) toast.success("地址已复制，发给朋友即可连接");
+              else toast.error("复制失败，请手动选中地址");
+            }}
+          >
+            <Copy className="size-3" />
+            复制地址
+          </Button>
+        </div>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2 pt-0.5">

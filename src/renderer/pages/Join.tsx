@@ -340,16 +340,30 @@ export default function Join() {
                   </span>
                 </div>
                 <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
-                <p className="t-mono-12 mt-0.5 text-gray-700">
-                  {effectiveAddr || "还没有地址"}
+                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                  <span className="t-mono-12 text-gray-700">{effectiveAddr || "还没有地址"}</span>
+                  {effectiveAddr ? (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={async () => {
+                        const ok = await copyText(effectiveAddr);
+                        if (ok) toast.success("地址已复制，发给朋友即可在 Minecraft 里连接");
+                        else toast.error("复制失败，请手动选中地址");
+                      }}
+                    >
+                      <Copy className="size-3" />
+                      复制地址
+                    </Button>
+                  ) : null}
                   {best ? (
-                    <span className="ml-2 rounded bg-green-800/12 px-1.5 py-0.5 t-label-12 text-green-900">
-                      {usingLan ? "同 WiFi 直连" : best.target.kind === "tunnel" ? "走隧道" : "公网直连"} · {best.ms ?? 0}ms
+                    <span className="rounded bg-green-800/12 px-1.5 py-0.5 t-label-12 text-green-900">
+                      {usingLan ? "同一 Wi-Fi 直连" : best.target.kind === "tunnel" ? "走隧道" : "公网直连"} · {best.ms ?? 0}ms
                     </span>
                   ) : room.lan && !reaching ? (
-                    <span className="ml-2 t-label-12 text-gray-700">（内网地址不可用，已改用公网）</span>
+                    <span className="t-label-12 text-gray-700">（内网地址不可用，已改用公网）</span>
                   ) : null}
-                </p>
+                </div>
 
                 {/* 多条候选地址都探一遍，走通哪条就说哪条 */}
                 <div className="mt-2 flex flex-wrap items-center gap-2">

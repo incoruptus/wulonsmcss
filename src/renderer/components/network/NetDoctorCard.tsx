@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Activity, Globe, RefreshCw, Router, Wifi } from "lucide-react";
+import { Activity, Copy, Globe, RefreshCw, Router, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
 import { useNetDoctor } from "@/hooks/useNetDoctor";
 import { describeDoctor, physicalLan, virtualCount } from "@/lib/netdoctor";
 import type { NetDoctor } from "@/lib/types";
-import { cx } from "@/lib/utils";
+import { copyText, cx } from "@/lib/utils";
 
 const NAT_LABEL: Record<NetDoctor["stun"]["nat"], string> = {
   cone: "锥形（可打洞）",
@@ -23,6 +23,8 @@ export function NetDoctorCard({ port }: { port: number }) {
   const [mapping, setMapping] = useState(false);
   const [unmapping, setUnmapping] = useState(false);
   const [mapped, setMapped] = useState<{ port: number; externalIp?: string } | null>(null);
+  const v6Addr = doctor?.publicV6 ? `[${doctor.publicV6}]:${port}` : "";
+  const v4Addr = doctor?.publicV4 ? `${doctor.publicV4}:${port}` : "";
 
   // 记一下上次映射：切页面回来还能看到「撤销」，不用让用户去路由器里翻
   const storageKey = `mcss.upnp.${port}`;
@@ -81,12 +83,22 @@ export function NetDoctorCard({ port }: { port: number }) {
     }
   }
 
+  async function copyAddress(value: string, label: string) {
+    const ok = await copyText(value);
+    if (ok) toast.success(`已复制${label}`, { description: "发给朋友，让他填进 Minecraft 的直接连接里" });
+    else toast.error("复制失败，请手动选中地址复制");
+  }
+
+  function scrollToTunnel() {
+    document.getElementById("frp-tunnel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Activity className="size-4 text-gray-800" />
         <h3 className="t-h-14 text-gray-1000">网络体检</h3>
-        <span className="t-label-12 text-gray-700">只看「外网能不能进来」，不动任何系统设置</span>
+        <span className="t-label-12 text-gray-700">先判断能不能直连；不能直连时，下一步在下面开隧道</span>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void refresh()} disabled={checking}>
           <RefreshCw className={cx("size-3.5", checking && "animate-spin")} />
           重新检测
@@ -100,19 +112,69 @@ export function NetDoctorCard({ port }: { port: number }) {
         <span className="t-label-12 min-w-0 flex-1 text-gray-800">{checking ? "正在检测 NAT 类型与路由器，预计需要几秒…" : advice.detail}</span>
       </div>
 
+      {doctor && !checking ? (
+        <div className="rounded-xl border border-brand-300/40 bg-brand-100/40 p-3">
+          <div className="t-label-13 font-semibold text-gray-1000">
+            {v6Addr ? "下一步：把 IPv6 地址发给朋友" : doctor.stun.nat === "symmetric" ? "下一步：开一条隧道" : "下一步：开端口或走隧道"}
+          </div>
+          {v6Addr ? (
+            <>
+              <p className="mt-1 t-copy-12 text-gray-800">
+                让朋友在 Minecraft「直接连接」里粘贴下面这行。他也要有 IPv6；服务器启动后再发，先让手机 5G 试一次，进不去说明学校封了 IPv6 入站，再走隧道。
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-background-100 px-2.5 py-2 shadow-geist-border">
+                <code className="t-mono-12 min-w-0 flex-1 break-all text-gray-1000">{v6Addr}</code>
+                <Button size="xs" variant="secondary" onClick={() => void copyAddress(v6Addr, " IPv6 地址")}>
+                  <Copy className="size-3" />
+                  复制地址
+                </Button>
+              </div>
+            </>
+          ) : doctor.stun.nat === "symmetric" ? (
+            <>
+              <p className="mt-1 t-copy-12 text-gray-800">
+                对称 NAT 下 UPnP 和端口映射都不通。在下面的「隧道配置」里填 SakuraFrp / FRP，拿到公网地址后再发给朋友。
+              </p>
+              <Button size="xs" variant="secondary" className="mt-2" onClick={scrollToTunnel}>
+                去隧道配置
+              </Button>
+            </>
+          ) : doctor.publicV4 && doctor.upnp.available ? (
+            <p className="mt-1 t-copy-12 text-gray-800">
+              路由器支持 UPnP。可在下面开一条 TCP 端口映射，然后把公网 IPv4 发给朋友。
+            </p>
+          ) : (
+            <p className="mt-1 t-copy-12 text-gray-800">
+              当前没有可直连的公网地址。在下面的「隧道配置」里开一条隧道，再把分配到的地址发给朋友。
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="grid gap-1.5 sm:grid-cols-2">
-        <Row icon={<Wifi className="size-3.5" />} label="本机地址" value={lan || "没找到"} ok={Boolean(lan)} />
+        <Row
+          icon={<Wifi className="size-3.5" />}
+          label="本机地址"
+          value={lan || "没找到"}
+          ok={Boolean(lan)}
+          copyValue={lan ? `${lan}:${port}` : undefined}
+          onCopy={copyAddress}
+        />
         <Row
           icon={<Globe className="size-3.5" />}
           label="公网 IPv4"
           value={doctor?.publicV4 || "没拿到"}
           ok={Boolean(doctor?.publicV4)}
+          copyValue={v4Addr || undefined}
+          onCopy={copyAddress}
         />
         <Row
           icon={<Globe className="size-3.5" />}
           label="公网 IPv6"
           value={doctor?.publicV6 || "没有"}
           ok={Boolean(doctor?.publicV6)}
+          copyValue={v6Addr || undefined}
+          onCopy={copyAddress}
         />
         <Row
           icon={<Router className="size-3.5" />}
@@ -194,12 +256,16 @@ function Row({
   value,
   ok,
   unknown,
+  copyValue,
+  onCopy,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   ok?: boolean;
   unknown?: boolean;
+  copyValue?: string;
+  onCopy?: (value: string, label: string) => Promise<void>;
 }) {
   return (
     <div className="flex items-center gap-2 rounded-lg bg-background-100 px-2.5 py-1.5 shadow-geist-border">
@@ -208,6 +274,17 @@ function Row({
       <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000" title={value}>
         {value}
       </span>
+      {copyValue && onCopy ? (
+        <button
+          type="button"
+          className="shrink-0 rounded p-0.5 text-gray-700 transition-colors hover:bg-background-200 hover:text-gray-1000"
+          title={`复制${label}`}
+          aria-label={`复制${label}`}
+          onClick={() => void onCopy(copyValue, label)}
+        >
+          <Copy className="size-3" />
+        </button>
+      ) : null}
     </div>
   );
 }
