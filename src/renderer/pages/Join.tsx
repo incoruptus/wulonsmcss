@@ -178,7 +178,7 @@ export default function Join() {
     autoRun.current = true;
     if (checkup.verdict === "ready") {
       if (launchers[0]) void window.mcss.app.openPath(launchers[0].path);
-      toast.success("客户端已就绪，启动器已打开", { description: `选 ${checkup.match ?? room.mc} 这个实例就能进` });
+      toast.success("客户端已就绪，启动器已打开", { description: `选 ${checkup.match ?? room.mc} 这个客户端版本就能进` });
       return;
     }
     void prepareAndPlay();
@@ -421,7 +421,7 @@ export default function Join() {
                       : checkup.verdict === "need-mods"
                         ? `游戏版本匹配，但本地缺少 ${checkup.mods.missing.length} 个模组`
                         : checkup.verdict === "need-version"
-                          ? `没有 ${room.mc} · ${room.loader} 的实例`
+                          ? `没有 ${room.mc} · ${room.loader} 的客户端版本`
                           : checkup.verdict === "no-version"
                             ? "该 .minecraft 目录中尚未安装游戏"
                             : "没找到 .minecraft"}

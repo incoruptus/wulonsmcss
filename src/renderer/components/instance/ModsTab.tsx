@@ -276,7 +276,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               variant="secondary"
               onClick={() => compare("cloud")}
               disabled={!clientDir || !catalog}
-              title={catalog ? `云端清单更新于 ${formatDateTime(catalog.fetchedAt)}` : "还没有从云端拉到这个实例的清单"}
+              title={catalog ? `云端清单更新于 ${formatDateTime(catalog.fetchedAt)}` : "还没有从云端拉到该服务器的清单"}
             >
               用云端清单比对
             </Button>

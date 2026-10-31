@@ -49,7 +49,7 @@ export function InstanceSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-lg">
-      <DialogHeader title="实例设置" desc="改动将在下次启动服务器时生效。" />
+      <DialogHeader title="服务器设置" desc="改动将在下次启动服务器时生效。" />
       <DialogBody className="space-y-4">
         <Field label="名称">
           <Input value={name} onChange={(e) => setName(e.target.value)} />

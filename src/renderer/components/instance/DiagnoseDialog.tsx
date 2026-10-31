@@ -103,9 +103,9 @@ export function DiagnoseDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   </Badge>
                   <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-700">{diag.client.dir}</span>
                 </div>
-                {diag.client.match ? <p className="t-label-12 text-gray-800">匹配实例：{diag.client.match}</p> : null}
+                {diag.client.match ? <p className="t-label-12 text-gray-800">匹配客户端：{diag.client.match}</p> : null}
                 {diag.client.candidates.length ? (
-                  <p className="t-label-12 text-gray-800">已有实例：{diag.client.candidates.join("、")}</p>
+                  <p className="t-label-12 text-gray-800">已有客户端：{diag.client.candidates.join("、")}</p>
                 ) : null}
                 {diag.client.missing.length ? (
                   <div className="flex flex-wrap gap-1 pt-1">

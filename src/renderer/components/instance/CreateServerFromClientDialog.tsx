@@ -307,7 +307,7 @@ export function CreateServerFromClientDialog({
                 <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-900" />
                 <p className="t-label-13 leading-6 text-amber-900">
                   {loaderText(current.loader, current.loaderVersion)} 客户端暂不支持一键开服。
-                  已有 {loaderText(current.loader, current.loaderVersion)} 服务端可以用「全部实例 → 导入」接进来；
+                  已有 {loaderText(current.loader, current.loaderVersion)} 服务端可以通过「全部服务器 → 导入现有服务器」接入；
                   或者换一个 Fabric 客户端版本。
                 </p>
               </div>

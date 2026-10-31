@@ -607,7 +607,7 @@ function DiagnosisCard({
           onDismiss();
         }
       } else {
-        toast.info("去「实例设置」里改一下就好");
+        toast.info("去「服务器设置」里改一下就好");
       }
     } catch (e) {
       toast.error((e as Error).message);
