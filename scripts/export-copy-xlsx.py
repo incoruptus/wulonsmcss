@@ -41,7 +41,7 @@ SOURCES = [
 ]
 
 ESCAPES = {"n": "\n", "r": "", "t": " ", '"': '"', "'": "'", "\\": "\\", "`": "`", "0": ""}
-CODE_MARKERS = ("function ", "return ", "const ", "let ", "var ", " =>", "?.", "new Date", "lines.push", "console.", ");", "||")
+CODE_MARKERS = ("function ", "return ", "const ", "let ", "var ", " =>", "?.", "new Date", "lines.push", "console.", ");", "||", "/*", "*/", "fn ", "->")
 
 
 def _read_escape(text: str, i: int) -> tuple[str, int]:
@@ -176,26 +176,6 @@ def extract_strings(text: str, rust: bool) -> list[tuple[str, int]]:
     return hits
 
 
-def strip_jsx_braces(text: str) -> str:
-    """把 JSX 里的 {…} 表达式换成空格，保留换行数，方便只取标签之间的文本。"""
-    out: list[str] = []
-    i = 0
-    line = 1
-    n = len(text)
-    while i < n:
-        c = text[i]
-        if c == "{":
-            before = line
-            i, line = _skip_expr(text, i + 1, line)
-            out.append(" " + "\n" * (line - before))
-        else:
-            if c == "\n":
-                line += 1
-            out.append(c)
-            i += 1
-    return "".join(out)
-
-
 def normalize(value: str) -> str:
     value = re.sub(r"[ \t]+", " ", value)
     if len(value) > 200:
@@ -319,8 +299,9 @@ for source, base, exts in SOURCES:
                 add(body, line_no, False)
 
         if jsx:
-            # 注释先抹掉，再把 {…} 表达式替换成空格，剩下的 >文本< 才是 JSX 文本
-            for match in JSX_TEXT.finditer(strip_jsx_braces(clean)):
+            # JSX 文本直接在去注释后的源码上抓；表达式里的字符串已由词法器单独提取，
+            # 这里只补标签之间的可见文本，避免 strip_jsx_braces 在多行表达式上误吞后续文本。
+            for match in JSX_TEXT.finditer(clean):
                 line_no = clean.count("\n", 0, match.start()) + 1
                 add(match.group(1), line_no, True)
 
