@@ -128,6 +128,9 @@ export function NetDoctorCard({ port }: { port: number }) {
                   <Copy className="size-3" />
                   复制地址
                 </Button>
+                <Button size="xs" variant="ghost" onClick={scrollToTunnel}>
+                  IPv6 不通？走隧道
+                </Button>
               </div>
             </>
           ) : doctor.stun.nat === "symmetric" ? (
