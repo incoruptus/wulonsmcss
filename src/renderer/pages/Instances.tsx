@@ -102,7 +102,7 @@ export default function Instances() {
         <DialogHeader title="从列表移除这台服务器？" desc="仅移除开服茶中的记录，不会删除任何服务器文件。" />
         <DialogBody>
           <p className="t-copy-14 text-pretty text-gray-800">
-            「{target?.name}」的存档、模组和配置仍会保留在 <span className="t-mono-12 break-all">{target?.dir}</span>。以后想继续管理，重新导入即可。
+            「{target?.name}」的存档、模组与配置仍保留在 <span className="t-mono-12 break-all">{target?.dir}</span>。如需继续管理，重新导入即可。
           </p>
         </DialogBody>
         <DialogFooter>

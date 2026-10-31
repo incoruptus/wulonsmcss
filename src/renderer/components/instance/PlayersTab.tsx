@@ -219,7 +219,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
           </div>
           {whitelist.length === 0 ? (
             <div className="t-label-12 py-4 text-gray-700">
-              白名单为空。开启白名单前记得在「配置」里把 <span className="t-mono-12">white-list</span> 打开。
+              白名单为空。开启白名单前，请先在「配置」中启用 <span className="t-mono-12">white-list</span>。
             </div>
           ) : (
             <div className="max-h-[240px] divide-y divide-gray-300 overflow-y-auto scroll-thin">

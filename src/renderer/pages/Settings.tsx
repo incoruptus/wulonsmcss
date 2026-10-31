@@ -150,7 +150,7 @@ export default function Settings() {
             <div>
               <div className="t-label-13 font-medium text-gray-1000">许可</div>
               <p className="mt-2 t-copy-13 text-pretty text-gray-800">
-                项目 ISC。Electron、React、Radix、Lucide 等第三方许可证随包分发，
+                项目采用 ISC 许可。Electron、React、Radix、Lucide 等第三方许可证随安装包分发，
                 完整清单见安装目录的 <span className="t-mono-12">THIRD-PARTY-NOTICES.md</span>。
               </p>
             </div>

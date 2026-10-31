@@ -87,7 +87,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">
         <p className="t-label-13 text-gray-800">
-          数据包生成的维度会出现在 <span className="t-mono-12">world/datapacks/</span> 下，多人可用同一套。
+          数据包生成的维度会出现在 <span className="t-mono-12">world/datapacks/</span> 下，同一台服务器可共用一套。
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onClick={load} loading={loading}>
@@ -213,7 +213,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
                   variant="ghost"
                   size="xs"
                   disabled={serverBusy}
-                  title={serverBusy ? "先停止服务器再恢复" : "恢复这份备份"}
+                  title={serverBusy ? "请先停止服务器再恢复" : "恢复这份备份"}
                   onClick={() => setRestoring(b.name)}
                 >
                   <RotateCcw className="size-3.5" />
@@ -356,7 +356,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         <DialogHeader title="还原到这个快照？" desc="会先将当前 world 目录改名备份，再按快照还原内容。" />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
-            服务器必须处于停止状态。当前存档会变成 <span className="t-mono-12">world.before-restore-*</span>，随时可以找回。
+            服务器必须处于停止状态。当前存档会先备份为 <span className="t-mono-12">world.before-restore-*</span>，之后仍可找回。
           </p>
         </DialogBody>
         <DialogFooter>
@@ -365,7 +365,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             variant="error"
             disabled={serverBusy}
             onClick={async () => {
-              if (serverBusy) return toast.error("先停止服务器再还原");
+              if (serverBusy) return toast.error("请先停止服务器再还原");
               const name = restoringSnap!;
               setRestoringSnap(null);
               const res = await window.mcss.backup.restoreSnapshot(instance.dir, name);
@@ -386,7 +386,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         <DialogHeader title="恢复到这个备份？" desc="会先将当前 world 目录改名备份，再解压备份文件。" />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
-            恢复前请确认服务器已经停止，否则会写坏存档。当前存档会被保留为 <span className="t-mono-12">world.before-restore-*</span>。
+            恢复前请确认服务器已停止，运行中恢复可能损坏存档。当前存档会备份为 <span className="t-mono-12">world.before-restore-*</span>。
           </p>
         </DialogBody>
         <DialogFooter>
@@ -395,7 +395,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             variant="error"
             disabled={serverBusy}
             onClick={async () => {
-              if (serverBusy) return toast.error("先停止服务器再恢复");
+              if (serverBusy) return toast.error("请先停止服务器再恢复");
               const name = restoring!;
               setRestoring(null);
               const res = await window.mcss.backup.restore(instance.dir, name);

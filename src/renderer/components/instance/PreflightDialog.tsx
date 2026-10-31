@@ -169,12 +169,12 @@ export function PreflightDialog({
     <Dialog open={eulaOpen} onOpenChange={setEulaOpen} widthClass="max-w-md">
       <DialogHeader
         title="先同意 Minecraft 使用条款"
-        desc="这是 Mojang 对服务端的许可协议，免费且只需同意一次。"
+        desc="这是 Mojang 对服务端的许可协议，免费，首次启动前同意一次即可。"
       />
       <DialogBody className="space-y-3">
         <p className="t-label-13 leading-6 text-gray-900">
-          服务器第一次启动前必须表示同意（eula.txt 里的 <span className="t-mono-12">eula=true</span>）。
-          不同意的话，服务器会直接退出。
+          服务器首次启动前需同意 Mojang 最终用户许可协议（将 eula.txt 中的 <span className="t-mono-12">eula</span> 设为 <span className="t-mono-12">true</span>）。
+          若不同意，服务器将直接退出。
         </p>
         <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openExternal("https://aka.ms/MinecraftEULA")}>
           <ExternalLink className="size-3.5" />

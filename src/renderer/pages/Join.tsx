@@ -569,7 +569,7 @@ export default function Join() {
                 装进现有客户端
               </Button>
               <span className="t-label-12 text-gray-700">
-                不想新建实例？选你的 <span className="t-mono-12">.minecraft</span>，Mod 和服务器列表一起写好
+                不想新建实例？选择你的 <span className="t-mono-12">.minecraft</span>，模组与服务器列表会一并写入
               </span>
               <Button size="sm" variant="ghost" onClick={copyDiagnostic}>
                 <ClipboardCopy className="size-3.5" />
