@@ -115,7 +115,12 @@ export function AiConfigDialog({
 
         {result ? (
           result.error ? (
-            <div className="rounded-lg bg-red-700/10 p-2.5 t-label-12 text-red-900">{result.error}</div>
+            <div className="rounded-lg bg-red-700/10 p-2.5 t-label-12 text-red-900">
+              <div>{result.error}</div>
+              <div className="mt-1 text-red-900/80">
+                把 AI 的完整回复重新粘贴一次；如果还是没有配置内容，让它按提示词重新生成。
+              </div>
+            </div>
           ) : (
             <div className="space-y-2">
               {result.notes ? <p className="t-label-12 text-gray-800">AI 说明：{result.notes}</p> : null}

@@ -40,7 +40,7 @@ function checkJar(dir) {
     id: "jar-missing",
     level: "error",
     title: "服务端文件不完整",
-    detail: `${dir} 下没有 server.jar、fabric-server-launch.jar 或 Forge/NeoForge 的启动参数文件。请在「服务器设置」中重新安装服务端，或新建一台服务器。`,
+    detail: "服务端目录里缺少启动文件。请在「服务器设置」里重新安装服务端，或者新建一台服务器。",
     fix: null,
   };
 }

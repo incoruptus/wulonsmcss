@@ -32,7 +32,7 @@ describe("从回复里取 JSON", () => {
   });
 
   it("没有 JSON 时给明确错误", () => {
-    expect(() => extractJson("我觉得挺好的")).toThrow(/识别到 JSON|JSON 数据/);
+    expect(() => extractJson("我觉得挺好的")).toThrow(/配置内容/);
   });
 });
 
@@ -75,7 +75,7 @@ describe("校验 AI 改动", () => {
 
   it("缺少 changes 字段时报错而不是崩", () => {
     const res = parseConfigReply('{"notes":"我什么都没改"}', props);
-    expect(res.error).toMatch(/changes/);
+    expect(res.error).toMatch(/配置改动/);
   });
 
   it("应用改动不改原对象", () => {

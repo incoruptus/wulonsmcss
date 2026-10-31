@@ -80,7 +80,7 @@ export function extractJson(text: string): unknown {
   const candidate = fenced ? fenced[1] : trimmed;
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("未在回复内容中识别到 JSON 数据");
+  if (start < 0 || end <= start) throw new Error("AI 回复里没有找到可用的配置内容，请把整段回复一起粘贴");
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
@@ -99,7 +99,7 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
   const obj = (data ?? {}) as { changes?: unknown; notes?: unknown };
   const rawChanges = obj.changes;
   if (!rawChanges || typeof rawChanges !== "object") {
-    return { changes: [], rejected: [], notes: "", error: "JSON 数据中缺少 changes 字段" };
+    return { changes: [], rejected: [], notes: "", error: "AI 回复里没有配置改动，请让它按提示词格式重新生成" };
   }
 
   const changes: ConfigChange[] = [];
@@ -107,23 +107,23 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
 
   for (const [key, rawValue] of Object.entries(rawChanges as Record<string, unknown>)) {
     if (!(key in props)) {
-      rejected.push({ key, reason: "不属于有效的 server.properties 配置项" });
+      rejected.push({ key, reason: "服务器没有这个配置项" });
       continue;
     }
     if (rawValue === null || rawValue === undefined || typeof rawValue === "object") {
-      rejected.push({ key, reason: "配置值类型必须为字符串、数字或布尔值" });
+      rejected.push({ key, reason: "这个值格式不对，只支持文字、数字或开关" });
       continue;
     }
 
     const value = String(rawValue).trim();
     if (typeof rawValue === "boolean" || isBool(value)) {
       if (!isBool(value)) {
-        rejected.push({ key, reason: "布尔类型配置项仅支持填入 true 或 false" });
+        rejected.push({ key, reason: "这个开关只能填 true 或 false" });
         continue;
       }
     }
     if (isNumber(props[key]) && !isNumber(value)) {
-      rejected.push({ key, reason: `该配置项需填入数字（当前值为 ${props[key]}）` });
+      rejected.push({ key, reason: `这里需要填数字（当前值为 ${props[key]}）` });
       continue;
     }
     const allowed = ENUMS[key];
