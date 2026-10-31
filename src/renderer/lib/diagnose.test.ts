@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDiagnostic, decodeDiagnostic, diagnosticHeadline, encodeDiagnostic, type DiagnosticV1 } from "./diagnose";
+import { buildDiagnostic, decodeDiagnostic, diagnosticHeadline, diagnosticNext, encodeDiagnostic, type DiagnosticV1 } from "./diagnose";
 import type { ReachReport } from "./reach";
 
 const ROOM = { v: 1 as const, name: "周末小服", addr: "frp.example.com:25565", mc: "26.1", loader: "fabric", mods: [] };
@@ -73,6 +73,7 @@ describe("诊断码", () => {
   it("结论按最可能的原因说话", () => {
     const offline = buildDiagnostic({ room: ROOM, reach: { ...REACH, probes: REACH.probes.map((p) => ({ ...p, ok: false })) } });
     expect(diagnosticHeadline(offline)).toContain("未能连接任何地址");
+    expect(diagnosticNext(offline).action).toBe("network");
 
     const missingMods = buildDiagnostic({
       room: ROOM,
@@ -87,5 +88,6 @@ describe("诊断码", () => {
       },
     });
     expect(diagnosticHeadline(missingMods)).toContain("缺少 1 个模组");
+    expect(diagnosticNext(missingMods).title).toContain("补齐模组");
   });
 });

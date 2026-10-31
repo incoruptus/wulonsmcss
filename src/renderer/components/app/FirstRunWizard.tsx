@@ -544,7 +544,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => finish("open")}>
-                进入主界面
+                去启动服务器
                 <ArrowRight className="size-4" />
               </Button>
               <Button variant="secondary" onClick={() => finish("library")}>

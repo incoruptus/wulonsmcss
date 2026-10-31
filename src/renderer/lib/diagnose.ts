@@ -98,7 +98,13 @@ export async function decodeDiagnostic(input: string): Promise<DiagnosticV1> {
 
   const [, mode, check, body] = /^d1([zp])\.([0-9a-z]{6})\.([A-Za-z0-9\-_]+)$/.exec(match[0])!;
   let bytes = fromB64Url(body);
-  if (mode === "z") bytes = await inflate(bytes);
+  if (mode === "z") {
+    try {
+      bytes = await inflate(bytes);
+    } catch {
+      throw new Error("诊断码内容损坏，可能复制时遗漏了部分字符");
+    }
+  }
 
   const json = new TextDecoder().decode(bytes);
   if (hash6(json) !== check) throw new Error("诊断码校验未通过，可能复制时遗漏了部分字符");
@@ -112,6 +118,61 @@ export async function decodeDiagnostic(input: string): Promise<DiagnosticV1> {
   if (parsed.v !== 1) throw new Error("诊断码来自更高版本，请升级后再查看");
   if (!parsed.room?.mc || !Array.isArray(parsed.probes)) throw new Error("诊断码信息不完整");
   return parsed;
+}
+
+/** 给服主看的下一步：结论之后总要说清楚该做什么 */
+export function diagnosticNext(d: DiagnosticV1): { title: string; detail: string; action?: "network" } {
+  const online = d.probes.filter((p) => p.checked && p.ok);
+  if (!online.length) {
+    if (!d.probes.length) {
+      return {
+        title: "邀请里没有可用地址",
+        detail: "让朋友重新发一次邀请，或者你在联机页重新生成一条邀请。",
+        action: "network",
+      };
+    }
+    return {
+      title: "朋友还没连上",
+      detail: "先确认服务器已经启动。服务器已经在运行时，去联机页开一条中转线路，再把新地址发给朋友。",
+      action: "network",
+    };
+  }
+
+  const client = d.client;
+  if (!client) {
+    return {
+      title: "让朋友再发一次诊断",
+      detail: "网络已经通了，但这次没有读到朋友的客户端信息。让他在加入页重新点一次「复制诊断」。",
+    };
+  }
+  if (client.verdict === "need-mods") {
+    return {
+      title: "让朋友补齐模组",
+      detail: `网络已经通了，朋友还缺 ${client.missing.length} 个模组。把进服包发给他导入，或者让他装上同样的模组。`,
+    };
+  }
+  if (client.verdict === "need-version") {
+    return {
+      title: "让朋友换成对应版本",
+      detail: "网络已经通了，但朋友没有这个版本和加载器。让他用进服包，或者装成与服务器一致的版本。",
+    };
+  }
+  if (client.verdict === "no-client" || client.verdict === "no-version") {
+    return {
+      title: "朋友还没装好游戏",
+      detail: "网络已经通了，但朋友的电脑上没找到可用的 Minecraft。让他先安装 Java 版并登录，再回来试。",
+    };
+  }
+  if (client.verdict === "ready") {
+    return {
+      title: "检查正版验证和白名单",
+      detail: "网络和客户端都正常。确认服务器没有开启正版验证、白名单里也有朋友的名字，再让他进一次。",
+    };
+  }
+  return {
+    title: "让朋友再试一次",
+    detail: "网络已经通了，客户端还需要进一步检查。让朋友重新复制诊断，或把游戏里的报错一起发来。",
+  };
 }
 
 /** 给服主看的一句话结论 */

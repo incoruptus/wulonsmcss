@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardPaste } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Textarea } from "@/components/ui/field";
 import { Badge } from "@/components/ui/misc";
-import { decodeDiagnostic, diagnosticHeadline, type DiagnosticV1 } from "@/lib/diagnose";
+import { decodeDiagnostic, diagnosticHeadline, diagnosticNext, type DiagnosticV1 } from "@/lib/diagnose";
 import { kindLabel, type ReachKind } from "@/lib/reach";
 
 const VERDICT: Record<string, string> = {
@@ -20,6 +22,7 @@ const VERDICT: Record<string, string> = {
  * 玩家侧入口在加入页的「进不去？复制诊断」。
  */
 export function DiagnoseDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [diag, setDiag] = useState<DiagnosticV1 | null>(null);
   const [error, setError] = useState("");
@@ -38,6 +41,8 @@ export function DiagnoseDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       setBusy(false);
     }
   }
+
+  const next = diag ? diagnosticNext(diag) : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-xl">
@@ -78,6 +83,29 @@ export function DiagnoseDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 {diag.room.name} · {diag.room.mc} · {diag.room.loader} · {new Date(diag.at).toLocaleString("zh-CN")}
               </p>
             </div>
+
+            {next ? (
+              <Callout
+                tone="info"
+                title={next.title}
+                action={
+                  next.action === "network" ? (
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate("/network");
+                      }}
+                    >
+                      去联机页
+                    </Button>
+                  ) : undefined
+                }
+              >
+                {next.detail}
+              </Callout>
+            ) : null}
 
             <Section title="玩家试过的地址">
               {diag.probes.length ? (
