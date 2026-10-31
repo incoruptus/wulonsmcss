@@ -17,7 +17,7 @@ export const badgeVariants = cva(
         violet: "bg-purple-700/10 text-purple-700",
         teal: "bg-teal-700/10 text-teal-700",
         solid: "bg-gray-1000 text-background-100",
-        accent: "bg-tea-100 text-tea-700 shadow-[inset_0_0_0_1px_var(--ds-tea-200)]",
+        accent: "bg-brand-100 text-brand-700 shadow-[inset_0_0_0_1px_var(--ds-brand-200)]",
       },
       size: {
         sm: "min-h-5 px-2 py-0.5 text-[11px]",

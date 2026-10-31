@@ -69,7 +69,7 @@ export function Picker({
                 )}
               >
                 <SelectPrimitive.ItemText><span className="block min-w-0 flex-1 truncate">{option.label}</span></SelectPrimitive.ItemText>
-                <SelectPrimitive.ItemIndicator className="absolute right-2.5"><Check className="size-3.5 text-tea-600" /></SelectPrimitive.ItemIndicator>
+                <SelectPrimitive.ItemIndicator className="absolute right-2.5"><Check className="size-3.5 text-brand-600" /></SelectPrimitive.ItemIndicator>
               </SelectPrimitive.Item>
             ))}
           </SelectPrimitive.Viewport>

@@ -461,7 +461,7 @@ export default function Join() {
             ) : null}
 
             {/* 主路径 */}
-            <div className="rounded-xl bg-tea-100 p-4">
+            <div className="rounded-xl bg-brand-100 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 {canLaunch ? (
                   <Button size="lg" variant="accent" onClick={launchNow}>
@@ -508,7 +508,7 @@ export default function Join() {
                     <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-gray-300" role="progressbar" aria-label={progress.stage} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
-                    <div className="h-full rounded-full bg-tea-600 transition-[width] duration-200" style={{ width: `${Math.max(2, progress.percent)}%` }} />
+                    <div className="h-full rounded-full bg-brand-600 transition-[width] duration-200" style={{ width: `${Math.max(2, progress.percent)}%` }} />
                   </div>
                 </div>
               ) : null}
@@ -608,7 +608,7 @@ export default function Join() {
         {!room && !error ? (
           <div className="grid gap-3 text-center sm:grid-cols-3">
             {["粘贴朋友发来的邀请", "检查版本与所需模组", "准备客户端并进入游戏"].map((text, index) => (
-              <div key={text} className="rounded-lg bg-background-100 px-3 py-3 text-[12px] text-gray-800 shadow-geist-border"><span className="mr-2 font-medium text-tea-600">0{index + 1}</span>{text}</div>
+              <div key={text} className="rounded-lg bg-background-100 px-3 py-3 text-[12px] text-gray-800 shadow-geist-border"><span className="mr-2 font-medium text-brand-600">0{index + 1}</span>{text}</div>
             ))}
           </div>
         ) : null}

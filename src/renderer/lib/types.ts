@@ -121,6 +121,8 @@ export interface QuickAction {
 }
 
 export type ThemeMode = "light" | "dark" | "system";
+/** 茶色主题：只换品牌色与中性色的“茶底”，不换语义 */
+export type PaletteId = "green" | "white" | "red" | "yellow" | "puer";
 export type ConsoleViewMode = "code" | "bubble";
 
 export interface FrpProfile {
@@ -152,6 +154,8 @@ export interface AppConfig {
   /** 是否已经问过"你要开服还是玩" */
   modeAsked: boolean;
   theme: ThemeMode;
+  /** 茶色主题（西湖龙井 / 白毫银针 / 祁门工夫 / 君山银针 / 云南普洱） */
+  palette: PaletteId;
   accent: string;
   instances: Instance[];
   activeInstanceId: string | null;

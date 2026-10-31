@@ -72,8 +72,8 @@ export default function MyServers() {
         )}
 
         {mode === "player" ? (
-          <div className="flex items-center justify-between gap-4 rounded-xl bg-tea-100 px-4 py-3.5">
-            <div><div className="t-label-13 font-medium text-tea-700">也想自己开一台？</div><p className="mt-0.5 text-[12px] text-gray-800">玩家记录会保留，随时可以切回来。</p></div>
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-brand-100 px-4 py-3.5">
+            <div><div className="t-label-13 font-medium text-brand-700">也想自己开一台？</div><p className="mt-0.5 text-[12px] text-gray-800">玩家记录会保留，随时可以切回来。</p></div>
             <Button size="sm" variant="secondary" onClick={() => { void setMode("host"); navigate("/"); }}>切换到服主模式</Button>
           </div>
         ) : null}

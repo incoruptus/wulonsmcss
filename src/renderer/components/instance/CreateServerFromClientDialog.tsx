@@ -378,7 +378,7 @@ export function CreateServerFromClientDialog({
                   <span>{percent}%</span>
                 </div>
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
-                  <div className="h-full bg-tea-600 transition-[width] duration-200" style={{ width: `${percent}%` }} />
+                  <div className="h-full bg-brand-600 transition-[width] duration-200" style={{ width: `${percent}%` }} />
                 </div>
               </div>
             ) : null}

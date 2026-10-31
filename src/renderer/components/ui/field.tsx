@@ -48,7 +48,7 @@ export const Switch = forwardRef<
       ref={ref}
       className={cx(
         "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full bg-gray-400 transition-colors duration-150",
-        "data-[state=checked]:bg-tea-600 disabled:cursor-not-allowed disabled:opacity-50",
+        "data-[state=checked]:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
@@ -67,7 +67,7 @@ export const Checkbox = forwardRef<
       ref={ref}
       className={cx(
         "flex size-[18px] shrink-0 items-center justify-center rounded-[5px] bg-background-100 shadow-geist-border transition-colors",
-        "data-[state=checked]:bg-tea-600 data-[state=checked]:text-tea-ink",
+        "data-[state=checked]:bg-brand-600 data-[state=checked]:text-brand-ink",
         className,
       )}
       {...props}
@@ -90,7 +90,7 @@ export const Slider = forwardRef<
       {...props}
     >
       <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-gray-300">
-        <SliderPrimitive.Range className="absolute h-full bg-tea-600" />
+        <SliderPrimitive.Range className="absolute h-full bg-brand-600" />
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         aria-label={ariaLabel}

@@ -71,13 +71,13 @@
   --ds-purple-700: #8247b8;
   --ds-teal-700: #207f71;
 
-  --ds-tea-100: #eef6e8;
-  --ds-tea-200: #dfedd5;
-  --ds-tea-300: #c9e1b8;
-  --ds-tea-500: #7ca45d;
-  --ds-tea-600: #648c47;
-  --ds-tea-700: #4c7135;
-  --ds-tea-ink: #f4faee;
+  --ds-brand-100: #eef6e8;
+  --ds-brand-200: #dfedd5;
+  --ds-brand-300: #c9e1b8;
+  --ds-brand-500: #5f8a42;
+  --ds-brand-600: #527736;
+  --ds-brand-700: #4c7135;
+  --ds-brand-ink: #f4faee;
   --ds-focus-color: #5f873f;
   --ds-focus-ring: 0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-focus-color);
   --ds-panel-highlight: #ffffff;
@@ -131,17 +131,235 @@
   --ds-purple-700: #c494e4;
   --ds-teal-700: #72c9b8;
 
-  --ds-tea-100: #1b291a;
-  --ds-tea-200: #233522;
-  --ds-tea-300: #314a2c;
-  --ds-tea-500: #9bc47b;
-  --ds-tea-600: #aed58f;
-  --ds-tea-700: #c0e2a3;
-  --ds-tea-ink: #172211;
+  --ds-brand-100: #1b291a;
+  --ds-brand-200: #233522;
+  --ds-brand-300: #314a2c;
+  --ds-brand-500: #9bc47b;
+  --ds-brand-600: #aed58f;
+  --ds-brand-700: #c0e2a3;
+  --ds-brand-ink: #172211;
   --ds-focus-color: #a7cf85;
   --ds-focus-ring: 0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-focus-color);
   --ds-panel-highlight: #1a201b;
   color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+ * 茶色主题
+ * ---------------------------------------------------------------------------
+ * 五种茶 = 五套品牌色 + 中性茶底。明暗仍由 .dark 决定。
+ * 语义色（红/绿/黄/蓝状态）不跟茶色走，避免「红茶主题把危险红吃掉」。
+ * 选择器用 :not(.dark) / .dark 分开，保证浅色块不会漏进深色模式。
+ */
+
+:root:not(.dark)[data-palette="white"] {
+  --ds-background-100: #ffffff;
+  --ds-background-200: #f4f4f4;
+  --ds-gray-100: #f0f0f0;
+  --ds-gray-200: #e8e8e8;
+  --ds-gray-300: #e0e0e0;
+  --ds-gray-400: #d4d4d4;
+  --ds-gray-500: #b5b5b5;
+  --ds-gray-600: #737373;
+  --ds-gray-700: #5f5f5f;
+  --ds-gray-800: #4a4a4a;
+  --ds-gray-900: #2e2e2e;
+  --ds-gray-1000: #141414;
+  --ds-gray-a100: #00000008;
+  --ds-gray-a200: #00000010;
+  --ds-gray-a300: #00000018;
+  --ds-gray-a400: #0000001a;
+  --ds-gray-a500: #00000030;
+  --ds-gray-a600: #00000052;
+  --ds-gray-a700: #00000070;
+  --ds-gray-a800: #00000082;
+  --ds-gray-a900: #000000b3;
+  --ds-brand-100: #eef6ff;
+  --ds-brand-200: #e2efff;
+  --ds-brand-300: #cfe5ff;
+  --ds-brand-500: #4b9bf5;
+  --ds-brand-600: #1673e8;
+  --ds-brand-700: #0d5dbb;
+  --ds-brand-ink: #ffffff;
+  --ds-focus-color: #1673e8;
+  --ds-panel-highlight: #ffffff;
+}
+
+:root.dark[data-palette="white"] {
+  --ds-background-100: #141414;
+  --ds-background-200: #0b0b0b;
+  --ds-gray-100: #1c1c1c;
+  --ds-gray-200: #242424;
+  --ds-gray-300: #2e2e2e;
+  --ds-gray-400: #383838;
+  --ds-gray-500: #505050;
+  --ds-gray-600: #9a9a9a;
+  --ds-gray-700: #a8a8a8;
+  --ds-gray-800: #b8b8b8;
+  --ds-gray-900: #d0d0d0;
+  --ds-gray-1000: #f2f2f2;
+  --ds-gray-a100: #f2f2f20a;
+  --ds-gray-a200: #f2f2f212;
+  --ds-gray-a300: #f2f2f21c;
+  --ds-gray-a400: #f2f2f217;
+  --ds-gray-a500: #f2f2f238;
+  --ds-gray-a600: #f2f2f275;
+  --ds-gray-a700: #f2f2f288;
+  --ds-gray-a800: #f2f2f29c;
+  --ds-gray-a900: #f2f2f2b3;
+  --ds-brand-100: #102334;
+  --ds-brand-200: #132b40;
+  --ds-brand-300: #173751;
+  --ds-brand-500: #55a9ed;
+  --ds-brand-600: #64b4f5;
+  --ds-brand-700: #8ac8f7;
+  --ds-brand-ink: #0a1620;
+  --ds-focus-color: #64b4f5;
+  --ds-panel-highlight: #1b1b1b;
+}
+
+:root:not(.dark)[data-palette="red"] {
+  --ds-background-100: #fffefe;
+  --ds-background-200: #faf4f2;
+  --ds-gray-100: #f7eeec;
+  --ds-gray-200: #f0e2de;
+  --ds-gray-300: #e7d3cd;
+  --ds-gray-400: #dabfb8;
+  --ds-gray-500: #c29e95;
+  --ds-gray-600: #7b655f;
+  --ds-gray-700: #69544e;
+  --ds-gray-800: #55433d;
+  --ds-gray-900: #3a2d29;
+  --ds-gray-1000: #1a1311;
+  --ds-brand-100: #f9e9ec;
+  --ds-brand-200: #f2d3d9;
+  --ds-brand-300: #e5b0bb;
+  --ds-brand-500: #b23a4e;
+  --ds-brand-600: #9c2f42;
+  --ds-brand-700: #7c2233;
+  --ds-brand-ink: #fff8f9;
+  --ds-focus-color: #9c2f42;
+  --ds-panel-highlight: #fffdfd;
+}
+
+:root.dark[data-palette="red"] {
+  --ds-background-100: #141010;
+  --ds-background-200: #0c0909;
+  --ds-gray-100: #1d1716;
+  --ds-gray-200: #261e1d;
+  --ds-gray-300: #322724;
+  --ds-gray-400: #3e312d;
+  --ds-gray-500: #57453f;
+  --ds-gray-600: #a89a95;
+  --ds-gray-700: #b5a8a3;
+  --ds-gray-800: #c4b8b3;
+  --ds-gray-900: #d8cfcb;
+  --ds-gray-1000: #f2ece9;
+  --ds-brand-100: #2a1419;
+  --ds-brand-200: #361a20;
+  --ds-brand-300: #4a232c;
+  --ds-brand-500: #d26477;
+  --ds-brand-600: #df7788;
+  --ds-brand-700: #f0a0ad;
+  --ds-brand-ink: #1d0a0f;
+  --ds-focus-color: #df7788;
+  --ds-panel-highlight: #1b1214;
+}
+
+:root:not(.dark)[data-palette="yellow"] {
+  --ds-background-100: #fffefa;
+  --ds-background-200: #faf5e7;
+  --ds-gray-100: #f6efd8;
+  --ds-gray-200: #f0e5c4;
+  --ds-gray-300: #e6d6a7;
+  --ds-gray-400: #d8c286;
+  --ds-gray-500: #bfa662;
+  --ds-gray-600: #7a6a4c;
+  --ds-gray-700: #685a40;
+  --ds-gray-800: #544833;
+  --ds-gray-900: #3a3224;
+  --ds-gray-1000: #1a1710;
+  --ds-brand-100: #fbf2d9;
+  --ds-brand-200: #f6e6bb;
+  --ds-brand-300: #eed394;
+  --ds-brand-500: #a9761a;
+  --ds-brand-600: #8a5f12;
+  --ds-brand-700: #6b4a0a;
+  --ds-brand-ink: #fffdf2;
+  --ds-focus-color: #a9761a;
+  --ds-panel-highlight: #fffefa;
+}
+
+:root.dark[data-palette="yellow"] {
+  --ds-background-100: #14120d;
+  --ds-background-200: #0c0a07;
+  --ds-gray-100: #1d1a13;
+  --ds-gray-200: #262218;
+  --ds-gray-300: #322c1e;
+  --ds-gray-400: #3e3624;
+  --ds-gray-500: #574c33;
+  --ds-gray-600: #a89f8a;
+  --ds-gray-700: #b5ad99;
+  --ds-gray-800: #c4bca9;
+  --ds-gray-900: #d8d2c4;
+  --ds-gray-1000: #f2efe6;
+  --ds-brand-100: #2a2211;
+  --ds-brand-200: #362c16;
+  --ds-brand-300: #4a3c1e;
+  --ds-brand-500: #d6a545;
+  --ds-brand-600: #e2b85a;
+  --ds-brand-700: #efcf82;
+  --ds-brand-ink: #1d1405;
+  --ds-focus-color: #e2b85a;
+  --ds-panel-highlight: #1b1810;
+}
+
+:root:not(.dark)[data-palette="puer"] {
+  --ds-background-100: #fdfbf8;
+  --ds-background-200: #f7f1e9;
+  --ds-gray-100: #f2eae0;
+  --ds-gray-200: #eadfd1;
+  --ds-gray-300: #dfd0bd;
+  --ds-gray-400: #cfb9a1;
+  --ds-gray-500: #b39476;
+  --ds-gray-600: #7a6a5a;
+  --ds-gray-700: #695a4c;
+  --ds-gray-800: #55483c;
+  --ds-gray-900: #3a3029;
+  --ds-gray-1000: #1a1511;
+  --ds-brand-100: #f3e9de;
+  --ds-brand-200: #e9d8c6;
+  --ds-brand-300: #dcc2a8;
+  --ds-brand-500: #9a6b44;
+  --ds-brand-600: #7a5230;
+  --ds-brand-700: #5c3b20;
+  --ds-brand-ink: #fff8f1;
+  --ds-focus-color: #7a5230;
+  --ds-panel-highlight: #fdfbf8;
+}
+
+:root.dark[data-palette="puer"] {
+  --ds-background-100: #14110e;
+  --ds-background-200: #0c0a08;
+  --ds-gray-100: #1d1915;
+  --ds-gray-200: #26211c;
+  --ds-gray-300: #322b24;
+  --ds-gray-400: #3e352d;
+  --ds-gray-500: #574a3d;
+  --ds-gray-600: #a89c8f;
+  --ds-gray-700: #b5aa9e;
+  --ds-gray-800: #c4baaf;
+  --ds-gray-900: #d8d0c8;
+  --ds-gray-1000: #f2eee9;
+  --ds-brand-100: #251b13;
+  --ds-brand-200: #30231a;
+  --ds-brand-300: #423022;
+  --ds-brand-500: #b98a5f;
+  --ds-brand-600: #c39a70;
+  --ds-brand-700: #d8b48e;
+  --ds-brand-ink: #1b1109;
+  --ds-focus-color: #c39a70;
+  --ds-panel-highlight: #1b1611;
 }
 
 @theme inline {
@@ -191,13 +409,13 @@
   --color-green-900: var(--ds-green-900);
   --color-purple-700: var(--ds-purple-700);
   --color-teal-700: var(--ds-teal-700);
-  --color-tea-100: var(--ds-tea-100);
-  --color-tea-200: var(--ds-tea-200);
-  --color-tea-300: var(--ds-tea-300);
-  --color-tea-500: var(--ds-tea-500);
-  --color-tea-600: var(--ds-tea-600);
-  --color-tea-700: var(--ds-tea-700);
-  --color-tea-ink: var(--ds-tea-ink);
+  --color-brand-100: var(--ds-brand-100);
+  --color-brand-200: var(--ds-brand-200);
+  --color-brand-300: var(--ds-brand-300);
+  --color-brand-500: var(--ds-brand-500);
+  --color-brand-600: var(--ds-brand-600);
+  --color-brand-700: var(--ds-brand-700);
+  --color-brand-ink: var(--ds-brand-ink);
 
   --font-sans: "Sora", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
     "Noto Sans SC", "Source Han Sans SC", system-ui, -apple-system, sans-serif;
@@ -238,7 +456,7 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: var(--ds-tea-300);
+    background: var(--ds-brand-300);
     color: var(--ds-gray-1000);
   }
   :focus-visible {
@@ -319,9 +537,9 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    background: var(--ds-tea-200);
-    color: var(--ds-tea-700);
-    box-shadow: inset 0 0 0 1px var(--ds-tea-300);
+    background: var(--ds-brand-200);
+    color: var(--ds-brand-700);
+    box-shadow: inset 0 0 0 1px var(--ds-brand-300);
   }
   .brand-mark::after {
     content: "";

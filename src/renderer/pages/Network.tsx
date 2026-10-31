@@ -120,7 +120,7 @@ export default function Network() {
 
         <Card className="space-y-3">
           <div className="flex items-center gap-2">
-            <Link2 className="size-[18px] text-tea-600" />
+            <Link2 className="size-[18px] text-brand-600" />
             <div><h3 className="t-h-16 text-gray-1000">隧道配置</h3><p className="t-copy-13 mt-1 text-gray-800">把本机服务器安全地映射到公网。</p></div>
           </div>
 

@@ -14,7 +14,7 @@ export const buttonVariants = cva(
         error: "bg-red-800 text-white shadow-geist-xs hover:bg-red-900 dark:hover:bg-red-700",
         warning: "bg-amber-800 text-white shadow-geist-xs hover:bg-amber-700",
         ghost: "bg-transparent text-gray-800 hover:bg-gray-100 hover:text-gray-1000",
-        accent: "bg-tea-600 text-tea-ink shadow-geist-xs hover:bg-tea-500",
+        accent: "bg-brand-600 text-brand-ink shadow-geist-xs hover:bg-brand-700",
       },
       size: {
         xs: "h-7 px-2.5 text-[12px]",

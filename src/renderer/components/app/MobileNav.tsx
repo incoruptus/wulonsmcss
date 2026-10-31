@@ -40,7 +40,7 @@ export function MobileNav() {
             className={({ isActive }) =>
               cx(
                 "relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] leading-4 transition-colors",
-                isActive || overviewHere ? "bg-tea-100 font-medium text-tea-700" : "text-gray-700 active:bg-gray-100",
+                isActive || overviewHere ? "bg-brand-100 font-medium text-brand-700" : "text-gray-700 active:bg-gray-100",
               )
             }
           >

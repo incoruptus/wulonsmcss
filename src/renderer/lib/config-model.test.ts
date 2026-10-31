@@ -142,3 +142,16 @@ describe("核心类型 → 内容类型", () => {
     expect(serverTypeOf({})).toBe("fabric");
   });
 });
+
+describe("茶色主题迁移", () => {
+  it("老配置没有 palette 时补默认绿茶", () => {
+    const { cfg, changed } = normalizeConfig(V27, { defaultMode: "host" });
+    expect(cfg.palette).toBe("green");
+    expect(changed).toBe(true);
+  });
+
+  it("合法茶色保留，非法茶色回退", () => {
+    expect(normalizeConfig({ ...V27, version: 28, palette: "red" }, { defaultMode: "host" }).cfg.palette).toBe("red");
+    expect(normalizeConfig({ ...V27, version: 28, palette: "oolong" }, { defaultMode: "host" }).cfg.palette).toBe("green");
+  });
+});

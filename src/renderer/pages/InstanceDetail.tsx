@@ -97,7 +97,7 @@ export default function InstanceDetail() {
               aria-current={current === item ? "page" : undefined}
               className={cx(
                 "min-h-9 shrink-0 rounded-lg px-3 text-[13px] transition-colors",
-                current === item ? "bg-tea-100 font-medium text-tea-700" : "text-gray-800 active:bg-gray-100",
+                current === item ? "bg-brand-100 font-medium text-brand-700" : "text-gray-800 active:bg-gray-100",
               )}
             >
               {TAB_LABELS[item]}

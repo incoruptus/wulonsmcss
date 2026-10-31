@@ -55,10 +55,11 @@
 | 23 | **可达性体检 / 自动选路 / 诊断码** | 总览「朋友能不能进来」、邀请、加入页 | `reach.ts`、`reach-io.ts`、`ReachabilityPanel`、`diagnose.ts` | reach 15 + diagnose 4 + 真机截图 | ✅ 本机/局域网/公网/隧道逐条探测；玩家端并发竞速选最快；失败可生成 `d1z…` 诊断码给服主还原现场。公网结论依赖第三方 SLP 外证（mcsrvstat），失败时显示「未知」而不是「离线」 |
 | 24 | **服务端 → 客户端对齐** | 内容 → 模组 → 比对 | `server-sync.ts`、`ClientSyncPanel` | 5 例 | ✅ 只加不覆盖；纯服务端 Mod 跳过；每次复制写 manifest，可一键撤销；版本不一致只提示、不覆盖玩家文件 |
 | 25 | **网络体检（NAT / UPnP / 公网 IP）** | 联机页顶部 | `netdoctor.js`、`netdoctor.rs`、`NetDoctorCard` | 7 node + 6 vitest + 5 Rust | ✅ STUN 双服务器判 cone/symmetric；SSDP 发现网关；公网 v4/v6、虚拟网卡标记；UPnP 一键 TCP 映射/撤销（显式确认，失败给路由器错误码） |
+| 26 | **茶色主题（5 套）** | 设置 → 茶色 | `themes.ts`、`globals.css`、`Settings` | 3 主题 + 2 迁移 | ✅ 绿茶/白茶/红茶/黄茶/黑茶 × 浅色/深色；品牌色与语义状态色分离；`data-palette` 驱动，组件零 hex |
 
 ## 3. 真正验证过的东西
 
-- `pnpm test`：28 个 vitest 文件（192 例）+ 72 个 node:test（含 client scan / client-mods / backup GC / serversdat / netdoctor / files）+ parity + download contract。
+- `pnpm test`：29 个 vitest 文件（197 例）+ 72 个 node:test（含 client scan / client-mods / backup GC / serversdat / netdoctor / files）+ parity + download contract。
 - 真机：Paper 26.1.2 / Forge 26.1.2 安装、已有客户端→Fabric 服务端创建（26 个 Mod 选中）、模组比对勾选、UI 截图探针、打包版启动。
 - 网页 agent：`web-e2e` 16/16（健康/令牌/Origin/CORS/client:scan/内存/net:doctor/SSE/Modrinth/机翻/生态数量）。
 - 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天、第三方外证在 CGNAT/反爬下的假阴性。

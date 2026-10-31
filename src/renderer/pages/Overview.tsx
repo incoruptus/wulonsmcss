@@ -180,7 +180,7 @@ export default function Overview() {
                   aria-valuemax={100}
                   aria-valuenow={memPct}
                 >
-                  <div className={memPct > 90 ? "h-full rounded-full bg-red-700" : memPct > 75 ? "h-full rounded-full bg-amber-700" : "h-full rounded-full bg-tea-600"} style={{ width: `${memPct}%` }} />
+                  <div className={memPct > 90 ? "h-full rounded-full bg-red-700" : memPct > 75 ? "h-full rounded-full bg-amber-700" : "h-full rounded-full bg-brand-600"} style={{ width: `${memPct}%` }} />
                 </div>
               </div>
               <div className="mt-5 rounded-lg bg-background-200 p-3">
@@ -281,7 +281,7 @@ function CardHead({ icon, title, desc, action }: { icon: React.ReactNode; title:
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex min-w-0 items-start gap-3">
-        <span className="mt-0.5 text-tea-600">{icon}</span>
+        <span className="mt-0.5 text-brand-600">{icon}</span>
         <div><h3 className="t-h-16 text-gray-1000">{title}</h3><p className="t-copy-13 mt-1 text-gray-800">{desc}</p></div>
       </div>
       {action}

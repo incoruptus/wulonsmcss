@@ -203,7 +203,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
           ))}
         </div>
 
-        <IconButton label="自动滚动" size="sm" aria-pressed={autoScroll} onClick={() => setAutoScroll((v) => !v)} className={autoScroll ? "bg-tea-100 text-tea-700" : ""}>
+        <IconButton label="自动滚动" size="sm" aria-pressed={autoScroll} onClick={() => setAutoScroll((v) => !v)} className={autoScroll ? "bg-brand-100 text-brand-700" : ""}>
           <ArrowDownToLine className="size-3.5" />
         </IconButton>
         <IconButton

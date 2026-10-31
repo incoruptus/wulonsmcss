@@ -170,7 +170,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
 function SectionHead({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-tea-600 [&>svg]:size-[18px]">{icon}</span>
+      <span className="mt-0.5 text-brand-600 [&>svg]:size-[18px]">{icon}</span>
       <div><h3 className="t-h-16 text-gray-1000">{title}</h3><p className="t-copy-13 mt-1 text-gray-800">{desc}</p></div>
     </div>
   );
@@ -189,7 +189,7 @@ function NextStep({ title, desc, onClick }: { title: string; desc: string; onCli
   return (
     <button onClick={onClick} className="group flex items-center gap-3 rounded-lg bg-background-200 p-3.5 text-left transition-colors hover:bg-gray-100">
       <span className="min-w-0 flex-1"><span className="t-label-13 block font-medium text-gray-1000">{title}</span><span className="mt-1 block text-[12px] leading-[18px] text-gray-700">{desc}</span></span>
-      <ArrowUpRight className="size-4 shrink-0 text-gray-700 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-tea-600" />
+      <ArrowUpRight className="size-4 shrink-0 text-gray-700 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-600" />
     </button>
   );
 }

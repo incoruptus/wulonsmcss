@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
@@ -102,6 +102,7 @@ export default function App() {
           <Sidebar />
         </div>
         <main id="main-content" className="min-w-0 flex-1 overflow-y-auto pb-20 scroll-thin md:pb-0" tabIndex={-1}>
+          <ScrollToTop />
           <Suspense fallback={<div className="grid min-h-64 place-items-center t-label-13 text-gray-800" role="status">正在打开页面…</div>}>
             <Routes>
             {/* 两个模式各自的首页：服主=实例仪表盘，玩家=加入游戏 */}
@@ -134,6 +135,15 @@ export default function App() {
       {mode === "host" ? <FirstRunWizard open={!setupComplete && modeAsked} onDone={() => patch({ setupComplete: true })} /> : null}
     </div>
   );
+}
+
+/** 路由切换后把主滚动区拉回顶部；否则从设置页滚到底再点总览，会停在半截 */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.getElementById("main-content")?.scrollTo({ top: 0 });
+  }, [pathname]);
+  return null;
 }
 
 /** 老书签 / 老版本里点过的「资源库」：落到当前实例的内容页 */

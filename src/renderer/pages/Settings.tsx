@@ -9,6 +9,8 @@ import { detectShell } from "@/lib/shell";
 import { SyncCard } from "@/components/app/SyncCard";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { useConfig } from "@/stores/config";
+import { PALETTES, type PaletteMeta } from "@/lib/themes";
+import { cx } from "@/lib/utils";
 import type { ThemeMode } from "@/lib/types";
 
 export default function Settings() {
@@ -39,9 +41,19 @@ export default function Settings() {
         </Card>
 
         <Card>
-          <SectionHead icon={<Palette />} title="外观" desc="主题可以固定，也可以跟随 Windows。" />
-          <div className="mt-5">
-            <Field label="界面主题">
+          <SectionHead icon={<Palette />} title="茶色" desc="五种茶底，只换气质，不换功能；成功、警告、危险仍用各自的红绿黄。" />
+          <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="茶色主题">
+            {PALETTES.map((palette) => (
+              <PaletteCard
+                key={palette.id}
+                palette={palette}
+                selected={cfg.palette === palette.id}
+                onSelect={() => void patch({ palette: palette.id })}
+              />
+            ))}
+          </div>
+          <div className="mt-6 max-w-sm border-t border-gray-300 pt-5">
+            <Field label="明暗" hint="同一套茶色在浅色和深色下会重新算对比度。">
               <SegmentedControl
                 value={cfg.theme}
                 onValueChange={(value) => patch({ theme: value as ThemeMode })}
@@ -128,10 +140,51 @@ export default function Settings() {
   );
 }
 
+function PaletteCard({
+  palette,
+  selected,
+  onSelect,
+}: {
+  palette: PaletteMeta;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cx(
+        "rounded-xl border p-2.5 text-left transition-colors",
+        selected ? "border-brand-300 bg-brand-100/60" : "border-gray-300 bg-background-100 hover:bg-gray-100",
+      )}
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="t-label-13 font-medium text-gray-1000">{palette.name}</span>
+        {selected ? <Check className="size-3.5 shrink-0 text-brand-700" /> : null}
+      </span>
+      <span className="mt-0.5 block t-label-12 text-gray-700">{palette.tea}</span>
+      <span className="mt-2 block overflow-hidden rounded-md shadow-geist-border" aria-hidden="true">
+        <span className="flex h-2.5">
+          {palette.swatch.light.map((color, index) => (
+            <span key={`l${index}`} className="flex-1" style={{ background: color }} />
+          ))}
+        </span>
+        <span className="flex h-2.5">
+          {palette.swatch.dark.map((color, index) => (
+            <span key={`d${index}`} className="flex-1" style={{ background: color }} />
+          ))}
+        </span>
+      </span>
+      <span className="mt-2 block text-[11px] leading-4 text-gray-700">{palette.note}</span>
+    </button>
+  );
+}
+
 function SectionHead({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-tea-600 [&>svg]:size-[18px]">{icon}</span>
+      <span className="mt-0.5 text-brand-600 [&>svg]:size-[18px]">{icon}</span>
       <div><h2 className="t-h-16 text-gray-1000">{title}</h2><p className="t-copy-13 mt-1 text-gray-800">{desc}</p></div>
     </div>
   );

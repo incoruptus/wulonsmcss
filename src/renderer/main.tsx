@@ -18,12 +18,14 @@ if (shell === "web" && !(window as unknown as { mcss?: unknown }).mcss) {
 // 任何未捕获的错误都要留痕（写进 renderer.log），不能再让用户对着黑屏猜
 installGlobalErrorHandlers();
 
-// 首帧主题：按上次记住的外观画（配置还没读回来，默认深色，与窗口底色一致）
+// 首帧主题：按上次记住的外观画（配置还没读回来，默认深色 + 绿茶，与窗口底色一致）
 try {
   const saved = localStorage.getItem("mcss.dark");
   document.documentElement.classList.toggle("dark", saved ? saved === "1" : true);
+  document.documentElement.dataset.palette = localStorage.getItem("mcss.palette") || "green";
 } catch {
   document.documentElement.classList.add("dark");
+  document.documentElement.dataset.palette = "green";
 }
 
 // Sora：拉丁字形随包（OFL）；中文由 globals.css 里的系统黑体链兜底

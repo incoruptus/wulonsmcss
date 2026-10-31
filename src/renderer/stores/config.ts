@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { AppConfig, AppMode, ClientProfile, Instance, SavedServer, ServerType } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import { CONFIG_VERSION, normalizeConfig } from "@/lib/config-model";
+import { DEFAULT_PALETTE, isPaletteId } from "@/lib/themes";
 import { detectShell } from "@/lib/shell";
 
 /** 默认模式：网页=玩家（"打开网页就能玩"），桌面=服主（开服器） */
@@ -143,19 +144,22 @@ export function makeInstance(partial: Partial<Instance> & { name: string; dir: s
 export const CONFIG_SCHEMA = CONFIG_VERSION;
 
 /**
- * 主题 → <html> 上的 class
- * 强调色已经砍掉：工业软件不需要给每个用户配一套品牌色，
- * 配色只保留 Geist 的蓝/灰语义。旧配置里的 accent 字段继续容忍（不读）。
+ * 外观 → <html> 上的 class / data 属性
+ * 明暗（theme）与茶色（palette）是两个正交维度：
+ * 同一套茶色在深浅两种模式下都要能读，所以颜色不写死在这里，只切属性。
  */
-export function applyAppearance(cfg: Pick<AppConfig, "theme">) {
+export function applyAppearance(cfg: Pick<AppConfig, "theme" | "palette">) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
   const dark = cfg.theme === "dark" || (cfg.theme === "system" && prefersDark);
+  const palette = isPaletteId(cfg.palette) ? cfg.palette : DEFAULT_PALETTE;
   root.classList.toggle("dark", dark);
+  root.dataset.palette = palette;
   // 记住上次的外观：启动时在配置读回来之前就先按它画，
-  // 避免"先闪一下白 / 出错页变成亮色"这类跳变（main.tsx 会读这个值）
+  // 避免"先闪一下白 / 出错页变成亮色"这类跳变（main.tsx 会读这两个值）
   try {
     localStorage.setItem("mcss.dark", dark ? "1" : "0");
+    localStorage.setItem("mcss.palette", palette);
   } catch (e) {}
 }

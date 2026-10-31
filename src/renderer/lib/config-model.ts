@@ -16,12 +16,14 @@ import type {
   ConsoleViewMode,
   FrpProfile,
   Instance,
+  PaletteId,
   QuickAction,
   SavedServer,
   ServerType,
   SyncConfig,
   ThemeMode,
 } from "./types";
+import { DEFAULT_PALETTE, isPaletteId } from "./themes";
 
 export const CONFIG_VERSION = 28 as const;
 
@@ -90,6 +92,7 @@ function emptyConfig(mode: AppMode): AppConfig {
     mode,
     modeAsked: false,
     theme: "dark",
+    palette: DEFAULT_PALETTE,
     accent: "#2f6feb",
     instances: [],
     activeInstanceId: null,
@@ -108,6 +111,10 @@ function emptyConfig(mode: AppMode): AppConfig {
 
 function asTheme(v: unknown): ThemeMode {
   return v === "light" ? "light" : v === "system" || v === "auto" ? "system" : "dark";
+}
+
+function asPalette(v: unknown): PaletteId {
+  return isPaletteId(v) ? v : DEFAULT_PALETTE;
 }
 
 function asConsoleView(v: unknown): ConsoleViewMode {
@@ -206,6 +213,9 @@ export function normalizeConfig(
   const mode = asMode(r.mode, opts.defaultMode);
   if (r.mode !== mode) changed = true;
 
+  const palette = asPalette(r.palette);
+  if (r.palette !== palette) changed = true;
+
   const cfg: AppConfig = {
     ...base,
     version: CONFIG_VERSION,
@@ -214,6 +224,7 @@ export function normalizeConfig(
     // 迁移时写进去的 mode 是默认值，不能当成用户的选择。
     modeAsked: r.modeAsked === true,
     theme: asTheme(r.theme),
+    palette,
     accent: typeof r.accent === "string" ? r.accent : base.accent,
     instances,
     activeInstanceId: activeId,

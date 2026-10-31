@@ -20,7 +20,7 @@ import { ImportInstanceDialog } from "@/components/instance/ImportInstanceDialog
 const navItemClass = (isActive: boolean) =>
   cx(
     "group relative flex h-10 items-center gap-3 rounded-lg px-3 t-label-13 transition-colors duration-150",
-    isActive ? "bg-tea-100 font-medium text-tea-700" : "text-gray-800 hover:bg-gray-100 hover:text-gray-1000",
+    isActive ? "bg-brand-100 font-medium text-brand-700" : "text-gray-800 hover:bg-gray-100 hover:text-gray-1000",
   );
 
 const bottomItemClass = (isActive: boolean) =>
@@ -130,10 +130,10 @@ export function Sidebar() {
       </div>
 
       {!host && instances.length > 0 ? (
-        <div className="mx-3 mt-4 rounded-xl bg-tea-100 p-3.5">
-          <div className="t-label-13 font-medium text-tea-700">自己也有服务器？</div>
+        <div className="mx-3 mt-4 rounded-xl bg-brand-100 p-3.5">
+          <div className="t-label-13 font-medium text-brand-700">自己也有服务器？</div>
           <p className="mt-1 text-[12px] leading-[18px] text-gray-800">切到服主模式，接着管理原来的配置。</p>
-          <button onClick={() => void switchMode("host")} className="mt-2 text-[12px] font-medium text-tea-700 hover:underline">
+          <button onClick={() => void switchMode("host")} className="mt-2 text-[12px] font-medium text-brand-700 hover:underline">
             切换到服主模式
           </button>
         </div>
@@ -146,7 +146,7 @@ export function Sidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-3 rounded-xl border border-gray-300 bg-background-200 p-2.5 text-left transition-colors hover:bg-gray-100">
-                <span className={cx("grid size-9 shrink-0 place-items-center rounded-lg text-[12px] font-semibold", running ? "bg-tea-200 text-tea-700" : "bg-gray-200 text-gray-900")}>
+                <span className={cx("grid size-9 shrink-0 place-items-center rounded-lg text-[12px] font-semibold", running ? "bg-brand-200 text-brand-700" : "bg-gray-200 text-gray-900")}>
                   {active?.name.slice(0, 1).toUpperCase() ?? <Server className="size-4" />}
                 </span>
                 <span className="min-w-0 flex-1">
