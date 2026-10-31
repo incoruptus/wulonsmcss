@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw, History, AlertTriangle } from "lucide-react";
+import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw, History } from "lucide-react";
 import { SwitchRow } from "@/components/ui/field";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
+import { Callout } from "@/components/ui/callout";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import type { Instance, WorldPack } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
@@ -93,15 +94,12 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   return (
     <div className="space-y-4">
       {!canGenerate ? (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-700/30 bg-amber-700/10 p-3">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-900" />
-          <div className="min-w-0">
-            <div className="t-label-13 font-medium text-amber-900">
-              {support === "unsupported" ? "当前版本不支持数据包维度" : "当前版本暂不支持多世界生成"}
-            </div>
-            <p className="mt-1 t-copy-12 text-amber-900/80">{dimensionSupportMessage(instance.mcVersion)}</p>
-          </div>
-        </div>
+        <Callout
+          tone="warning"
+          title={support === "unsupported" ? "当前版本不支持数据包维度" : "当前版本暂不支持多世界生成"}
+        >
+          {dimensionSupportMessage(instance.mcVersion)}
+        </Callout>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">

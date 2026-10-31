@@ -508,6 +508,19 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 ? "中文名库仅收录 MC 百科已有的条目，可尝试英文名，或直接使用上方分类筛选。"
                 : `请更换关键词，或确认 ${instance.mcVersion} · ${serverTypeLabel(serverType)} 是否提供对应的${kind === "plugin" ? "插件" : "Mod"}。`
             }
+            action={
+              query ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDraft("");
+                    setQuery("");
+                  }}
+                >
+                  清空搜索，看看全部
+                </Button>
+              ) : undefined
+            }
           />
         </Card>
       ) : (

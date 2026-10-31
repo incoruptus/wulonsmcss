@@ -3,6 +3,7 @@ import { Activity, Copy, Globe, RefreshCw, Router, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/misc";
+import { Callout } from "@/components/ui/callout";
 import { useNetDoctor } from "@/hooks/useNetDoctor";
 import { describeDoctor, physicalLan, virtualCount } from "@/lib/netdoctor";
 import type { NetDoctor } from "@/lib/types";
@@ -113,17 +114,12 @@ export function NetDoctorCard({ port }: { port: number }) {
       </div>
 
       {doctor && !checking ? (
-        <div className="rounded-xl border border-brand-300/40 bg-brand-100/40 p-3">
-          <div className="t-label-13 font-semibold text-gray-1000">
-            {v6Addr ? "下一步：把 IPv6 地址发给朋友" : doctor.stun.nat === "symmetric" ? "下一步：开一条隧道" : "下一步：开端口或走隧道"}
-          </div>
-          {v6Addr ? (
-            <>
-              <p className="mt-1 t-copy-12 text-gray-800">
-                让朋友在 Minecraft「直接连接」里粘贴下面这行。他也要有 IPv6；服务器启动后再发，先让手机 5G 试一次，进不去说明学校封了 IPv6 入站，再走隧道。
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-background-100 px-2.5 py-2 shadow-geist-border">
-                <code className="t-mono-12 min-w-0 flex-1 break-all text-gray-1000">{v6Addr}</code>
+        <Callout
+          tone="info"
+          title={v6Addr ? "下一步：把 IPv6 地址发给朋友" : doctor.stun.nat === "symmetric" ? "下一步：开一条隧道" : "下一步：开端口或走隧道"}
+          action={
+            v6Addr ? (
+              <>
                 <Button size="xs" variant="secondary" onClick={() => void copyAddress(v6Addr, " IPv6 地址")}>
                   <Copy className="size-3" />
                   复制地址
@@ -131,27 +127,31 @@ export function NetDoctorCard({ port }: { port: number }) {
                 <Button size="xs" variant="ghost" onClick={scrollToTunnel}>
                   IPv6 不通？走隧道
                 </Button>
+              </>
+            ) : doctor.stun.nat === "symmetric" ? (
+              <Button size="xs" variant="secondary" onClick={scrollToTunnel}>
+                去隧道配置
+              </Button>
+            ) : undefined
+          }
+        >
+          {v6Addr ? (
+            <>
+              <p>
+                让朋友在 Minecraft「直接连接」里粘贴下面这行。他也要有 IPv6；服务器启动后再发，先让手机 5G 试一次，进不去说明学校封了 IPv6 入站，再走隧道。
+              </p>
+              <div className="mt-2 rounded-lg bg-background-100 px-2.5 py-2 shadow-geist-border">
+                <code className="t-mono-12 break-all text-gray-1000">{v6Addr}</code>
               </div>
             </>
           ) : doctor.stun.nat === "symmetric" ? (
-            <>
-              <p className="mt-1 t-copy-12 text-gray-800">
-                对称 NAT 下 UPnP 和端口映射都不通。在下面的「隧道配置」里填 SakuraFrp / FRP，拿到公网地址后再发给朋友。
-              </p>
-              <Button size="xs" variant="secondary" className="mt-2" onClick={scrollToTunnel}>
-                去隧道配置
-              </Button>
-            </>
+            <p>对称 NAT 下 UPnP 和端口映射都不通。在下面的「隧道配置」里填 SakuraFrp / FRP，拿到公网地址后再发给朋友。</p>
           ) : doctor.publicV4 && doctor.upnp.available ? (
-            <p className="mt-1 t-copy-12 text-gray-800">
-              路由器支持 UPnP。可在下面开一条 TCP 端口映射，然后把公网 IPv4 发给朋友。
-            </p>
+            <p>路由器支持 UPnP。可在下面开一条 TCP 端口映射，然后把公网 IPv4 发给朋友。</p>
           ) : (
-            <p className="mt-1 t-copy-12 text-gray-800">
-              当前没有可直连的公网地址。在下面的「隧道配置」里开一条隧道，再把分配到的地址发给朋友。
-            </p>
+            <p>当前没有可直连的公网地址。在下面的「隧道配置」里开一条隧道，再把分配到的地址发给朋友。</p>
           )}
-        </div>
+        </Callout>
       ) : null}
 
       <div className="grid gap-1.5 sm:grid-cols-2">

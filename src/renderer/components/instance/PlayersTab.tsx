@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Ban,
@@ -31,6 +32,7 @@ interface PlayerEntry {
 const EMPTY: PlayerEntry[] = [];
 
 export function PlayersTab({ instance }: { instance: Instance }) {
+  const navigate = useNavigate();
   const players = useServer((s) => s.players);
   const playersJoinedAt = useServer((s) => s.playersJoinedAt);
   const status = useServer((s) => s.status);
@@ -183,6 +185,14 @@ export function PlayersTab({ instance }: { instance: Instance }) {
           <EmptyState
             title={running ? "还没有人进来" : "服务器未运行"}
             desc={running ? `发送地址，或先在「联机」页配置一条隧道` : "启动服务器后，这里会列出在线玩家"}
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => navigate(running ? "/network" : `/instances/${instance.id}/overview`)}
+              >
+                {running ? "去联机页拿地址" : "去启动服务器"}
+              </Button>
+            }
             className="py-6"
           />
         ) : (
