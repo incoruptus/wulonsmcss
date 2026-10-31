@@ -130,8 +130,8 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
             </div>
             <p className="t-label-12 mt-1.5 text-gray-800">
               {detected.confidence === "guess"
-                ? "未识别到明确特征，暂按此类型处理，如有偏差可在下方修改核心类型。"
-                : "已识别服务端核心类型，版本号无法读取时需手动确认。"}
+                ? "未识别到明确特征，暂按这个类型处理；如果有偏差，可以在下面修改。"
+                : "已识别服务端类型；读不到版本号时，需要手动确认。"}
             </p>
           </div>
         ) : dir ? (

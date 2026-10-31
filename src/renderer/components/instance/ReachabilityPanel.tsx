@@ -53,9 +53,9 @@ export function ReachabilityPanel({
     if (verdict === "public") {
       toast.success("朋友现在可以进来了", { description: "公网直连已验证，可以发送邀请了" });
     } else if (verdict === "tunnel") {
-      toast.success("隧道已通，可以发邀请了", { description: "玩家通过中继进入，延迟会略高于直连" });
+      toast.success("中转已通，可以发邀请了", { description: "玩家通过中转进入，能直连时优先用直连" });
     } else if (verdict === "lan-only") {
-      toast("同一 Wi-Fi 已可进入，外网访问还需配置一条隧道", { description: "可点击「开隧道」配置一条，或仅发送给同一 Wi-Fi 下的朋友" });
+      toast("同一网络已可进入，外网朋友还需要一条中转线路", { description: "可点击「开中转线路」配置一条，或只发给同一网络下的朋友" });
     } else if (verdict === "local-only") {
       toast.error("服务器只接受本机连接", { description: "请检查 server-ip 是否被设为 127.0.0.1" });
     }
@@ -144,7 +144,7 @@ export function ReachabilityPanel({
         {verdict === "lan-only" || verdict === "local-only" || verdict === "offline" ? (
           <Button size="sm" variant="secondary" onClick={() => navigate("/network")}>
             <Link2 className="size-3.5" />
-            开隧道
+            开中转线路
           </Button>
         ) : null}
         {onInvite ? (

@@ -184,7 +184,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
         {players.length === 0 ? (
           <EmptyState
             title={running ? "还没有人进来" : "服务器未运行"}
-            desc={running ? `发送地址，或先在「联机」页配置一条隧道` : "启动服务器后，这里会列出在线玩家"}
+            desc={running ? `发送地址，或先在「联机」页开一条中转线路` : "启动服务器后，这里会列出在线玩家"}
             action={
               <Button
                 variant="secondary"

@@ -302,7 +302,7 @@ export function CreateServerFromClientDialog({
                   }))}
                 />
               </Field>
-              <Field label="服务端核心" hint={current?.loader === "vanilla" ? "原版客户端建议搭配 Paper，玩家无需安装额外内容" : "跟随客户端加载器"}>
+              <Field label="用哪种服务端" hint={current?.loader === "vanilla" ? "原版客户端建议搭配 Paper，玩家无需安装额外内容" : "跟随客户端加载器"}>
                 {current?.loader === "vanilla" ? (
                   <Picker
                     value={core}

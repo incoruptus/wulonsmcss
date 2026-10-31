@@ -123,7 +123,7 @@ export function PreflightDialog({
         title={checking ? "正在检查…" : errors.length ? "还不能开服" : warns.length ? "可以开服，但存在提醒项" : "一切就绪"}
         desc={
           checking
-            ? "将依次检查 Java、端口、EULA、数据包、内存与磁盘空间"
+            ? "正在检查服务器能不能顺利启动；发现问题会直接给修复按钮。"
             : `${instance.name} · ${instance.mcVersion} · ${serverTypeLabel(serverTypeOf(instance))}`
         }
       />
@@ -136,7 +136,7 @@ export function PreflightDialog({
         ) : !result ? null : result.issues.length === 0 ? (
           <div className="flex items-center gap-2 rounded-lg bg-green-800/10 p-3">
             <CheckCircle2 className="size-4 text-green-900" />
-            <span className="t-label-13 text-green-900">六项检查全部通过，直接启动。</span>
+            <span className="t-label-13 text-green-900">检查全部通过，直接启动。</span>
           </div>
         ) : (
           <>

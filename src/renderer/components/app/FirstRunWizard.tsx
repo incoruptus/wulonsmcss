@@ -471,7 +471,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
             ) : null}
 
             <details className="rounded-lg bg-background-200 p-3">
-              <summary className="cursor-pointer t-label-13 text-gray-900">高级选项（内存 / 安装目录 / Java / 构建号）</summary>
+              <summary className="cursor-pointer t-label-13 text-gray-900">高级选项（内存 / 安装目录 / Java / 服务端版本）</summary>
               <div className="mt-3 space-y-3">
                 <Field label={`最大内存 ${memoryMax} GB`} hint={totalMem ? `本机内存约 ${totalMem} GB，小型服务器 4 GB 已够用` : "小服 4G 够用"}>
                   <Slider
@@ -510,7 +510,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                   </Field>
                 </div>
                 {core !== "vanilla" && builds.length > 0 ? (
-                  <Field label={core === "fabric" ? "Fabric Loader" : "构建号"} hint="默认已选最新稳定版">
+                  <Field label={core === "fabric" ? "Fabric Loader" : "服务端版本"} hint="默认已选最新稳定版">
                     <Picker value={build} onValueChange={setBuild} options={builds.map((b) => ({ value: b, label: b }))} />
                   </Field>
                 ) : null}

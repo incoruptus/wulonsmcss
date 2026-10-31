@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Download, FolderOpen } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Field, Input, Slider } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { useConfig, makeInstance } from "@/stores/config";
@@ -180,13 +181,33 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
     setProgress(null);
   }
 
+  function useRecommended() {
+    const latest = versions.find((v) => v.type === "release")?.id || versions[0]?.id || mcVersion;
+    if (latest) setMcVersion(latest);
+    setServerType("paper");
+    setMemoryMin(2);
+    setMemoryMax(4);
+    setBuild("");
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => !installing && onOpenChange(v)} widthClass="max-w-2xl">
       <DialogHeader
         title="新建服务器"
-        desc="先选择游戏版本，再决定玩法方向。插件服玩家无需安装额外内容，模组服的玩家需要安装相同的模组。"
+        desc="先选择游戏版本，再决定玩法方向。玩家用普通 Minecraft 客户端就能进；要加模组时，玩家也要装同样的模组。"
       />
       <DialogBody className="space-y-4">
+        <Callout
+          tone="info"
+          title="不知道怎么选？"
+          action={
+            <Button size="xs" variant="secondary" onClick={useRecommended}>
+              用推荐配置
+            </Button>
+          }
+        >
+          只想和朋友玩原版，或者加领地、传送这类插件，用推荐配置就行。想装模组，再按下面「用哪种服务端」的说明换成 Fabric。
+        </Callout>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="服务器名称">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：和朋友一起玩" />
@@ -202,7 +223,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
-            label="服务端核心"
+            label="用哪种服务端"
             hint={
               coreInfo
                 ? `${coreInfo.client}。${coreInfo.caveat}${
@@ -210,7 +231,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
                       ? "；26.x 的模组还少，建议 1.21.11 或 1.21.1 + Fabric"
                       : ""
                   }`
-                : "决定能装插件还是模组"
+                : "决定能不能装插件或模组"
             }
           >
             <Picker
@@ -224,14 +245,14 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
             />
           </Field>
           <Field
-            label={kind === "plugin" ? "构建号" : "Fabric Loader"}
+            label={kind === "plugin" ? "服务端版本" : "Fabric Loader"}
             hint={
               kind === "plugin"
                 ? build
-                  ? `Paper / Purpur 的构建版本，建议选择最新构建`
+                  ? `默认选最新稳定版，一般不用改`
                   : builds.length
-                    ? "选一个构建"
-                    : "这个版本还没有构建"
+                    ? "选一个版本"
+                    : "这个版本还没有可用构建"
                 : serverType === "vanilla"
                   ? "原版服务端不需要"
                   : "默认已选稳定版"

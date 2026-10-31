@@ -113,7 +113,7 @@ export function InviteDialog({
 
   async function generate() {
     if (!parseAddr(addr)) {
-      toast.error("暂无可用地址，请先配置隧道，或让朋友连接同一 Wi-Fi");
+      toast.error("暂无可用地址，请先开一条中转线路，或让朋友连接同一 Wi-Fi");
       return;
     }
     setBusy(true);
@@ -155,7 +155,7 @@ export function InviteDialog({
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-2xl">
       <DialogHeader
         title="邀请朋友"
-        desc="生成一条自包含的邀请链接，朋友打开即可看到连接地址与所需版本，无需托管任何数据。"
+        desc="生成一条邀请发给朋友。朋友打开后能看到连哪个地址、需要什么版本；不需要注册账号。"
       />
       <DialogBody className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -173,10 +173,16 @@ export function InviteDialog({
           </Field>
         </div>
 
-        <Field label="朋友怎么连进来" hint="自动选择一条已验证的地址：同一 Wi-Fi 下优先使用内网地址，外网连接使用此地址">
+        <Field label="朋友怎么连进来" hint="开服茶会自动选一条能用的地址；朋友在同一个网络时优先走内网">
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-100 p-3 shadow-geist-border">
             <Badge variant={tone}>{checking ? "正在检测…" : summary.title}</Badge>
             <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{addr || "还没有可用地址"}</span>
+            {addr ? (
+              <Button size="xs" variant="secondary" onClick={() => void copy(addr, "地址")}>
+                <Copy className="size-3" />
+                复制地址
+              </Button>
+            ) : null}
             <Button size="xs" variant="ghost" onClick={() => void refresh({ fresh: true })} disabled={checking}>
               <RefreshCw className={checking ? "size-3 animate-spin" : "size-3"} />
               重测
@@ -184,14 +190,14 @@ export function InviteDialog({
           </div>
         </Field>
 
-        <p className="t-label-12 text-gray-800">{summary.detail}</p>
+        {addr ? <p className="t-label-12 text-gray-800">{summary.detail}</p> : null}
 
         {!addr ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
             <AlertTriangle className="size-3.5 shrink-0" />
             {verdict === "local-only"
-              ? "服务器仅接受本机连接，朋友无法进入，请检查 server-ip 设置或配置一条隧道。"
-              : "尚无验证通过的连接方式，请先确认服务器运行状态，再配置隧道。"}
+              ? "服务器只接受本机连接，朋友进不来。检查服务器是否绑定了 127.0.0.1，或者开一条中转线路。"
+              : "现在还没有朋友能用的地址。先确认服务器已经启动，或者开一条中转线路。"}
             <Button
               size="xs"
               variant="secondary"
@@ -202,7 +208,7 @@ export function InviteDialog({
               }}
             >
               <Link2 className="size-3" />
-              去开隧道
+              去开中转线路
             </Button>
           </div>
         ) : null}
@@ -323,7 +329,9 @@ export function InviteDialog({
             </div>
           </>
         ) : (
-          <div className="t-label-13 text-gray-700">{busy ? "生成中…" : "填好地址后自动生成"}</div>
+          <div className="t-label-13 text-gray-700">
+            {busy ? "正在生成…" : "检测到可用地址后会自动生成邀请；没有地址就先启动服务器，或者开一条中转线路。"}
+          </div>
         )}
       </DialogBody>
       <DialogFooter>

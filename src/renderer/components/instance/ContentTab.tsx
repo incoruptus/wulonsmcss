@@ -35,7 +35,7 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
         <div className="min-w-0 flex-1">
           <div className="t-h-14 text-gray-1000">原版服务端没有模组或插件</div>
           <p className="t-label-13 mt-1 text-gray-800">
-            插件（领地、传送、经济等）需使用 Paper 核心，模组需使用 Fabric、Forge 或 NeoForge 核心。更换核心不影响玩家，插件服玩家仍可用原版客户端进入。
+            想装领地、传送、经济这类插件，要把服务端换成 Paper；想装模组，要换成 Fabric、Forge 或 NeoForge。插件装在服务器上，玩家用普通客户端就能进；模组装在服务器和玩家两边。
           </p>
         </div>
         {onEdit ? (
