@@ -58,10 +58,10 @@ const RANK: Record<ReachKind, number> = { lan: 0, ipv6: 1, public: 2, tunnel: 3,
 
 const KIND_LABEL: Record<ReachKind, string> = {
   local: "本机",
-  lan: "同一 WiFi",
-  ipv6: "公网 IPv6",
-  public: "公网",
-  tunnel: "隧道",
+  lan: "同一网络",
+  ipv6: "直连",
+  public: "直连",
+  tunnel: "中转",
   manual: "手动地址",
 };
 
@@ -187,20 +187,20 @@ export function playerVerdict(probes: ReachProbe[]): PlayerVerdict {
 export function hostSummary(verdict: HostVerdict): { title: string; detail: string } {
   switch (verdict) {
     case "public":
-      return { title: "外网可以直连", detail: "公网地址已通过外部探测，可以直接发送邀请。" };
+      return { title: "朋友可以进来", detail: "这条地址已经能从外网连上，把它发给朋友即可。" };
     case "tunnel":
-      return { title: "隧道已通", detail: "通过中继进入的延迟高于直连，可直连时应优先选择直连。" };
+      return { title: "朋友可以通过中转进来", detail: "这条线路多一次中转；如果能直连，优先用直连地址。" };
     case "lan-only":
-      return { title: "只通了局域网", detail: "同一 Wi-Fi 下的朋友可以进入，外网访问仍需隧道或端口映射。" };
+      return { title: "只有同一网络能进", detail: "同一个 Wi-Fi 下的朋友可以进；外网朋友需要开一条中转线路。" };
     case "local-only":
       return {
-        title: "只接受本机连接",
-        detail: "同一 Wi-Fi 下也无法进入，请检查 server-ip 是否被设为 127.0.0.1，或防火墙是否拦截了 Java。",
+        title: "朋友还进不来",
+        detail: "服务器只接受本机连接。检查服务器是否绑定了 127.0.0.1，或防火墙是否拦住了 Java。",
       };
     case "offline":
-      return { title: "服务器没响应", detail: "本机与公网均未连通，请先确认服务器已启动完成且端口未被占用。" };
+      return { title: "服务器没响应", detail: "先启动服务器，等它加载完成后再检查一次。" };
     default:
-      return { title: "还没检测", detail: "点击检测，查看朋友当前能否进入。" };
+      return { title: "还没检查", detail: "点一下检查，看看朋友现在能不能进来。" };
   }
 }
 

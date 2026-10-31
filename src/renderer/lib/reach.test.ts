@@ -129,9 +129,9 @@ describe("竞速与结论", () => {
   });
 
   it("文案说人话", () => {
-    expect(hostSummary("lan-only").title).toContain("局域网");
+    expect(hostSummary("lan-only").title).toContain("同一网络");
     expect(probeText(probe("lan", true, 12))).toBe("已连通 · 12ms");
     expect(probeText(probe("lan", false))).toBe("连不上");
-    expect(kindLabel("tunnel")).toBe("隧道");
+    expect(kindLabel("tunnel")).toBe("中转");
   });
 });

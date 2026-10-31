@@ -76,7 +76,7 @@ if (process.argv.includes("--package")) {
     if (fs.existsSync(asar)) {
       const text = fs.readFileSync(asar).toString("utf8");
       // 抽查几个「新功能」字符串，确认包不是旧的
-      for (const marker of ["时间机", "同 WiFi 直连", "AI 配置助手", "客户端版本与模组均已齐全", "直接进游戏（离线）", "client:launch", "界面出了点问题", "从客户端开服", "下载选中的", "NeoForge 新建暂不支持", "网络体检", "在路由器上开端口", "复制诊断", "服务器总览", "联机与内网穿透", "西湖龙井", "白毫银针", "祁门工夫", "君山银针", "云南普洱"]) {
+      for (const marker of ["时间机", "同一网络", "AI 配置助手", "客户端版本与模组均已齐全", "直接进游戏（离线）", "client:launch", "界面出了点问题", "从客户端开服", "下载选中的", "NeoForge 新建暂不支持", "朋友能不能进来", "在路由器上开端口", "复制诊断", "服务器总览", "让朋友进来", "西湖龙井", "白毫银针", "祁门工夫", "君山银针", "云南普洱"]) {
         check(`包内含新功能：${marker}`, text.includes(marker));
       }
     }

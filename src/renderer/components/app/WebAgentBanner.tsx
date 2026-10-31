@@ -38,13 +38,12 @@ export function WebAgentBanner() {
     <div className="flex flex-wrap items-center gap-2 border-b border-amber-700/30 bg-amber-700/10 px-4 py-1.5">
       <AlertTriangle className="size-3.5 shrink-0 text-amber-900" />
       <span className="t-label-12 text-amber-900">
-        未连接本机助手：当前可以浏览房间信息，开服与读取本地文件需要本机助手。
+        还差一步：这台电脑上的「开服茶助手」没有启动。启动后，才能读取存档、开服和准备客户端。
       </span>
-      <span className="t-mono-12 text-amber-900/70">{agentBaseUrl()}</span>
       <div className="ml-auto flex items-center gap-1.5">
-        <Button size="xs" variant="secondary" onClick={ping} loading={checking}>
+        <Button size="xs" variant="secondary" onClick={ping} loading={checking} title={agentBaseUrl()}>
           <RefreshCw className="size-3" />
-          重试
+          重新连接
         </Button>
         {agentDownloadReady() ? (
           <Button
@@ -55,7 +54,7 @@ export function WebAgentBanner() {
             onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}
           >
             <Download className="size-3" />
-            下载助手
+            下载开服茶助手
           </Button>
         ) : (
           <span className="t-label-12 text-amber-900/80">安装包请向发你链接的人要</span>

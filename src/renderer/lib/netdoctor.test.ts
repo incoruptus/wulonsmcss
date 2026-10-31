@@ -24,13 +24,13 @@ describe("网络体检结论", () => {
   it("对称 NAT 直接劝退直连", () => {
     const advice = describeDoctor({ ...BASE, stun: { ...BASE.stun, nat: "symmetric" } });
     expect(advice.tone).toBe("amber");
-    expect(advice.title).toContain("对称");
+    expect(advice.title).toContain("朋友不能直接进来");
   });
 
   it("能打洞 + UPnP → 有直连机会", () => {
     const advice = describeDoctor(BASE);
     expect(advice.tone).toBe("green");
-    expect(advice.detail).toContain("25565");
+    expect(advice.detail).toContain("开端口");
   });
 
   it("能打洞但没 UPnP → 手动映射或隧道", () => {
@@ -42,7 +42,7 @@ describe("网络体检结论", () => {
   it("测不出来就说测不出来", () => {
     const advice = describeDoctor({ ...BASE, stun: { ...BASE.stun, ok: false, nat: "unknown" }, upnp: { available: false } });
     expect(advice.tone).toBe("gray");
-    expect(advice.title).toContain("没测出来");
+    expect(advice.title).toContain("还没判断出来");
   });
 
   it("没有数据不装懂", () => {

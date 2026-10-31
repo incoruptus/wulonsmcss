@@ -15,7 +15,7 @@ import type { FrpProfile } from "@/lib/types";
 
 const EMPTY: FrpProfile = {
   id: "",
-  name: "我的隧道",
+  name: "我的中转",
   kind: "frpc",
   serverAddr: "",
   serverPort: 7000,
@@ -83,7 +83,7 @@ export default function Network() {
     try {
       const res = await window.mcss.frp.start(profile);
       if (!res.ok) throw new Error(res.error || "连接失败");
-      toast.success("正在建立隧道…");
+      toast.success("正在建立中转线路…");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -101,15 +101,15 @@ export default function Network() {
     <>
       <PageHeader
         className="max-w-6xl"
-        title="联机与内网穿透"
-        desc="先看网络体检：能直连就把地址复制给朋友；不能直连，再在下面开隧道。"
+        title="让朋友进来"
+        desc="先检查朋友现在能不能进来；能进来就复制地址，不能进来就在下面开一条中转线路。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDiagOpen(true)}>
               <LifeBuoy className="size-3.5" />
               朋友进不来？
             </Button>
-            <Badge variant={running ? "green" : "gray"} size="md"><span className="status-dot" />{running ? "隧道已连接" : "隧道未连接"}</Badge>
+            <Badge variant={running ? "green" : "gray"} size="md"><span className="status-dot" />{running ? "中转已连接" : "中转未连接"}</Badge>
           </div>
         }
       />
@@ -121,10 +121,10 @@ export default function Network() {
         <Card id="frp-tunnel" className="space-y-3">
           <div className="flex items-center gap-2">
             <Link2 className="size-[18px] text-brand-600" />
-            <div><h3 className="t-h-16 text-gray-1000">隧道配置</h3><p className="t-copy-13 mt-1 text-gray-800">直连不通时用这里：把本机服务器映射到公网；没有自建 frp 就选樱花穿透。</p></div>
+            <div><h3 className="t-h-16 text-gray-1000">中转线路</h3><p className="t-copy-13 mt-1 text-gray-800">直连不通时用这里：让服务器通过一台中转服务器把朋友接进来，不需要朋友改网络设置。</p></div>
           </div>
 
-          <Field label="用哪种隧道" hint="若没有自建 frp 服务器，可选择樱花穿透（桌面版），或先使用现成服务">
+          <Field label="用哪种中转" hint="没有自己的中转服务器时，可选樱花中转；它需要额外启动器。">
             <SegmentedControl
               grow
               value={draft.kind}
@@ -132,16 +132,16 @@ export default function Network() {
               options={
                 isDesktopVisual()
                   ? [
-                      { value: "frpc", label: "通用 frp（自备服务器）" },
-                      { value: "sakura", label: "樱花穿透" },
+                      { value: "frpc", label: "自建中转（frp）" },
+                      { value: "sakura", label: "樱花中转" },
                     ]
-                  : [{ value: "frpc", label: "通用 frp（自备服务器）" }]
+                  : [{ value: "frpc", label: "自建中转（frp）" }]
               }
             />
           </Field>
 
           {draft.kind === "sakura" ? (
-            <Field label="SakuraFrp 启动器路径" hint="本软件仅负责启动该程序，隧道状态以启动器内显示为准">
+            <Field label="樱花中转启动器路径" hint="这里只负责启动它，连接状态以启动器里显示的为准">
               <div className="flex gap-2">
                 <Input
                   value={draft.exePath ?? ""}
@@ -163,24 +163,24 @@ export default function Network() {
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="frp 服务器地址" hint="填写隧道服务商提供的地址，该地址与 Minecraft 服务器地址不同">
+                <Field label="中转服务器地址" hint="服务商给你的地址，跟 Minecraft 服务器地址不同">
                   <Input value={draft.serverAddr} onChange={(e) => setDraft({ ...draft, serverAddr: e.target.value.trim() })} placeholder="frp.example.com" />
                 </Field>
-                <Field label="服务端端口">
+                <Field label="中转服务端口">
                   <Input value={String(draft.serverPort)} onChange={(e) => setDraft({ ...draft, serverPort: Number(e.target.value.replace(/\D/g, "")) || 7000 })} />
                 </Field>
               </div>
-              <Field label="访问密码（Token）" hint="填写隧道服务商提供的密码，与 Minecraft 服务器密码无关">
+              <Field label="访问密码" hint="服务商给你的密码，跟 Minecraft 服务器密码无关">
                 <Input type="password" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="本机 MC 端口" hint="一般就是 25565">
+                <Field label="本机服务器端口" hint="一般就是 25565">
                   <Input value={String(draft.localPort)} onChange={(e) => setDraft({ ...draft, localPort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
-                <Field label="公网端口" hint="玩家连接时使用的端口，具体以服务商提供的说明为准">
+                <Field label="朋友连接用的端口" hint="以服务商说明为准">
                   <Input value={String(draft.remotePort)} onChange={(e) => setDraft({ ...draft, remotePort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
-                <Field label="协议" hint="Minecraft 通常使用 TCP">
+                <Field label="连接协议" hint="Minecraft 用 TCP；不懂就保持默认">
                   <Picker
                     value={draft.type}
                     onValueChange={(v) => setDraft({ ...draft, type: v as FrpProfile["type"] })}
@@ -236,7 +236,7 @@ export default function Network() {
 
         <Card className="flex min-h-[320px] flex-col">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="t-h-14 text-gray-1000">隧道日志</h3>
+            <h3 className="t-h-14 text-gray-1000">中转日志</h3>
             <Button
               variant="ghost"
               size="sm"
@@ -252,7 +252,7 @@ export default function Network() {
               刷新
             </Button>
           </div>
-          <div ref={logRef} role="log" aria-label="隧道日志" className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-background-200 p-3 font-mono text-[12px] leading-5 scroll-thin">
+          <div ref={logRef} role="log" aria-label="中转日志" className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-background-200 p-3 font-mono text-[12px] leading-5 scroll-thin">
             {logs.length === 0 ? (
               <EmptyState title="还没有日志" desc="点「连接」后，frpc 的输出会显示在这里。" className="py-8" />
             ) : (

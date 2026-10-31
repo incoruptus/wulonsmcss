@@ -75,8 +75,8 @@ export default function Overview() {
           <Card className="panel-wash">
             <EmptyState
               icon={<Server className="size-5" />}
-              title="茶已备好，只差一个世界"
-              desc="新建服务器后，可在此启动、安装模组、管理玩家，也能直接向朋友发送邀请。"
+              title="还没有服务器"
+              desc="先建一个服务器，朋友才能进来。版本、模组和内存都可以用推荐值，之后再改。"
               action={<Button size="lg" variant="accent" onClick={() => setCreating(true)}><Plus className="size-4" />新建服务器</Button>}
             />
           </Card>

@@ -96,7 +96,7 @@ export default function Settings() {
               <div>
                 <div className="t-label-13 mb-2 font-medium text-gray-1000">可以做什么</div>
                 <ul className="space-y-1.5 t-label-13 text-gray-800">
-                  {["开服、停服、控制台与命令", "新建服务器、下载主流服务端", "加入游戏、准备客户端与进服包", "世界备份、恢复与时间机快照", "模组与插件扫描、资源库安装", "内网穿透与多世界数据包", "Java 检测与故障诊断包导出"].map((text) => (
+                  {["开服、停服、控制台与命令", "新建服务器、下载主流服务端", "加入游戏、准备客户端与进服包", "世界备份、恢复与时间机快照", "模组与插件扫描、资源库安装", "联机与多世界数据包", "Java 检测与故障诊断包导出"].map((text) => (
                     <li key={text} className="flex items-center gap-2"><Check className="size-3.5 shrink-0 text-green-900" />{text}</li>
                   ))}
                 </ul>

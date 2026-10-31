@@ -324,8 +324,16 @@ export default function Join() {
                 </div>
               ) : null}
               <p className="t-copy-13 text-gray-700">
-                邀请中仅包含服务器地址、游戏版本与所需模组，无需注册账号；链接损坏或过期时会给出具体原因。
+                邀请中仅包含服务器地址、游戏版本与所需模组，不需要注册账号；链接损坏或过期时会说明原因。
               </p>
+              <details className="rounded-lg bg-background-200 p-3">
+                <summary className="cursor-pointer t-label-12 text-gray-700">第一次玩 Minecraft？</summary>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 t-label-12 text-gray-800">
+                  <li>先安装 Minecraft Java 版，并登录微软账号。</li>
+                  <li>让朋友把邀请链接或房间码发给你。</li>
+                  <li>回到这里粘贴，开服茶会检查版本和模组，再带你进入。</li>
+                </ol>
+              </details>
             </div>
           </Card>
         ) : (

@@ -53,8 +53,8 @@ export function createHttpClient(base: string, token: string): McssApi {
     if (error?.startsWith("UNSUPPORTED:")) {
       const channel = error.slice("UNSUPPORTED:".length);
       const name: Record<string, string> = {
-        versions: "下载服务端 / 新建实例",
-        frp: "内网穿透",
+        versions: "下载服务端 / 新建服务器",
+        frp: "中转线路",
         worlds: "多世界生成",
         sync: "跨设备同步",
         "app:detect-java": "Java 探测",
