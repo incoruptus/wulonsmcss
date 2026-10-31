@@ -4,10 +4,10 @@
 
 ## 1. 建仓库后先填三处
 
-| 文件 | 变量 | 说明 |
+| 文件 / 环境 | 变量 | 说明 |
 |---|---|---|
-| `src/renderer/lib/links.ts` | `REPO = "owner/repo"` | 项目主页、agent 下载、release 资产都从这里推导 |
-| `src/renderer/lib/links.ts` | `AUTHOR_URL = "https://..."` | 设置页「作者主页」按钮 |
+| `src/renderer/lib/links.ts` 或构建环境 | `REPO` / `VITE_REPO` | 项目主页、agent 下载、release 资产都从这里推导 |
+| `src/renderer/lib/links.ts` 或构建环境 | `AUTHOR_URL` / `VITE_AUTHOR_URL` | 设置页「作者主页」按钮 |
 | 构建环境 | `VITE_PUBLIC_URL` | 网页版公开地址，用于「一键进服」链接；不填则网页版只发房间码 |
 
 填完后：

@@ -8,11 +8,13 @@
  * 资源名刻意用**不带版本号**的稳定名，否则每次发版网页链接都会失效。
  */
 
-/** TODO(11/1)：仓库建好后改成真实仓库，例如 "wulons/mcss" */
-export const REPO = "";
+const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
 
-/** 作者主页；建好后填这里，设置页会自动出现「作者主页」按钮 */
-export const AUTHOR_URL = "";
+/** 仓库建好后填这里，或构建时用 VITE_REPO 覆盖；例如 "wulons/mcss" */
+export const REPO = env?.VITE_REPO || "";
+
+/** 作者主页；建好后填这里，或构建时用 VITE_AUTHOR_URL 覆盖 */
+export const AUTHOR_URL = env?.VITE_AUTHOR_URL || "";
 
 export function projectUrl(): string {
   return REPO ? `https://github.com/${REPO}` : "";
@@ -25,8 +27,7 @@ export function authorUrl(): string {
 const STABLE_ASSET = "mcss-agent-win64.zip";
 
 export function agentDownloadUrl(): string {
-  // 构建时可用 VITE_AGENT_DOWNLOAD_URL 覆盖（没装 vite/client 的类型，这里显式取）
-  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  // 构建时可用 VITE_AGENT_DOWNLOAD_URL 覆盖
   const override = env?.VITE_AGENT_DOWNLOAD_URL || "";
   if (override) return override;
   if (!REPO) return "";
