@@ -1,0 +1,13 @@
+# 统一换行与二进制文件，避免 Windows 提交出现整文件 diff
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.jar binary
+*.node binary
+*.woff binary
+*.woff2 binary
