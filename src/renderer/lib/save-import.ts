@@ -14,7 +14,9 @@ export interface SaveFileApi {
 }
 
 function join(base: string, child: string): string {
-  return `${base.replace(/[\\/]+$/, "")}\\${child}`;
+  const trimmed = base.replace(/[\\/]+$/, "");
+  const sep = trimmed.includes("\\") ? "\\" : "/";
+  return `${trimmed}${sep}${child}`;
 }
 
 export async function importSinglePlayerSave(
