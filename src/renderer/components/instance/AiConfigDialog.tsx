@@ -5,6 +5,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Badge } from "@/components/ui/misc";
+import { Callout } from "@/components/ui/callout";
 import { applyChanges, buildConfigPrompt, parseConfigReply, type ParseResult } from "@/lib/ai-config";
 import { copyText } from "@/lib/utils";
 import type { Instance } from "@/lib/types";
@@ -47,9 +48,13 @@ export function AiConfigDialog({
     >
       <DialogHeader
         title="AI 配置助手"
-        desc="简要描述你期望的服务器玩法与规则，复制提示词发送给 AI，再将生成的 JSON 粘贴至下方即可自动填入。"
+        desc="简要描述你期望的服务器玩法与规则，复制提示词给任意 AI，再把 AI 的回复粘贴到下面；开服茶会检查能改的项目并填入表单。"
       />
       <DialogBody className="space-y-3">
+        <Callout tone="info" title="三步就能用">
+          先写下你想要的玩法，再复制提示词发给任意 AI，最后把 AI 的回复粘贴到下面。开服茶只接受能安全修改的配置项，改完还需要你点「保存」。
+        </Callout>
+
         <div>
           <div className="t-label-12 mb-1 text-gray-700">描述你期望的服务器玩法与规则</div>
           <Input
@@ -76,12 +81,12 @@ export function AiConfigDialog({
             复制提示词
           </Button>
           <span className="t-label-12 self-center text-gray-700">
-            提示词已自动附带当前配置与可修改字段列表
+            提示词会自动带上当前配置和能改的项目
           </span>
         </div>
 
         <div>
-          <div className="t-label-12 mb-1 text-gray-700">在此粘贴 AI 返回的 JSON 结果</div>
+          <div className="t-label-12 mb-1 text-gray-700">粘贴 AI 回复的完整内容</div>
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
@@ -93,12 +98,12 @@ export function AiConfigDialog({
             <Button
               size="sm"
               onClick={() => {
-                if (!reply.trim()) return toast.info("请先粘贴 AI 返回的 JSON 内容");
+                if (!reply.trim()) return toast.info("请先粘贴 AI 的回复");
                 setResult(parseConfigReply(reply, props));
               }}
             >
               <Wand2 className="size-3.5" />
-              校验
+              检查配置
             </Button>
             {result ? (
               <Button size="sm" variant="ghost" onClick={reset}>
@@ -137,7 +142,7 @@ export function AiConfigDialog({
 
               {result.rejected.length ? (
                 <div className="rounded-lg bg-amber-700/10 p-2.5">
-                  <div className="t-label-12 mb-1 text-amber-900">以下字段未通过校验，已自动忽略：</div>
+                  <div className="t-label-12 mb-1 text-amber-900">以下配置项不在可改范围内，已自动忽略：</div>
                   {result.rejected.map((r) => (
                     <div key={r.key} className="t-mono-12 text-amber-900">
                       {r.key} — {r.reason}

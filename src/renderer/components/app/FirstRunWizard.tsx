@@ -466,7 +466,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
               <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
                 {buildError
                   ? `拿不到 ${serverLabel(core)} ${mcVersion} 的构建：${buildError}`
-                  : `${serverLabel(core)} 暂无 ${mcVersion} 的构建，请更换游戏版本或服务端核心。`}
+                  : `${serverLabel(core)} 暂无 ${mcVersion} 的服务端版本，请更换游戏版本或服务端。`}
               </div>
             ) : null}
 

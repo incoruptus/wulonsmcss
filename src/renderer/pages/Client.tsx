@@ -190,7 +190,7 @@ export default function Client() {
           <div className="min-w-0">
             <div className="t-h-14 text-gray-1000">客户端与服务端分别需要安装什么？</div>
             <p className="t-copy-13 mt-1.5 text-gray-800">
-              插件服通常无需额外安装模组，模组服只需准备房间要求的模组清单。音效、小地图、光影等客户端模组仅影响自身体验，无需与服主完全一致。
+              插件装在服务器上，玩家通常不用额外安装；模组服需要准备房间要求的模组。音效、小地图、光影等客户端模组只影响自己的体验，不需要和服主完全一致。
             </p>
             <Button variant="ghost" size="sm" className="mt-2 px-0" onClick={() => navigate("/")}>
               去加入游戏

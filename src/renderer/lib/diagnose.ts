@@ -119,7 +119,7 @@ export function diagnosticHeadline(d: DiagnosticV1): string {
   const online = d.probes.filter((p) => p.checked && p.ok);
   if (!online.length) {
     return d.probes.length
-      ? "玩家未能连接任何地址，请先确认服务器运行状态与隧道连接。"
+      ? "玩家未能连接任何地址，请先确认服务器运行状态与中转连接。"
       : "玩家未获取到可探测的地址，邀请可能生成有误。";
   }
   const client = d.client;

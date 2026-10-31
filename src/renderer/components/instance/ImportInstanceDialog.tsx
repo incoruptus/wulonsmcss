@@ -105,10 +105,10 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
     <Dialog open={open} onOpenChange={(v) => (probing ? undefined : onOpenChange(v))} widthClass="max-w-xl">
       <DialogHeader
         title="导入现有服务器"
-        desc="已有服务器时，选择服务器目录即可。程序会根据目录特征判断服务端核心类型，不会修改其中的文件。"
+        desc="已有服务器时，选一下服务器目录就行。程序会根据目录里的文件判断这是哪种服务端，不会改动其中的文件。"
       />
       <DialogBody className="space-y-4">
-        <Field label="服务器目录" hint={dir || "即包含 server.properties、world、plugins 或 mods 的目录"}>
+        <Field label="服务器目录" hint={dir || "就是包含 server.properties、world、plugins 或 mods 的那个文件夹"}>
           <div className="flex gap-2">
             <Input value={dir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" placeholder="D:\Servers\我的服" />
             <Button variant="secondary" onClick={pick} loading={probing}>
@@ -124,8 +124,8 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
               <Badge variant="blue" size="sm">
                 {serverTypeLabel(detected.serverType)}
               </Badge>
-              <span className="t-label-12 text-gray-700">
-                依据 {detected.source} · {confidence}
+              <span className="t-label-12 text-gray-700" title={detected.source}>
+                识别结果 · {confidence}
               </span>
             </div>
             <p className="t-label-12 mt-1.5 text-gray-800">
@@ -156,7 +156,7 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="核心类型" hint="识别错了可以手动改">
+          <Field label="服务端类型" hint="识别错了可以手动改">
             <Picker
               value={serverType}
               onValueChange={(v) => setServerType(v as ServerType)}

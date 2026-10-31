@@ -366,7 +366,7 @@ export default function Join() {
                   ) : null}
                   {best ? (
                     <span className="rounded bg-green-800/12 px-1.5 py-0.5 t-label-12 text-green-900">
-                      {usingLan ? "同一 Wi-Fi 直连" : best.target.kind === "tunnel" ? "走隧道" : "公网直连"} · {best.ms ?? 0}ms
+                      {usingLan ? "同一网络直连" : best.target.kind === "tunnel" ? "走中转" : "直连"} · {best.ms ?? 0}ms
                     </span>
                   ) : room.lan && !reaching ? (
                     <span className="t-label-12 text-gray-700">（内网地址不可用，已改用公网）</span>
