@@ -46,8 +46,8 @@ export function NetDoctorCard({ port }: { port: number }) {
   async function mapPort() {
     if (!doctor || !lan) return;
     const ok = window.confirm(
-      `会在路由器上把 TCP ${port} 映射到 ${lan}:${port}，朋友就能用公网地址直连。\n\n` +
-        `只加这一条 TCP 规则，随时可以撤销；如果你换了网络或路由器重启，可能需要重新开。继续？`,
+      `将在路由器上将 TCP 端口 ${port} 映射到 ${lan}:${port}，玩家即可通过公网地址直连。\n\n` +
+        `只会添加这一条 TCP 映射规则，可随时撤销；若更换网络或重启路由器，可能需要重新开启。是否继续？`,
     );
     if (!ok) return;
     setMapping(true);
@@ -97,7 +97,7 @@ export function NetDoctorCard({ port }: { port: number }) {
         <Badge variant={advice.tone} size="md">
           {checking ? "正在检测…" : advice.title}
         </Badge>
-        <span className="t-label-12 min-w-0 flex-1 text-gray-800">{checking ? "正在探测 NAT 与路由器，大约几秒…" : advice.detail}</span>
+        <span className="t-label-12 min-w-0 flex-1 text-gray-800">{checking ? "正在检测 NAT 类型与路由器，预计需要几秒…" : advice.detail}</span>
       </div>
 
       <div className="grid gap-1.5 sm:grid-cols-2">
@@ -149,7 +149,7 @@ export function NetDoctorCard({ port }: { port: number }) {
           <span className="t-label-12 min-w-0 flex-1 text-gray-800">
             {mapped
               ? `已映射：${mapped.externalIp || doctor.upnp.externalIp || "公网 IP"}:${mapped.port} → ${lan}:${mapped.port}`
-              : `路由器支持 UPnP，可以给 ${port} 开一条 TCP 映射；只加这一条，随时可撤销。`}
+              : `路由器支持 UPnP，可为 ${port} 创建一条 TCP 端口映射，仅添加此条规则，可随时撤销。`}
           </span>
           {mapped ? (
             <Button size="xs" variant="secondary" onClick={() => void unmapPort()} loading={unmapping}>

@@ -313,7 +313,7 @@ fn start_server(shared: &Shared, instance_id: &str) -> Result<Json, String> {
     } else if dir_path.join("server.jar").exists() {
         Some("server.jar")
     } else {
-        return Err("目录里既没有 Forge/NeoForge 的 argsfile，也没有 server.jar".into());
+        return Err("目录中未找到 Forge/NeoForge 的 argsfile 或 server.jar".into());
     };
 
     let mut cmd = Command::new(&java);
@@ -409,7 +409,7 @@ fn stop_server(shared: &Shared) -> Json {
             let _ = child.kill();
             st.stdin = None;
             set_status(&mut st, "stopped");
-            emit_log(&mut st, "WARN", "服务器 12 秒内没有退出，已强制结束");
+            emit_log(&mut st, "WARN", "服务器 12 秒内未退出，已强制结束进程");
         }
     });
 
@@ -730,7 +730,7 @@ fn export_mrpack(shared: &Shared, opts: &Json) -> Result<Json, String> {
     let mut entries = vec!["modrinth.index.json".to_string()];
     if !addr.is_empty() {
         let overrides = stage.join("overrides");
-        std::fs::create_dir_all(&overrides).map_err(|e| format!("创建 overrides 失败：{e}"))?;
+        std::fs::create_dir_all(&overrides).map_err(|e| format!("创建 overrides 目录失败：{e}"))?;
         let servers = vec![nbt::Server {
             name: name.clone(),
             ip: addr.clone(),
@@ -752,7 +752,7 @@ fn export_mrpack(shared: &Shared, opts: &Json) -> Result<Json, String> {
         .map_err(|e| format!("打包失败：{e}"))?;
     cleanup(&stage);
     if !status.success() {
-        return Err("打包失败（tar 退出码非 0）".into());
+        return Err("打包失败：tar 退出码不为 0".into());
     }
 
     let size = std::fs::metadata(&out_file).map(|m| m.len()).unwrap_or(0);
@@ -1021,7 +1021,7 @@ fn backup_list(server_dir: &str) -> Result<Json, String> {
 fn backup_create(server_dir: &str) -> Result<Json, String> {
     let world = Path::new(server_dir).join("world");
     if !world.exists() {
-        return Err("还没有 world 目录，先启动一次服务器".into());
+        return Err("尚未生成 world 目录，请先启动一次服务器".into());
     }
     let dir = backup_dir(server_dir);
     std::fs::create_dir_all(&dir).map_err(|e| format!("创建备份目录失败：{e}"))?;
@@ -1038,7 +1038,7 @@ fn backup_create(server_dir: &str) -> Result<Json, String> {
 
     if !status.success() {
         let _ = std::fs::remove_file(&out);
-        return Err("打包失败（tar 退出码非 0）".into());
+        return Err("打包失败：tar 退出码不为 0".into());
     }
     Ok(Json::obj(vec![
         ("ok", Json::Bool(true)),
@@ -1060,7 +1060,7 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
     {
         let state = shared.lock().unwrap();
         if state.status != "stopped" {
-            return Err("先把服务器停掉再恢复，否则会写坏存档".into());
+            return Err("请先停止服务器再执行恢复，运行中恢复可能损坏存档".into());
         }
     }
     if name.contains(['/', '\\']) || !name.ends_with(".zip") {
@@ -1092,7 +1092,7 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
             // 回滚
             let _ = std::fs::remove_dir_all(&world);
             let _ = std::fs::rename(&parked, &world);
-            Err("恢复失败，已还原原来的存档".into())
+            Err("恢复失败，已回滚到原存档".into())
         }
     }
 }
@@ -1175,11 +1175,11 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
     std::fs::create_dir_all(stage.join("logs")).map_err(|e| format!("创建临时目录失败：{e}"))?;
 
     let readme = format!(
-        "# Wulon's MCSS 排错现场包\n\n生成时间：{}\n实例：{} · Minecraft {} · {}\n\n\
-         ## 文件\n- `context.md`：实例信息与症状，**先读这个**\n- `logs/recent.log`：最近的控制台输出（已脱敏）\n\
-         - `config.sanitized.json`：配置（令牌已替换）\n- `knowledge.md`：症状→原因→修法对照表\n\n\
-         ## 希望你（AI）怎么做\n1. 先复述症状与证据；\n2. 对照知识库判断原因；\n\
-         3. 给不超过 3 个可逆步骤；\n4. 证据不足就说还需要哪段日志。\n",
+        "# Wulon's MCSS 故障诊断包\n\n生成时间：{}\n服务器实例：{} · Minecraft {} · {}\n\n\
+         ## 文件清单\n- `context.md`：实例信息与故障现象（**请优先阅读**）\n- `logs/recent.log`：近期控制台输出日志（已脱敏）\n\
+         - `config.sanitized.json`：应用配置文件（令牌已脱敏）\n- `knowledge.md`：常见故障「现象 → 原因 → 解决方案」速查表\n\n\
+         ## 排查步骤建议（供 AI 参考）\n1. 结合日志概述故障现象与报错依据；\n2. 对照知识库判断最可能的故障原因；\n\
+         3. 提供不超过 3 个可安全回退的修复步骤；\n4. 若信息不足，请说明还需补充哪段日志。\n",
         now_stamp(),
         instance.get("name").and_then(|v| v.str()).unwrap_or("?"),
         instance.get("mcVersion").and_then(|v| v.str()).unwrap_or("?"),
@@ -1187,7 +1187,7 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
     );
 
     let mut context = String::new();
-    context.push_str("# 现场\n\n## 实例\n");
+    context.push_str("# 故障现场\n\n## 服务器实例\n");
     for (label, key) in [
         ("名称", "name"),
         ("版本", "mcVersion"),
@@ -1205,7 +1205,7 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
         instance.get("port").and_then(|v| v.num()).unwrap_or(0.0)
     ));
     if let Some(s) = symptom {
-        context.push_str("\n## 用户描述的症状\n");
+        context.push_str("\n## 故障现象描述\n");
         context.push_str(s.get("title").and_then(|v| v.str()).unwrap_or(""));
         context.push('\n');
         if let Some(d) = s.get("detail").and_then(|v| v.str()) {
@@ -1213,7 +1213,7 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
             context.push('\n');
         }
     }
-    context.push_str(&format!("\n日志共 {} 行，见 logs/recent.log。\n", logs.len()));
+    context.push_str(&format!("\n共截取 {} 行日志，详见 logs/recent.log。\n", logs.len()));
 
     let tail: Vec<String> = logs.iter().rev().take(500).rev().map(|l| redact_text(l)).collect();
 
@@ -1239,7 +1239,7 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
         .map_err(|e| format!("打包失败：{e}"))?;
     let _ = std::fs::remove_dir_all(&stage);
     if !status.success() {
-        return Err("打包失败（tar 退出码非 0）".into());
+        return Err("打包失败：tar 退出码不为 0".into());
     }
 
     Ok(Json::obj(vec![
@@ -1614,7 +1614,7 @@ fn modrinth_install(opts: &Json) -> Result<Json, String> {
         _ => "mods",
     };
     if dir.is_empty() || !url.starts_with("https://") {
-        return Err("缺少安装目录或下载地址不合法".into());
+        return Err("缺少安装目录，或下载地址不合法".into());
     }
     let safe: String = filename
         .chars()
@@ -2274,7 +2274,7 @@ fn check_port(port: u16) -> Option<Json> {
             "port-busy",
             "error",
             &format!("端口 {port} 已被占用"),
-            "可能已经有一个服务器在跑，或者别的程序占了这个端口",
+            "该端口可能已被另一个运行中的服务器或其它程序占用",
             Some("change-port"),
         ));
     }
@@ -2298,7 +2298,7 @@ fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
     // Java
     let java = instance.get("javaPath").and_then(|v| v.str()).unwrap_or("");
     if java.is_empty() {
-        issues.push(issue("java-missing", "error", "没有指定 Java", "实例设置里没有 Java 路径，服务器无法启动。", Some("set-java")));
+        issues.push(issue("java-missing", "error", "没有指定 Java", "未在服务器设置中指定 Java 路径，服务器无法启动。", Some("set-java")));
     } else if (java.contains('\\') || java.contains('/')) && !Path::new(java).exists() {
         issues.push(issue("java-path", "error", "Java 路径不存在", java, Some("set-java")));
     }
@@ -2313,7 +2313,7 @@ fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
             "jar-missing",
             "error",
             "服务端文件不完整",
-            &format!("在 {dir} 下没找到 server.jar / fabric-server-launch.jar，也没有 Forge/NeoForge 的启动参数。需要在「服务器设置」里重新安装服务端，或新建一个服务器。"),
+            &format!("{dir} 下没有 server.jar、fabric-server-launch.jar 或 Forge/NeoForge 的启动参数文件。请在「服务器设置」中重新安装服务端，或新建一台服务器。"),
             None,
         ));
     }
@@ -2340,7 +2340,7 @@ fn preflight(shared: &Shared, instance_id: &str) -> Result<Json, String> {
                     "memory-too-high",
                     "warn",
                     &format!("最大内存 {max_gb:.0}G 超过物理内存"),
-                    &format!("本机只有约 {total:.0}G。请在服务器设置里把最大内存调到 {:.0}G 或更低；设太高会触发系统换页，反而更卡。", (total - 2.0).max(2.0)),
+                    &format!("本机物理内存约 {total:.0}G。请将最大内存调到 {:.0}G 或更低，设置过高会触发系统换页，反而更卡。", (total - 2.0).max(2.0)),
                     None,
                 ));
             }
@@ -2519,7 +2519,7 @@ fn install_paper(
         .filter(|b| b.get("downloads").and_then(|d| d.get("server:default")).is_some())
         .collect();
     if usable.is_empty() {
-        return Err(format!("Paper 还没有 {mc} 的构建"));
+        return Err(format!("Paper 尚未发布 {mc} 的构建"));
     }
     let chosen = if build.is_empty() {
         usable[0]
@@ -2533,7 +2533,7 @@ fn install_paper(
                     .as_deref()
                     == Some(build)
             })
-            .ok_or_else(|| format!("Paper {mc} 没有 build {build}"))?
+            .ok_or_else(|| format!("Paper {mc} 不存在构建 {build}"))?
     };
 
     let id = chosen
@@ -2544,7 +2544,7 @@ fn install_paper(
     let dl = chosen
         .get("downloads")
         .and_then(|d| d.get("server:default"))
-        .ok_or("Paper 这个构建没有服务端 jar")?;
+        .ok_or("该 Paper 构建未提供服务端 jar")?;
     let file = dl.get("url").and_then(|v| v.str()).ok_or("Paper 缺少下载地址")?;
 
     progress("下载 Paper", 20, "");
@@ -2809,7 +2809,7 @@ fn download_to(url: &str, dest: &Path, mirrors: &[String], expected_sha1: Option
                         let actual = hash_file(&part).unwrap_or_default();
                         if !actual.eq_ignore_ascii_case(expected) {
                             let _ = std::fs::remove_file(&part);
-                            last_error = "校验不通过（文件可能被截断或源被篡改）".into();
+                            last_error = "文件校验未通过，可能下载中断或源文件已被篡改".into();
                             break;
                         }
                     }
@@ -2877,13 +2877,13 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
     };
 
     if loader == "neoforge" {
-        return Err("NeoForge 新建暂不支持（安装器还不稳定）。已有 NeoForge 服务器可以用「全部实例 → 导入」接进来继续管理。".into());
+        return Err("暂不支持新建 NeoForge 服务器，官方安装器尚不稳定。已有 NeoForge 服务器可通过「全部服务器 → 导入现有服务器」接入管理。".into());
     }
 
     if loader == "forge" || loader == "neoforge" {
         let java = opts.get("javaPath").and_then(|v| v.str()).unwrap_or("");
         if java.is_empty() {
-            return Err("安装 Forge/NeoForge 需要先指定 Java".into());
+            return Err("安装 Forge/NeoForge 前需先指定 Java".into());
         }
         let builds = if loader == "forge" { forge_builds(mc)? } else { neoforge_builds(mc)? };
         let ver = if !build.is_empty() {
@@ -2917,7 +2917,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         let installer = dir_path.join(&name);
         download_to(&url, &installer, &[], None)?;
 
-        progress("运行安装器（要下载 libraries，可能几分钟）", 40, "");
+        progress("正在运行安装器（需下载依赖库，可能需要几分钟）", 40, "");
         let installer_str = installer.to_string_lossy().to_string();
         let res = proc_run(Json::obj(vec![
             (
@@ -2935,7 +2935,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         // 判据是产物，不是退出码：安装器出现过"退出码 0 但没装成"
         if find_args_file(&dir_path).is_none() {
             let code = res.get("code").and_then(|c| c.num()).unwrap_or(-1.0) as i64;
-            return Err(format!("安装器没有生成启动参数文件（退出码 {code}），安装未成功"));
+            return Err(format!("安装未成功：安装器未生成启动参数文件（退出码 {code}）"));
         }
         write_marker(&dir_path, loader, mc, &ver);
         progress("完成", 100, "");
@@ -2959,7 +2959,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
     }
 
     if loader == "fabric" {
-        progress("解析 Fabric Loader", 2, "");
+        progress("解析 Fabric 加载器", 2, "");
         let loaders = fabric_loader_list(mc)?;
         let chosen = if !loader_version.is_empty() {
             loader_version.to_string()
@@ -2969,7 +2969,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
                 .and_then(|list| list.first())
                 .and_then(|l| l.get("version"))
                 .and_then(|v| v.str())
-                .ok_or_else(|| format!("Fabric 没有适配 {mc} 的 Loader"))?
+                .ok_or_else(|| format!("Fabric 尚无适配 {mc} 的加载器"))?
                 .to_string()
         };
 
@@ -3000,7 +3000,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         .and_then(|v| v.arr())
         .and_then(|list| list.iter().find(|v| v.get("id").and_then(|x| x.str()) == Some(mc)))
         .cloned()
-        .ok_or_else(|| format!("找不到 Minecraft {mc}"))?;
+        .ok_or_else(|| format!("未找到 Minecraft {mc}"))?;
     let detail_url = entry.get("url").and_then(|v| v.str()).ok_or("清单缺少版本地址")?;
     let detail = get_json(detail_url)?;
     let server_url = detail
@@ -3008,7 +3008,7 @@ fn install_server(shared: &Shared, opts: &Json) -> Result<Json, String> {
         .and_then(|d| d.get("server"))
         .and_then(|s| s.get("url"))
         .and_then(|v| v.str())
-        .ok_or_else(|| format!("{mc} 没有服务端下载（可能是快照早期版本）"))?
+        .ok_or_else(|| format!("{mc} 没有可用的服务端下载，可能是快照早期版本"))?
         .to_string();
 
     let server_sha1 = detail
@@ -3121,7 +3121,7 @@ fn ensure_frpc(shared: &Shared) -> Result<PathBuf, String> {
                     .unwrap_or(false)
             })
         })
-        .ok_or("没有找到 Windows 版 frp 安装包")?;
+        .ok_or("未找到 Windows 版 frp 安装包")?;
     let url = asset
         .get("browser_download_url")
         .and_then(|v| v.str())
@@ -3166,7 +3166,7 @@ fn ensure_frpc(shared: &Shared) -> Result<PathBuf, String> {
         return Err("解压 frp 安装包失败".into());
     }
 
-    let found = find_frpc(&extract).ok_or("安装包里没有 frpc.exe")?;
+    let found = find_frpc(&extract).ok_or("安装包内未找到 frpc.exe")?;
     // 刚解压出来的 exe 常被杀软短暂占用：复制 + 重试，比 rename 稳
     let mut last_error = String::new();
     let mut copied = false;
@@ -3577,12 +3577,12 @@ fn objects_size(server_dir: &str) -> u64 {
 fn backup_snapshot(server_dir: &str) -> Result<Json, String> {
     let world = Path::new(server_dir).join("world");
     if !world.exists() {
-        return Err("还没有 world 目录，先启动一次服务器".into());
+        return Err("尚未生成 world 目录，请先启动一次服务器".into());
     }
     let objects = snapshots_objects(server_dir);
     let snaps = snapshots_dir(server_dir);
-    std::fs::create_dir_all(&objects).map_err(|e| format!("创建 objects 失败：{e}"))?;
-    std::fs::create_dir_all(&snaps).map_err(|e| format!("创建 snapshots 失败：{e}"))?;
+    std::fs::create_dir_all(&objects).map_err(|e| format!("创建 objects 目录失败：{e}"))?;
+    std::fs::create_dir_all(&snaps).map_err(|e| format!("创建 snapshots 目录失败：{e}"))?;
 
     let mut files = Vec::new();
     walk_files(&world, "", &mut files);
@@ -3759,7 +3759,7 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
     {
         let state = shared.lock().unwrap();
         if state.status != "stopped" {
-            return Err("先把服务器停掉再恢复，否则会写坏存档".into());
+            return Err("请先停止服务器再执行恢复，运行中恢复可能损坏存档".into());
         }
     }
     if !is_safe_snapshot_name(name) {
@@ -3772,7 +3772,7 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
     // 先整份校验，再动磁盘
     let entries = manifest.get("entries").and_then(|v| v.arr()).cloned().unwrap_or_default();
     if entries.is_empty() {
-        return Err("这个快照是空的，不能恢复".into());
+        return Err("该快照为空，无法恢复".into());
     }
     if let Some(bad) = entries.iter().find(|e| {
         !is_safe_rel_path(e.get("path").and_then(|v| v.str()).unwrap_or(""))
@@ -3784,7 +3784,7 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
             .chars()
             .take(40)
             .collect();
-        return Err(format!("快照内容不合法（路径 {shown}），已拒绝恢复"));
+        return Err(format!("已拒绝恢复：快照内容不合法（路径 {shown}）"));
     }
 
     let world = Path::new(server_dir).join("world");
@@ -3798,7 +3798,7 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
         let hash = entry.get("hash").and_then(|v| v.str()).unwrap_or("");
         let rel = entry.get("path").and_then(|v| v.str()).unwrap_or("");
         if hash.len() != 40 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err("快照里的对象哈希不合法，已拒绝恢复".into());
+            return Err("已拒绝恢复：快照中的对象哈希不合法".into());
         }
         let source = snapshots_objects(server_dir).join(hash);
         if !source.exists() {
@@ -3813,7 +3813,7 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
         if let Err(e) = std::fs::copy(&source, &target) {
             let _ = std::fs::remove_dir_all(&world);
             let _ = std::fs::rename(&parked, &world);
-            return Err(format!("恢复失败，已还原：{e}"));
+            return Err(format!("恢复失败，已回滚到原存档：{e}"));
         }
         restored += 1;
     }
@@ -4298,9 +4298,9 @@ fn main() {
     let path = config_path();
     let config = load_config(&path);
 
-    println!("mcss-agent {} 启动", PRODUCT_VERSION);
+    println!("mcss-agent {} 已启动", PRODUCT_VERSION);
     println!("  配置: {}", path.display());
-    println!("  监听: http://127.0.0.1:{port}");
+    println!("  监听地址：http://127.0.0.1:{port}");
 
     // 被 mcss:// 深链唤起：转成网页地址并打开，然后退出
     let argv: Vec<String> = std::env::args().collect();

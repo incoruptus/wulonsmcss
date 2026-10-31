@@ -67,12 +67,12 @@ describe("诊断码", () => {
   });
 
   it("乱输入给中文错误", async () => {
-    await expect(decodeDiagnostic("hello")).rejects.toThrow(/没认出/);
+    await expect(decodeDiagnostic("hello")).rejects.toThrow(/无法识别诊断码/);
   });
 
   it("结论按最可能的原因说话", () => {
     const offline = buildDiagnostic({ room: ROOM, reach: { ...REACH, probes: REACH.probes.map((p) => ({ ...p, ok: false })) } });
-    expect(diagnosticHeadline(offline)).toContain("都没连上");
+    expect(diagnosticHeadline(offline)).toContain("未能连接任何地址");
 
     const missingMods = buildDiagnostic({
       room: ROOM,
@@ -86,6 +86,6 @@ describe("诊断码", () => {
         verdict: "need-mods",
       },
     });
-    expect(diagnosticHeadline(missingMods)).toContain("缺 1 个 Mod");
+    expect(diagnosticHeadline(missingMods)).toContain("缺少 1 个模组");
   });
 });

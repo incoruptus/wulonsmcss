@@ -29,10 +29,10 @@ export default function Settings() {
 
   return (
     <>
-      <PageHeader className="max-w-4xl" title="设置" desc="把开服茶调成你顺手的样子。服务器文件和存档不会因外观设置而改变。" />
+      <PageHeader className="max-w-4xl" title="设置" desc="将开服茶调整为顺手的样子，外观设置不会影响服务器文件与存档。" />
       <PageBody className="max-w-4xl space-y-5">
         <Card>
-          <SectionHead icon={<Gamepad2 />} title="使用方式" desc="服主和玩家看到的首页与导航不同，数据始终保留。" />
+          <SectionHead icon={<Gamepad2 />} title="使用方式" desc="服主与玩家看到的首页与导航不同，数据始终保留。" />
           <div className="mt-5">
             <SegmentedControl
               value={cfg.mode}
@@ -43,7 +43,7 @@ export default function Settings() {
         </Card>
 
         <Card>
-          <SectionHead icon={<Palette />} title="茶色" desc="五种茶底，只换气质，不换功能；成功、警告、危险仍用各自的红绿黄。" />
+          <SectionHead icon={<Palette />} title="茶色" desc="五种茶色底色仅改变界面气质，不影响功能，成功、警告、危险仍使用各自的绿、黄、红。" />
           <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5" role="group" aria-label="茶色主题">
             {PALETTES.map((palette) => (
               <PaletteCard
@@ -55,7 +55,7 @@ export default function Settings() {
             ))}
           </div>
           <div className="mt-6 max-w-sm border-t border-gray-300 pt-5">
-            <Field label="明暗" hint="同一套茶色在浅色和深色下会重新算对比度。">
+            <Field label="明暗" hint="同一套茶色在浅色与深色模式下会重新计算对比度。">
               <SegmentedControl
                 value={cfg.theme}
                 onValueChange={(value) => patch({ theme: value as ThemeMode })}
@@ -66,7 +66,7 @@ export default function Settings() {
         </Card>
 
         <Card>
-          <SectionHead icon={<Settings2 />} title="运行与反馈" desc="控制日志占用和界面动态效果。" />
+          <SectionHead icon={<Settings2 />} title="运行与反馈" desc="控制日志占用与界面动效。" />
           <div className="mt-5 grid items-start gap-6 sm:grid-cols-2">
             <Field label="日志保留行数" hint="控制台与崩溃诊断只保留最近的记录">
               <Picker
@@ -77,7 +77,7 @@ export default function Settings() {
             </Field>
             <SwitchRow
               label="界面动态效果"
-              hint="关闭后，按压和弹层过渡会立即完成"
+              hint="关闭后，按压与弹层过渡动画将立即完成"
               checked={cfg.animationsEnabled}
               onCheckedChange={(value) => patch({ animationsEnabled: value })}
             />
@@ -96,7 +96,7 @@ export default function Settings() {
               <div>
                 <div className="t-label-13 mb-2 font-medium text-gray-1000">可以做什么</div>
                 <ul className="space-y-1.5 t-label-13 text-gray-800">
-                  {["开服、停服、控制台与命令", "新建服务器、下载主流服务端", "加入游戏、准备客户端与进服包", "世界备份、恢复与时间机快照", "模组与插件扫描、资源库安装", "内网穿透与多世界数据包", "Java 探测与 AI 现场包导出"].map((text) => (
+                  {["开服、停服、控制台与命令", "新建服务器、下载主流服务端", "加入游戏、准备客户端与进服包", "世界备份、恢复与时间机快照", "模组与插件扫描、资源库安装", "内网穿透与多世界数据包", "Java 检测与故障诊断包导出"].map((text) => (
                     <li key={text} className="flex items-center gap-2"><Check className="size-3.5 shrink-0 text-green-900" />{text}</li>
                   ))}
                 </ul>
@@ -110,7 +110,7 @@ export default function Settings() {
                 </ul>
               </div>
             </div>
-            <p className="t-copy-13 mt-5 rounded-lg bg-background-200 p-3 text-gray-800">本机助手只监听 127.0.0.1，并通过令牌配对。它处理本机操作，不会把你的服务器配置上传到第三方。</p>
+            <p className="t-copy-13 mt-5 rounded-lg bg-background-200 p-3 text-gray-800">本机助手仅监听 127.0.0.1 并通过令牌配对，负责处理本机操作，不会将服务器配置上传至第三方。</p>
           </Card>
         ) : null}
 
@@ -185,7 +185,7 @@ export default function Settings() {
 
       <Dialog open={confirmReset} onOpenChange={setConfirmReset} widthClass="max-w-md">
         <DialogHeader title="重置全部设置？" desc="服务器列表、玩家记录、外观和同步设置都会被清空。" />
-        <DialogBody><p className="t-copy-14 text-gray-800">磁盘上的服务器文件、模组和存档不会删除。重置后，开服茶会回到首次打开的状态。</p></DialogBody>
+        <DialogBody><p className="t-copy-14 text-gray-800">磁盘上的服务器文件、模组与存档不会被删除；重置后开服茶将回到首次打开时的状态。</p></DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={() => setConfirmReset(false)}>取消</Button>
           <Button variant="error" onClick={async () => { await window.mcss.config.reset(); setConfirmReset(false); location.reload(); }}>确认重置</Button>

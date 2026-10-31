@@ -51,13 +51,13 @@ export function ReachabilityPanel({
     const fresh = startedAt ? Date.now() - startedAt < 120_000 : false;
     if (!fresh) return;
     if (verdict === "public") {
-      toast.success("朋友现在可以进来了", { description: "公网直连已验证，去发邀请吧" });
+      toast.success("朋友现在可以进来了", { description: "公网直连已验证，可以发送邀请了" });
     } else if (verdict === "tunnel") {
-      toast.success("隧道已通，可以发邀请了", { description: "朋友走中继进来，延迟会比直连高一点" });
+      toast.success("隧道已通，可以发邀请了", { description: "玩家通过中继进入，延迟会略高于直连" });
     } else if (verdict === "lan-only") {
-      toast("同一 WiFi 能进了，外网还差一条隧道", { description: "点「开隧道」配一条，或者只发给同 WiFi 的朋友" });
+      toast("同一 Wi-Fi 已可进入，外网访问还需配置一条隧道", { description: "可点击「开隧道」配置一条，或仅发送给同一 Wi-Fi 下的朋友" });
     } else if (verdict === "local-only") {
-      toast.error("服务器只接受本机连接", { description: "检查 server-ip 是否写成了 127.0.0.1" });
+      toast.error("服务器只接受本机连接", { description: "请检查 server-ip 是否被设为 127.0.0.1" });
     }
   }, [ready, report, notify, startedAt]);
 
@@ -90,15 +90,15 @@ export function ReachabilityPanel({
         <div className="rounded-lg bg-background-100 p-2.5 t-label-12 text-gray-800 shadow-geist-border">
           {running ? (
             <>
-              服务器正在加载。等日志出现 <span className="t-mono-12">Done</span> 之后会自动测一遍。
+              服务器正在加载，请等待日志输出 <span className="t-mono-12">Done</span> 随后会自动检测一次。
             </>
           ) : (
-            <>服务器没在跑。启动后会自动检测；想先确认网络，可以点「重新检测」。</>
+            <>服务器未运行，启动后会自动检测；如需提前确认网络，可点击「重新检测」。</>
           )}
         </div>
       ) : (
         <p className="t-label-12 text-gray-800">
-          {checking && probes.length ? "本机结果已经出来了，正在从公网再确认一次…" : summary.detail}
+          {checking && probes.length ? "本机检测已完成，正在通过公网再确认一次…" : summary.detail}
         </p>
       )}
 
@@ -114,7 +114,7 @@ export function ReachabilityPanel({
 
       {report?.externalError ? <p className="t-label-12 text-amber-900">{report.externalError}</p> : null}
       {report?.probes.some((p) => p.via === "external") ? (
-        <p className="t-label-12 text-gray-700">公网结论来自一次外部回连探测；失败时按「未知」处理，不直接判服务器死刑。</p>
+        <p className="t-label-12 text-gray-700">公网结论来自一次外部回连探测，探测失败时按「未知」处理，不会直接判定服务器不可用。</p>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2 pt-0.5">

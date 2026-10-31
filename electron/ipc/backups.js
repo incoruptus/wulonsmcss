@@ -88,7 +88,7 @@ function isSafeName(name) {
  */
 async function createSnapshotInner(serverDir) {
   const worldDir = path.join(serverDir, "world");
-  if (!fs.existsSync(worldDir)) return { ok: false, error: "还没有 world 目录，先启动一次服务器" };
+  if (!fs.existsSync(worldDir)) return { ok: false, error: "尚未生成 world 目录，请先启动一次服务器" };
 
   const objects = objectsDir(serverDir);
   const snapshots = snapshotsDir(serverDir);
@@ -195,11 +195,11 @@ function restoreSnapshot(serverDir, name) {
 
   // 先整份校验，再动磁盘：任何一条路径不合法都整体拒绝，绝不留半截状态
   const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
-  if (!entries.length) return { ok: false, error: "这个快照是空的，不能恢复" };
+  if (!entries.length) return { ok: false, error: "该快照为空，无法恢复" };
   const bad = entries.find(
     (e) => !e || !isSafeRelPath(e.path) || !/^[0-9a-f]{40}$/i.test(String(e.hash || "")),
   );
-  if (bad) return { ok: false, error: `快照内容不合法（路径 ${String(bad.path ?? "?").slice(0, 40)}），已拒绝恢复` };
+  if (bad) return { ok: false, error: `已拒绝恢复：快照内容不合法（路径 ${String(bad.path ?? "?").slice(0, 40)}）` };
 
   const worldDir = path.join(serverDir, "world");
   // 留底目录名带秒级时间戳：同一秒恢复两次会撞名，rename 会失败。撞了就加序号。
@@ -224,14 +224,14 @@ function restoreSnapshot(serverDir, name) {
       restored += 1;
     }
     // 兜底：一条都没落进 world 就不是成功
-    if (!fs.existsSync(worldDir)) throw new Error("恢复后 world 目录没有生成");
+    if (!fs.existsSync(worldDir)) throw new Error("恢复完成后未生成 world 目录");
   } catch (e) {
     // 回滚
     try {
       fs.rmSync(worldDir, { recursive: true, force: true });
       if (fs.existsSync(parked)) fs.renameSync(parked, worldDir);
     } catch {}
-    return { ok: false, error: `恢复失败，已还原：${e.message}` };
+    return { ok: false, error: `恢复失败，已回滚到原存档：${e.message}` };
   }
 
   return { ok: true, restored, parked: path.basename(parked) };

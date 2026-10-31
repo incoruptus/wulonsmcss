@@ -120,7 +120,7 @@ describe("启动计划", () => {
   it("缺文件时记下来而不是抛错", async () => {
     const result = await plan({ exists: async (p) => !p.includes("fabric-loader") });
     expect(result.missing).toContain("net\\fabricmc\\fabric-loader\\0.20.1\\fabric-loader-0.20.1.jar");
-    expect(result.warnings.join(" ")).toContain("缺失");
+    expect(result.warnings.join(" ")).toContain("缺少 1 个文件");
   });
 
   it("只有 minecraftArguments 的老版本也能拼", async () => {

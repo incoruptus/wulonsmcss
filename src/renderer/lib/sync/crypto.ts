@@ -74,7 +74,7 @@ async function gzip(data: Uint8Array): Promise<Uint8Array | null> {
 }
 
 async function gunzip(data: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") throw new Error("当前环境不支持解压该同步内容");
+  if (typeof DecompressionStream === "undefined") throw new Error("当前环境不支持解压此同步内容");
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
@@ -138,7 +138,7 @@ export async function decryptPayload(
       ),
     );
   } catch {
-    throw new Error("配对码不对（或同步内容已损坏）");
+    throw new Error("配对码不正确，或同步内容已损坏");
   }
   const raw = meta.gz ? await gunzip(plain) : plain;
   return new TextDecoder().decode(raw);

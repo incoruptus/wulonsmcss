@@ -99,7 +99,7 @@ export function PreflightDialog({
           break;
         }
         case "lower-memory":
-          toast.info("请在「服务器设置」里把最大内存调低");
+          toast.info("请在「服务器设置」中将最大内存调低");
           return;
         default:
           toast.info("这条需要你手动处理");
@@ -120,10 +120,10 @@ export function PreflightDialog({
     <>
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-lg">
       <DialogHeader
-        title={checking ? "正在检查…" : errors.length ? "还不能开服" : warns.length ? "可以开服，但有提醒" : "一切就绪"}
+        title={checking ? "正在检查…" : errors.length ? "还不能开服" : warns.length ? "可以开服，但存在提醒项" : "一切就绪"}
         desc={
           checking
-            ? "Java、端口、EULA、数据包、内存、磁盘都会过一遍"
+            ? "将依次检查 Java、端口、EULA、数据包、内存与磁盘空间"
             : `${instance.name} · ${instance.mcVersion} · ${serverTypeLabel(serverTypeOf(instance))}`
         }
       />
@@ -169,7 +169,7 @@ export function PreflightDialog({
     <Dialog open={eulaOpen} onOpenChange={setEulaOpen} widthClass="max-w-md">
       <DialogHeader
         title="先同意 Minecraft 使用条款"
-        desc="这是 Mojang 对服务端的许可，免费，同意一次即可。"
+        desc="这是 Mojang 对服务端的许可协议，免费且只需同意一次。"
       />
       <DialogBody className="space-y-3">
         <p className="t-label-13 leading-6 text-gray-900">
@@ -212,7 +212,7 @@ export function PreflightDialog({
           className="font-mono"
           aria-label="新端口"
         />
-        <p className="mt-1 t-label-12 text-gray-700">建议 25566–25600；改完会重新检查，旧邀请需要重新发。</p>
+        <p className="mt-1 t-label-12 text-gray-700">建议使用 25566–25600 之间的端口；修改后会重新检查，旧邀请需重新生成。</p>
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => setPortOpen(false)}>
@@ -221,7 +221,7 @@ export function PreflightDialog({
         <Button
           onClick={async () => {
             const port = Number(newPort);
-            if (!port || port < 1024 || port > 65535) return toast.error("端口要在 1024–65535 之间");
+            if (!port || port < 1024 || port > 65535) return toast.error("端口需在 1024–65535 之间");
             await updateInstance(instance.id, { port });
             setPortOpen(false);
             toast.success(`端口已改为 ${port}`);

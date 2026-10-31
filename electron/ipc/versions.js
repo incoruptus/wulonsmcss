@@ -133,9 +133,9 @@ async function paperBuilds(mc) {
 async function installPaper({ dir, mc, build, onProgress }) {
   const list = await getJson(`${PAPER_API}/projects/paper/versions/${encodeURIComponent(mc)}/builds`);
   const usable = (Array.isArray(list) ? list : []).filter((b) => b?.downloads?.["server:default"]);
-  if (!usable.length) throw new Error(`Paper 还没有 ${mc} 的构建`);
+  if (!usable.length) throw new Error(`Paper 尚未发布 ${mc} 的构建`);
   const chosen = build ? usable.find((b) => String(b.id) === String(build)) : usable[0];
-  if (!chosen) throw new Error(`Paper ${mc} 没有 build ${build}`);
+  if (!chosen) throw new Error(`Paper ${mc} 不存在构建 ${build}`);
 
   const dl = chosen.downloads["server:default"];
   onProgress?.({ stage: "下载 Paper", percent: 5 });
@@ -308,7 +308,7 @@ async function downloadOnce(url, dest, onProgress, opts = {}) {
     try {
       if (fs.existsSync(part)) fs.unlinkSync(part);
     } catch (err) {}
-    if (ctrl.signal.aborted) throw new Error("连接卡住（20 秒无数据），已中止");
+    if (ctrl.signal.aborted) throw new Error("连接 20 秒无数据，已中止");
     throw e;
   } finally {
     clearTimeout(timer);
@@ -364,7 +364,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
   // 已有的 NeoForge 目录仍可导入、预检、启动（argsfile 逻辑不变）。
   if (type === "neoforge") {
     throw new Error(
-      "NeoForge 新建暂不支持（安装器还不稳定）。已有 NeoForge 服务器可以用「全部实例 → 导入」接进来继续管理。",
+      "暂不支持新建 NeoForge 服务器，官方安装器尚不稳定。已有 NeoForge 服务器可通过「全部服务器 → 导入现有服务器」接入管理。",
     );
   }
 
@@ -372,7 +372,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
   // 安装器历史上出现过"退出码 0 但没装成"，所以只认 win_args.txt 有没有生成。
   if (type === "forge" || type === "neoforge") {
     const proc = require("./proc");
-    if (!javaPath) throw new Error("安装 Forge/NeoForge 需要先指定 Java");
+    if (!javaPath) throw new Error("安装 Forge/NeoForge 前需先指定 Java");
     const builds = type === "forge" ? await forgeBuilds(mc) : await neoforgeBuilds(mc);
     const ver = build || builds[0];
     if (!ver) {
@@ -380,8 +380,8 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
       // 报"没有这个版本"只会让人以为版本不存在，实际上是被劫持了
       if (type === "neoforge") {
         throw new Error(
-          "连不上 maven.neoforged.net，拿不到 NeoForge 版本列表（这类网络上常见 DNS 污染）。\n" +
-            "可以先用官方安装器装好，再用「导入现有服务器」把它接进来。",
+          "无法连接 maven.neoforged.net，暂时取不到 NeoForge 版本列表（该域名在部分网络环境下存在 DNS 污染）。\n" +
+            "可先用官方安装器完成安装，再通过「导入现有服务器」接入管理。",
         );
       }
       throw new Error(`${type === "forge" ? "Forge" : "NeoForge"} 还没有 ${mc} 的版本`);
@@ -399,12 +399,12 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
       onProgress?.({ stage: "下载安装器", percent: pct, detail: total ? `${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB` : "" });
     });
 
-    onProgress?.({ stage: "运行安装器（要下载 libraries，可能几分钟）", percent: 32 });
+    onProgress?.({ stage: "正在运行安装器（需下载依赖库，可能需要几分钟）", percent: 32 });
     const res = await proc.run({ command: [javaPath, "-jar", installer, "--installServer", dir], cwd: dir });
     if (res.timedOut) throw new Error("安装器超时");
     const argsFile = findArgsFileIn(dir);
     if (!argsFile) {
-      throw new Error(`安装器没有生成启动参数文件，安装未成功。\n${(res.stderrTail || res.stdoutTail || "").slice(-600)}`);
+      throw new Error(`安装器未生成启动参数文件，安装未成功。\n${(res.stderrTail || res.stdoutTail || "").slice(-600)}`);
     }
     writeMarker(dir, { serverType: type, mc, build: ver, argsFile });
     onProgress?.({ stage: "完成", percent: 100 });
@@ -414,7 +414,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
   const assertJar = (name) => {
     const file = path.join(dir, name);
     if (!fs.existsSync(file) || fs.statSync(file).size < 1024) {
-      throw new Error(`服务端安装后没有生成有效的 ${name}，请重试或换一个构建`);
+      throw new Error(`服务端安装完成后未生成有效的 ${name}，请重试或更换构建`);
     }
   };
 
@@ -433,10 +433,10 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
   }
 
   if (type === "fabric") {
-    onProgress?.({ stage: "解析 Fabric Loader", percent: 2 });
+    onProgress?.({ stage: "解析 Fabric 加载器", percent: 2 });
     const loaders = await fabricLoaderList(mc);
     const chosen = loaderVersion || loaders.find((l) => l.stable)?.version || loaders[0]?.version;
-    if (!chosen) throw new Error(`Fabric 没有适配 ${mc} 的 Loader`);
+    if (!chosen) throw new Error(`Fabric 尚无适配 ${mc} 的加载器`);
     const installer = await fabricInstallerVersion();
     const url = `${FABRIC_META}/versions/loader/${encodeURIComponent(mc)}/${encodeURIComponent(chosen)}/${encodeURIComponent(installer)}/server/jar`;
     onProgress?.({ stage: "下载 Fabric 服务端", percent: 5 });
@@ -456,7 +456,7 @@ async function installServer({ dir, mc, serverType, loader, loaderVersion, build
   if (!entry) throw new Error(`找不到 Minecraft ${mc}`);
   const detail = await getJson(entry.url);
   const serverUrl = detail?.downloads?.server?.url;
-  if (!serverUrl) throw new Error(`${mc} 没有服务端下载（可能是快照早期版本）`);
+  if (!serverUrl) throw new Error(`${mc} 没有可用的服务端下载，可能是快照早期版本`);
   onProgress?.({ stage: "下载原版服务端", percent: 6 });
   await download(serverUrl, path.join(dir, "server.jar"), (got, total) => {
     const pct = total ? 6 + Math.round((got / total) * 90) : 50;

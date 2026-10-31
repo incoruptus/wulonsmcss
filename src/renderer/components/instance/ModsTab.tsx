@@ -93,7 +93,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               mtime: 0,
             }));
       if (source === "cloud" && serverList.length === 0) {
-        toast.error("云端还没有这个实例的 Mod 清单，先在服务器那台机器同步一次");
+        toast.error("云端尚无该服务器的模组清单，请先在运行服务器的那台机器上同步一次");
         return;
       }
       const byId = (list: ModMeta[]) => {
@@ -155,11 +155,11 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
 
   async function downloadSelected() {
     if (!selectedRows.length) return;
-    if (serverBusy) return toast.error("先停止服务器，再同步 Mod");
+    if (serverBusy) return toast.error("请先停止服务器，再同步模组");
     const clientSide = selectedRows.filter((r) => r.client?.environment === "client");
     if (clientSide.length) {
       const ok = window.confirm(
-        `有 ${clientSide.length} 个 Mod 标记为「仅客户端」。下载到服务端可能报错或导致服务器起不来。仍然继续？`,
+        `有 ${clientSide.length} 个模组标记为「仅客户端」，下载到服务端可能报错或导致无法启动，仍要继续？`,
       );
       if (!ok) return;
     }
@@ -181,7 +181,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       }
       const ok = res.downloaded.length + res.copied.length;
       if (ok) {
-        toast.success(`已同步 ${ok} 个 Mod 到服务端`, {
+        toast.success(`已同步 ${ok} 个模组到服务端`, {
           description: [
             res.downloaded.length ? `Modrinth 下载 ${res.downloaded.length}` : "",
             res.copied.length ? `本地复制 ${res.copied.length}` : "",
@@ -231,12 +231,12 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
             setMatching(true);
             try {
               const resolved = await window.mcss.mods.resolveModrinth(missing);
-              if (!resolved.length) return toast.warning("一个都没匹配上，可以手动点「绑定」");
+              if (!resolved.length) return toast.warning("未匹配到任何模组，可手动点击「绑定」");
               const merged = { ...index };
               for (const r of resolved) merged[r.file] = { p: r.p, v: r.v, n: r.n };
               await useConfig.getState().patch({ modrinthIndex: merged });
               toast.success(`已匹配 ${resolved.length} / ${missing.length} 个`, {
-                description: "匹配到的 Mod 会写进邀请码与进服包",
+                description: "匹配到的模组会写入邀请码与进服包",
               });
             } catch (e) {
               toast.error((e as Error).message);
@@ -257,7 +257,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
         <div className="flex flex-wrap items-center gap-2">
           <GitCompare className="size-4 text-gray-800" />
           <span className="t-label-14 font-medium text-gray-1000">Mod 适格性审查</span>
-          <span className="t-label-12 text-gray-700">比对服务端与本机客户端的 mods，找出缺装 / 版本不一致</span>
+          <span className="t-label-12 text-gray-700">比对服务端与本机客户端的 mods，找出缺失或版本不一致的模组</span>
           <div className="ml-auto flex items-center gap-2">
             <Input
               value={clientDir}
@@ -290,7 +290,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               （本机拉取于 {formatDateTime(catalog.fetchedAt)}）
             </>
           ) : (
-            "还没有云端清单。在服务器那台机器上打开「设置 → 跨端同步」，同步一次即可；之后这里可以直接拿云端清单和本机客户端对账。"
+            "尚无云端清单。在运行服务器的机器上打开「设置 → 跨端同步」同步一次，之后即可用云端清单与本机客户端比对。"
           )}
         </div>
 
@@ -320,7 +320,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
                 {selectable.length && selectable.every((r) => selected.has(r.key)) ? "取消全选" : "全选可下载"}
               </Button>
               <span className="t-label-12 text-gray-700">
-                只选客户端有的；服务端已有的不会重复下。下载后建议重启服务器。
+                仅选择客户端已有的模组，服务端已有的模组不会重复下载，下载完成后建议重启服务器。
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -376,7 +376,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
         <Card>
           <EmptyState
             title="还没有装 Mod"
-            desc="把 jar 放进 mods 目录，或从资源库一键安装（会自动按版本和加载器过滤）。"
+            desc="可将 jar 放入 mods 目录，或在资源库中一键安装，安装时会按游戏版本与加载器自动过滤。"
             action={
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button onClick={onBrowse} disabled={!onBrowse}>
@@ -437,8 +437,8 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       )}
       <p className="t-label-12 text-gray-700">
         {Object.keys(modrinthIndex).length
-          ? `${filtered.filter((m) => modrinthIndex[m.file]).length} / ${filtered.length} 个已关联 Modrinth —— 关联过的 Mod 会写进邀请码与进服包，玩家可自动拉齐。`
-          : "还没有关联 Modrinth 的 Mod：从资源库装的会自动关联，手动放进来的可以点「绑定」。"}
+          ? `${filtered.filter((m) => modrinthIndex[m.file]).length} / ${filtered.length} 个已关联 Modrinth。关联的模组会写入邀请码与进服包，玩家可自动补齐。`
+          : "尚无关联 Modrinth 的模组：从资源库安装的会自动关联，手动放入的可点击「绑定」。"}
       </p>
 
       <BindModDialog

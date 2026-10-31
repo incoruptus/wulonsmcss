@@ -56,7 +56,7 @@ function stamp() {
  */
 async function createInner(serverDir, server) {
   const worldDir = path.join(serverDir, "world");
-  if (!fs.existsSync(worldDir)) return { ok: false, error: "还没有 world 目录，先启动一次服务器" };
+  if (!fs.existsSync(worldDir)) return { ok: false, error: "尚未生成 world 目录，请先启动一次服务器" };
 
   const dir = backupDir(serverDir);
   fs.mkdirSync(dir, { recursive: true });
@@ -96,7 +96,7 @@ async function createInner(serverDir, server) {
 /** 恢复：先把现有 world 改名留底，再解压。要求服务器已停止。 */
 async function restore(serverDir, name, server) {
   if (server && server.getStatus() !== "stopped") {
-    return { ok: false, error: "先把服务器停掉再恢复，否则会写坏存档" };
+    return { ok: false, error: "请先停止服务器再执行恢复，运行中恢复可能损坏存档" };
   }
   // 和 remove 用同一套白名单：否则 `..\..\x.zip` 能指向任意 zip
   if (!/^[\w.-]+\.zip$/.test(name)) return { ok: false, error: "文件名不合法" };

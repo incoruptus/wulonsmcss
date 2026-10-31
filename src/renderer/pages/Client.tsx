@@ -81,7 +81,7 @@ export default function Client() {
       loader: (uniqueLoaders[0] as never) ?? "vanilla",
       extraMods: mods.map((m) => ({ file: m.name })),
     });
-    toast.success("客户端已保存", { description: "下次加入游戏时，会默认检查这个目录。" });
+    toast.success("客户端已保存", { description: "下次加入游戏时，将默认检查此目录。" });
   }
 
   return (
@@ -89,7 +89,7 @@ export default function Client() {
       <PageHeader
         className="max-w-6xl"
         title="我的客户端"
-        desc="看看本机装了哪些版本和模组。音效、光影、小地图这类客户端模组，可以自由添加。"
+        desc="查看本机已安装的游戏版本与模组。音效、光影、小地图等客户端模组可自由添加。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={scan} loading={scanning}>
@@ -134,8 +134,8 @@ export default function Client() {
           <Card>
             <EmptyState
               icon={<Layers className="size-5" />}
-              title="这个目录里没找到已安装的版本"
-              desc="指到 .minecraft 那一层（里面有 versions / mods / launcher_profiles.json）。如果你用 PCL 或 HMCL，注意它们可能把版本放在别的目录。"
+              title="该目录下未找到已安装的游戏版本"
+              desc="请指向 .minecraft 目录本身，其中应包含 versions、mods 与 launcher_profiles.json。若使用 PCL 或 HMCL，版本可能存放在其它目录。"
             />
           </Card>
         ) : (
@@ -148,7 +148,7 @@ export default function Client() {
             <Card className="p-4">
               <div className="t-label-12 text-gray-700">客户端 Mod</div>
               <div className="t-h-20 mt-1 text-gray-1000">{mods.length}</div>
-              <div className="t-label-12 mt-1 text-gray-800">含你自己加的（音效 / 光影前置等）</div>
+              <div className="t-label-12 mt-1 text-gray-800">含自行添加的模组（音效、光影前置等）</div>
             </Card>
             <Card className="p-4">
               <div className="t-label-12 text-gray-700">加载器</div>
@@ -172,7 +172,7 @@ export default function Client() {
 
         {mods.length > 0 ? (
           <Card>
-            <CardTitle desc="这里只展示扫描结果；需要增删时，可以直接打开 mods 目录。">已安装的客户端模组</CardTitle>
+            <CardTitle desc="此处仅展示扫描结果，需要增删时可直接打开 mods 目录。">已安装的客户端模组</CardTitle>
             <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
               {mods.slice(0, 40).map((m) => (
                 <div key={m.path} className="flex items-center gap-2 rounded-lg bg-background-200 px-2.5 py-1.5">
@@ -188,10 +188,9 @@ export default function Client() {
         <Card className="flex items-start gap-3 p-4">
           <Sparkles className="mt-0.5 size-4 shrink-0 text-gray-800" />
           <div className="min-w-0">
-            <div className="t-h-14 text-gray-1000">客户端和服务器，分别该装什么？</div>
+            <div className="t-h-14 text-gray-1000">客户端与服务端分别需要安装什么？</div>
             <p className="t-copy-13 mt-1.5 text-gray-800">
-              插件服通常不需要你额外安装模组；模组服只需要房间要求的那一份清单。
-              音效、小地图、光影等客户端模组只影响自己的体验，不必和服主保持完全一致。
+              插件服通常无需额外安装模组，模组服只需准备房间要求的模组清单。音效、小地图、光影等客户端模组仅影响自身体验，无需与服主完全一致。
             </p>
             <Button variant="ghost" size="sm" className="mt-2 px-0" onClick={() => navigate("/")}>
               去加入游戏

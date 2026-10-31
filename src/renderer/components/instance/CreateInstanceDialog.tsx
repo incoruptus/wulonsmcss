@@ -123,11 +123,11 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   async function install() {
     if (!name.trim()) return toast.error("先给服务器起个名字");
     if (!mcVersion) return toast.error("先选一个 Minecraft 版本");
-    if (!javaPath) return toast.error("没有找到 Java，请先手动指定");
+    if (!javaPath) return toast.error("未找到 Java，请先手动指定");
     const need = javaMajorFor(mcVersion);
     const picked = javas.find((j) => j.path === javaPath);
     if (picked && Number(picked.major) < need) {
-      return toast.error(`Minecraft ${mcVersion} 需要 Java ${need}，当前选的是 Java ${picked.major}`);
+      return toast.error(`Minecraft ${mcVersion} 需要 Java ${need}，当前选择的是 Java ${picked.major}`);
     }
 
     setInstalling(true);
@@ -184,7 +184,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={(v) => !installing && onOpenChange(v)} widthClass="max-w-2xl">
       <DialogHeader
         title="新建服务器"
-        desc="先选游戏版本，再选怎么玩。插件服玩家不用装东西；模组服朋友也要装同样的模组。"
+        desc="先选择游戏版本，再决定玩法方向。插件服玩家无需安装额外内容，模组服的玩家需要安装相同的模组。"
       />
       <DialogBody className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -228,7 +228,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
             hint={
               kind === "plugin"
                 ? build
-                  ? `Paper/Purpur 的构建，越新越好`
+                  ? `Paper / Purpur 的构建版本，建议选择最新构建`
                   : builds.length
                     ? "选一个构建"
                     : "这个版本还没有构建"
@@ -246,10 +246,10 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
           </Field>
         </div>
         <p className="t-label-12 text-gray-700">
-          NeoForge 新建暂不支持；已有 NeoForge 服务器请用「导入」。
+          暂不支持新建 NeoForge 服务器；已有 NeoForge 服务器请使用「导入现有服务器」。
         </p>
 
-        <Field label="安装目录" hint="默认按名称创建在应用数据目录；可以改到别的盘">
+        <Field label="安装目录" hint="默认在应用数据目录下按名称创建，可修改到其它磁盘">
           <div className="flex gap-2">
             <Input value={finalDir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" />
             <Button variant="secondary" onClick={browseDir}>
@@ -285,10 +285,10 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
           label="Java 运行时"
           hint={
             activeJava
-              ? `这个版本需要 Java ${requiredJava}；当前选的是 Java ${activeJava.major ?? "?"}${Number(activeJava.major ?? 0) < requiredJava ? "（不够）" : ""}`
+              ? `该版本需要 Java ${requiredJava}，当前选择的是 Java ${activeJava.major ?? "?"}${Number(activeJava.major ?? 0) < requiredJava ? "（不够）" : ""}`
               : javas.length
-                ? "自动探测到的 Java 运行时"
-                : "没探测到，点右侧手动指定"
+                ? "自动检测到的 Java 运行时"
+                : "未检测到，请点击右侧手动指定"
           }
         >
           <div className="flex gap-2">

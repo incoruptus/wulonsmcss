@@ -40,8 +40,8 @@ describe("开服向导的人话推荐", () => {
 
   it("每种意图都有可选，且不把核心黑话直接给用户", () => {
     expect(INTENTS).toHaveLength(3);
-    expect(coreMeta("paper")?.client).toContain("不用装");
-    expect(clientRequirementText("paper")).toContain("不用装");
-    expect(clientRequirementText("fabric")).toContain("朋友也要装");
+    expect(coreMeta("paper")?.client).toContain("无需安装");
+    expect(clientRequirementText("paper")).toContain("无需安装");
+    expect(clientRequirementText("fabric")).toContain("加载器");
   });
 });

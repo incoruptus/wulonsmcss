@@ -29,7 +29,7 @@ export default function Instances() {
     <>
       <PageHeader
         title="全部服务器"
-        desc="每台服务器都有独立的版本、模组和存档。想开新周目，也不必动原来的世界。"
+        desc="每台服务器都有独立的版本、模组与存档，开启新周目时无需改动原有世界。"
         actions={
           <>
             <Button variant="ghost" onClick={() => setFromClient(true)}><Server className="size-4" />从客户端开服</Button>
@@ -44,7 +44,7 @@ export default function Instances() {
             <EmptyState
               icon={<Server className="size-5" />}
               title="这里还空着"
-              desc="从零新建，或把已经存在的服务器导入。开服茶会分别保管它们的配置和存档。"
+              desc="从零新建或导入已有服务器，开服茶会分别保存各自的配置与存档。"
               action={<Button variant="accent" onClick={() => setCreating(true)}><Plus className="size-4" />新建第一台服务器</Button>}
             />
           </Card>
@@ -99,7 +99,7 @@ export default function Instances() {
       <ImportInstanceDialog open={importing} onOpenChange={setImporting} />
 
       <Dialog open={Boolean(target)} onOpenChange={(open) => !open && setPendingDelete(null)}>
-        <DialogHeader title="从列表移除这台服务器？" desc="只移除开服茶里的记录，不会删除任何服务器文件。" />
+        <DialogHeader title="从列表移除这台服务器？" desc="仅移除开服茶中的记录，不会删除任何服务器文件。" />
         <DialogBody>
           <p className="t-copy-14 text-pretty text-gray-800">
             「{target?.name}」的存档、模组和配置仍会保留在 <span className="t-mono-12 break-all">{target?.dir}</span>。以后想继续管理，重新导入即可。

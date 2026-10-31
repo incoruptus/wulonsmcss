@@ -50,26 +50,26 @@ export function buildConfigPrompt(
   const sample = keys.slice(0, 40).map((k) => `  "${k}": "${props[k]}"`).join(",\n");
 
   return [
-    "你在帮我配置一个 Minecraft 服务器。请只输出 JSON，不要解释、不要代码块以外的文字。",
+    "请协助生成 Minecraft 服务器配置，直接输出纯 JSON 结果，无需附加解释或代码块标记。",
     "",
     `【服务器】Minecraft ${context.mc} · ${context.loader}${context.players ? ` · 预计 ${context.players} 人` : ""}`,
-    `【我的需求】${wish || "（未填写）"}`,
+    `【配置需求】${wish || "（未填写）"}`,
     "",
-    "【当前 server.properties（节选）】",
+    "【当前 server.properties 配置（节选）】",
     "{",
     sample,
     "}",
     "",
-    "【允许修改的键】只接受下面这些键，其它一律忽略：",
+    "【可修改的配置项】仅支持修改以下键名，其余字段将被忽略：",
     keys.join(", "),
     "",
     "【输出格式】",
-    '{ "changes": { "键": "新值" }, "notes": "一句话说明你改了什么" }',
+    '{ "changes": { "配置项键名": "修改后的值" }, "notes": "简要说明修改内容" }',
     "",
     "【规则】",
-    "- 值必须是字符串、数字或 true/false；布尔值写成 \"true\"/\"false\"。",
-    "- 只写需要改的键；不要改 server-port / online-mode / level-name，除非我明确要求。",
-    "- 不要输出注释或多余字段。",
+    "- 字段值仅限字符串、数字或布尔值，布尔值请统一写为 \"true\" 或 \"false\"。",
+    "- 仅输出需要修改的配置项；除非另有明确要求，请勿修改 server-port、online-mode 与 level-name。",
+    "- 请勿输出注释或未定义的额外字段。",
   ].join("\n");
 }
 
@@ -80,7 +80,7 @@ export function extractJson(text: string): unknown {
   const candidate = fenced ? fenced[1] : trimmed;
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("回复里没有找到 JSON");
+  if (start < 0 || end <= start) throw new Error("未在回复内容中识别到 JSON 数据");
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
@@ -99,7 +99,7 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
   const obj = (data ?? {}) as { changes?: unknown; notes?: unknown };
   const rawChanges = obj.changes;
   if (!rawChanges || typeof rawChanges !== "object") {
-    return { changes: [], rejected: [], notes: "", error: "回复里缺少 changes 字段" };
+    return { changes: [], rejected: [], notes: "", error: "JSON 数据中缺少 changes 字段" };
   }
 
   const changes: ConfigChange[] = [];
@@ -107,28 +107,28 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
 
   for (const [key, rawValue] of Object.entries(rawChanges as Record<string, unknown>)) {
     if (!(key in props)) {
-      rejected.push({ key, reason: "不是 server.properties 里的键" });
+      rejected.push({ key, reason: "不属于有效的 server.properties 配置项" });
       continue;
     }
     if (rawValue === null || rawValue === undefined || typeof rawValue === "object") {
-      rejected.push({ key, reason: "值必须是字符串、数字或布尔" });
+      rejected.push({ key, reason: "配置值类型必须为字符串、数字或布尔值" });
       continue;
     }
 
     const value = String(rawValue).trim();
     if (typeof rawValue === "boolean" || isBool(value)) {
       if (!isBool(value)) {
-        rejected.push({ key, reason: "布尔键只接受 true/false" });
+        rejected.push({ key, reason: "布尔类型配置项仅支持填入 true 或 false" });
         continue;
       }
     }
     if (isNumber(props[key]) && !isNumber(value)) {
-      rejected.push({ key, reason: `这个键是数字（当前 ${props[key]}）` });
+      rejected.push({ key, reason: `该配置项需填入数字（当前值为 ${props[key]}）` });
       continue;
     }
     const allowed = ENUMS[key];
     if (allowed && allowed.length && !allowed.includes(value)) {
-      rejected.push({ key, reason: `只接受：${allowed.join(" / ")}` });
+      rejected.push({ key, reason: `有效取值范围：${allowed.join(" / ")}` });
       continue;
     }
 
@@ -140,7 +140,7 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
       from,
       to: value,
       level: SENSITIVE.has(key) ? "warn" : "ok",
-      note: SENSITIVE.has(key) ? "改动会影响连接方式，确认后再应用" : undefined,
+      note: SENSITIVE.has(key) ? "此项修改会影响玩家连接方式，请确认无误后再应用" : undefined,
     });
   }
 

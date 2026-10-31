@@ -125,7 +125,7 @@ fn stun_probe(host: &str, port: u16, timeout: Duration) -> Result<(String, u16),
         .to_socket_addrs()
         .map_err(|e| format!("解析 {host} 失败：{e}"))?
         .find(|a| a.is_ipv4())
-        .ok_or("STUN 地址解析为空（没有 IPv4）")?;
+        .ok_or("STUN 地址解析结果为空（未获取到 IPv4 地址）")?;
     let sock = UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("UDP 绑定失败：{e}"))?;
     sock.set_read_timeout(Some(timeout)).ok();
 
@@ -313,9 +313,9 @@ fn fault_of(xml: &str) -> String {
 }
 
 fn discover_gateway() -> Result<(String, String, String), String> {
-    let location = ssdp_location(Duration::from_millis(1800)).ok_or("路由器没有响应 SSDP（可能没开 UPnP）")?;
+    let location = ssdp_location(Duration::from_millis(1800)).ok_or("路由器未响应 SSDP，可能未开启 UPnP")?;
     let xml = http_text(&location).unwrap_or_default();
-    let (service, control) = parse_service(&xml, &location).ok_or("网关没有 WANIPConnection 服务")?;
+    let (service, control) = parse_service(&xml, &location).ok_or("网关未提供 WANIPConnection 服务")?;
     Ok((location, service, control))
 }
 
@@ -344,7 +344,7 @@ fn upnp_json() -> Json {
 pub fn upnp_map(port: u16) -> Json {
     let lan = lan_address();
     if lan == "127.0.0.1" {
-        return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s("没有可用的局域网 IPv4 地址"))]);
+        return Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::s("未找到可用的局域网 IPv4 地址"))]);
     }
     let (_, service, control) = match discover_gateway() {
         Ok(v) => v,

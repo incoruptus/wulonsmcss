@@ -75,7 +75,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
 
   async function run(cmd: string, success: string) {
     if (!running) {
-      toast.error("服务器没在运行，先启动再操作");
+      toast.error("服务器未运行，请先启动后再操作");
       return false;
     }
     const ok = await window.mcss.server.command(cmd).catch(() => false);
@@ -107,7 +107,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
       .split(/[\s,，、\n]+/)
       .map((s) => s.trim())
       .filter(Boolean);
-    if (names.length === 0) return toast.error("先粘贴玩家名，一行一个或逗号分隔");
+    if (names.length === 0) return toast.error("请先粘贴玩家名，每行一个或用逗号分隔");
     setBatchBusy(true);
     let ok = 0;
     for (const n of names) {
@@ -182,7 +182,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
         {players.length === 0 ? (
           <EmptyState
             title={running ? "还没有人进来" : "服务器未运行"}
-            desc={running ? `把地址发出去，或先在「联机」页配一条隧道` : "启动服务器后，这里会列出在线玩家"}
+            desc={running ? `发送地址，或先在「联机」页配置一条隧道` : "启动服务器后，这里会列出在线玩家"}
             className="py-6"
           />
         ) : (
@@ -245,7 +245,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
             <Badge variant="gray" size="sm">{ops.length}</Badge>
           </div>
           {ops.length === 0 ? (
-            <div className="t-label-12 py-4 text-gray-700">还没有 OP。把自己设成 OP 才能在游戏里用指令。</div>
+            <div className="t-label-12 py-4 text-gray-700">尚未设置管理员（OP）。将自己设为 OP 后才能在游戏内使用指令。</div>
           ) : (
             <div className="max-h-[240px] divide-y divide-gray-300 overflow-y-auto scroll-thin">
               {opsMatched.map((p) => (
@@ -297,11 +297,11 @@ export function PlayersTab({ instance }: { instance: Instance }) {
       ) : null}
 
       <p className="t-label-12 text-gray-700">
-        操作通过服务器指令完成（需要服务器运行中）。白名单/OP 的改动会即时写回 JSON。
+        操作通过服务器指令完成，需要服务器处于运行状态；白名单与 OP 的改动会即时写回 JSON 文件。
       </p>
 
       <Dialog open={batchOpen} onOpenChange={setBatchOpen} widthClass="max-w-md">
-        <DialogHeader title="批量导入白名单" desc="一行一个玩家名，也支持逗号/空格分隔。" />
+        <DialogHeader title="批量导入白名单" desc="每行一个玩家名，也支持用逗号或空格分隔。" />
         <DialogBody className="space-y-2">
           <Textarea
             value={batchText}
@@ -310,7 +310,7 @@ export function PlayersTab({ instance }: { instance: Instance }) {
             placeholder={"Steve\nAlex\nNotch"}
             className="font-mono text-[12.5px]"
           />
-          <p className="t-label-12 text-gray-700">会逐条执行 whitelist add，需要服务器运行中。</p>
+          <p className="t-label-12 text-gray-700">将逐条执行 whitelist add 指令，需要服务器处于运行状态。</p>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={() => setBatchOpen(false)}>取消</Button>

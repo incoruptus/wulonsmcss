@@ -36,7 +36,7 @@ async function getJson(pathOrUrl, timeoutMs = 15000) {
       lastErr = e;
     }
   }
-  throw new Error(`Modrinth 连不上（官方与镜像都失败）：${lastErr?.message || "未知错误"}`);
+  throw new Error(`无法连接 Modrinth，官方接口与镜像均失败：${lastErr?.message || "未知错误"}`);
 }
 
 /* ----------------------------- 简介翻译缓存 ----------------------------- */
@@ -202,8 +202,8 @@ async function viaMyMemory(text, source, target) {
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(`${source}|${target}`)}`;
   const data = await fetchJson(url, 12000);
   const translated = data?.responseData?.translatedText;
-  if (typeof translated !== "string" || !translated.trim()) throw new Error("MyMemory 没返回译文");
-  if (/MYMEMORY WARNING/i.test(translated)) throw new Error("MyMemory 今日额度用完了");
+  if (typeof translated !== "string" || !translated.trim()) throw new Error("MyMemory 未返回译文");
+  if (/MYMEMORY WARNING/i.test(translated)) throw new Error("MyMemory 今日翻译额度已用尽");
   return translated;
 }
 

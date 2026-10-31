@@ -7,6 +7,7 @@ import { agentBaseUrl, agentToken, detectShell } from "./lib/shell";
 import { createHttpClient } from "./lib/httpClient";
 import { ErrorBoundary } from "./components/app/ErrorBoundary";
 import { installGlobalErrorHandlers } from "./lib/report";
+import { I18nProvider } from "./i18n";
 
 // 双外壳：Electron 由 preload 注入 window.mcss；Web 版接本机 agent
 const shell = detectShell();
@@ -37,9 +38,11 @@ import "@fontsource/sora/700.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <HashRouter>
-        <App />
-      </HashRouter>
+      <I18nProvider>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </I18nProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

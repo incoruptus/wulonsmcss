@@ -12,26 +12,26 @@ export interface PropMeta {
 }
 
 export const TEXT_META: Record<string, PropMeta> = {
-  motd: { label: "服务器标语（MOTD）", hint: "多人列表里显示的一行字；支持 § 颜色代码" },
+  motd: { label: "服务器标语（MOTD）", hint: "显示在多人游戏服务器列表中的欢迎语，支持使用 § 颜色代码" },
   "max-players": { label: "最大玩家数" },
-  "server-port": { label: "端口", hint: "朋友连进来的门牌号，默认 25565；改了之后旧邀请会失效" },
-  "view-distance": { label: "视距（区块）", hint: "越大看得越远，也越吃内存和 CPU" },
-  "simulation-distance": { label: "模拟距离（区块）", hint: "多远以内的生物、机器还会运转" },
-  "spawn-protection": { label: "出生点保护半径", hint: "非 OP 玩家不能破坏出生点附近" },
-  "level-seed": { label: "世界种子", hint: "留空就随机；只对新世界生效" },
+  "server-port": { label: "端口", hint: "服务器连接端口，默认为 25565；修改后原有邀请将失效，需重新生成" },
+  "view-distance": { label: "视距（区块）", hint: "数值越大玩家视野越远，同时会增加服务端内存与 CPU 负载" },
+  "simulation-distance": { label: "模拟距离（区块）", hint: "决定玩家周围多少区块内的生物与红石机器保持运转" },
+  "spawn-protection": { label: "出生点保护半径", hint: "非管理员（OP）玩家无法在出生点保护范围内破坏或放置方块" },
+  "level-seed": { label: "世界种子", hint: "留空则随机生成种子，仅对新建世界生效" },
 };
 
 export const BOOL_META: Record<string, PropMeta> = {
-  pvp: { label: "玩家互相伤害（PvP）", hint: "关掉后玩家之间不能攻击" },
+  pvp: { label: "玩家互相伤害（PvP）", hint: "关闭后玩家之间无法互相造成伤害" },
   "online-mode": {
-    label: "只允许正版账号进入",
-    hint: "关掉后任何客户端都能进，用户名也可能被冒用；朋友进不来时先问清楚他用的是不是正版",
+    label: "仅允许正版 Minecraft 账号进入服务器",
+    hint: "关闭后允许非正版客户端进入，但存在同名账号被冒用的风险；若朋友无法进入，请先确认其是否使用正版登录",
   },
-  "allow-flight": { label: "允许飞行", hint: "生存模式默认禁止；只有装飞行类 Mod 才需要开" },
-  "white-list": { label: "启用白名单", hint: "只有名单里的玩家能进" },
-  "enforce-whitelist": { label: "强制白名单", hint: "把不在名单里的在线玩家踢掉" },
-  "enable-command-block": { label: "启用命令方块", hint: "地图/小游戏常用；普通生存可以关" },
-  hardcore: { label: "极限模式", hint: "死亡后不能复活；开了很难回头" },
+  "allow-flight": { label: "允许飞行", hint: "生存模式下默认关闭；若安装了飞行类模组或防作弊误判，建议开启" },
+  "white-list": { label: "启用白名单", hint: "开启后仅白名单内的玩家可进入服务器" },
+  "enforce-whitelist": { label: "强制白名单", hint: "开启白名单后，立即将不在名单内的当前在线玩家移出服务器" },
+  "enable-command-block": { label: "启用命令方块", hint: "多用于机关地图或小游戏服，普通生存服可保持关闭" },
+  hardcore: { label: "极限模式", hint: "开启后玩家死亡即转为旁观模式且无法复活，存档生成后难以逆转" },
   "allow-nether": { label: "允许去下界" },
   "spawn-animals": { label: "生成动物" },
   "spawn-monsters": { label: "生成怪物" },
@@ -62,7 +62,7 @@ export interface SelectMeta {
 export const SELECT_META: Record<string, SelectMeta> = {
   difficulty: {
     label: "难度",
-    hint: "和平模式不会生成怪物；困难模式怪物伤害更高",
+    hint: "和平模式下不生成敌对生物，困难模式下怪物造成的伤害更高",
     options: [
       { value: "peaceful", label: "和平" },
       { value: "easy", label: "简单" },
@@ -72,7 +72,7 @@ export const SELECT_META: Record<string, SelectMeta> = {
   },
   gamemode: {
     label: "新玩家默认模式",
-    hint: "生存最常用；创造适合建筑/测试",
+    hint: "日常联机通常选择生存模式，创造模式适合建筑与测试",
     options: [
       { value: "survival", label: "生存" },
       { value: "creative", label: "创造" },
@@ -82,7 +82,7 @@ export const SELECT_META: Record<string, SelectMeta> = {
   },
   leveltype: {
     label: "地图类型",
-    hint: "只影响新生成的世界；已有存档不会变",
+    hint: "仅对新生成的世界生效，不影响已有存档",
     options: [
       { value: "minecraft:normal", label: "默认" },
       { value: "minecraft:flat", label: "超平坦" },

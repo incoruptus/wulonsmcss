@@ -70,10 +70,10 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
 
   async function create() {
     if (!dir) return toast.error("先选一个服务器目录");
-    if (!mcVersion) return toast.error("选一下这个服务器用的 Minecraft 版本（识别不到时要手动确认）");
+    if (!mcVersion) return toast.error("请选择该服务器使用的 Minecraft 版本，无法自动识别时需手动确认");
     const javas = await window.mcss.app.detectJava().catch(() => []);
     const java = pickJavaFor(javas, javaMajorFor(mcVersion));
-    if (!java) return toast.error(`需要 Java ${javaMajorFor(mcVersion)}，装好后再导入，或先导入再去设置里指定`);
+    if (!java) return toast.error(`该服务器需要 Java ${javaMajorFor(mcVersion)}，可先安装再导入，或先导入后在设置中指定`);
     const inst = makeInstance({
       name: name.trim() || leafOf(dir),
       dir,
@@ -105,10 +105,10 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
     <Dialog open={open} onOpenChange={(v) => (probing ? undefined : onOpenChange(v))} widthClass="max-w-xl">
       <DialogHeader
         title="导入现有服务器"
-        desc="已经有服了？指一下目录就行。我会读目录特征判断核心类型，不会动你的文件。"
+        desc="已有服务器时，选择服务器目录即可。程序会根据目录特征判断服务端核心类型，不会修改其中的文件。"
       />
       <DialogBody className="space-y-4">
-        <Field label="服务器目录" hint={dir || "包含 server.properties / world / plugins 或 mods 的那个目录"}>
+        <Field label="服务器目录" hint={dir || "即包含 server.properties、world、plugins 或 mods 的目录"}>
           <div className="flex gap-2">
             <Input value={dir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" placeholder="D:\Servers\我的服" />
             <Button variant="secondary" onClick={pick} loading={probing}>
@@ -130,19 +130,19 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
             </div>
             <p className="t-label-12 mt-1.5 text-gray-800">
               {detected.confidence === "guess"
-                ? "没找到明确特征，先按这个猜的——不对的话在下面的核心类型里改一下就行。"
-                : "识别到核心类型。版本号读不到时需要你确认一下。"}
+                ? "未识别到明确特征，暂按此类型处理，如有偏差可在下方修改核心类型。"
+                : "已识别服务端核心类型，版本号无法读取时需手动确认。"}
             </p>
           </div>
         ) : dir ? (
-          <p className="t-label-12 text-gray-700">没认出来这是什么服务端，先按 Fabric 处理；导入后可以在实例设置里改。</p>
+          <p className="t-label-12 text-gray-700">无法识别服务端类型，暂按 Fabric 处理，导入后可在服务器设置中修改。</p>
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="显示名称">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="我的服务器" />
           </Field>
-          <Field label="Minecraft 版本" hint="识别不到时手动选；版本不对，Mod 和客户端都会对不上">
+          <Field label="Minecraft 版本" hint="无法自动识别时请手动选择，版本不符会导致模组与客户端无法匹配">
             <Picker
               value={mcVersion}
               onValueChange={setMcVersion}

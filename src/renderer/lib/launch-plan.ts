@@ -228,7 +228,7 @@ export async function buildLaunchPlan(ctx: LaunchContext): Promise<LaunchPlan> {
   const command = [ctx.javaPath, ...jvm, version.mainClass ?? "net.minecraft.client.main.Main", ...game];
 
   if (missing.length) {
-    warnings.push(`有 ${missing.length} 个文件缺失，先用启动器打开一次游戏通常能补齐`);
+    warnings.push(`缺少 ${missing.length} 个文件，通常通过启动器打开一次游戏即可补齐`);
   }
 
   return { command, missing, warnings };

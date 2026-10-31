@@ -34,11 +34,11 @@ describe("房间描述符", () => {
     expect(back.addrs?.[0].k).toBe("lan");
   });
 
-  it("分享文案把外网和同 WiFi 两条路都写清楚", async () => {
+  it("分享文案把外网和同一 Wi-Fi 两条路都写清楚", async () => {
     const code = await encodeRoom({ ...ROOM, lan: "192.168.1.9:25565" });
     const text = roomShareText({ ...ROOM, lan: "192.168.1.9:25565" }, code);
     expect(text).toContain("外网");
-    expect(text).toContain("同一 WiFi");
+    expect(text).toContain("同一 Wi-Fi");
   });
 
   it("没有内网地址时也能正常解码（旧码兼容）", async () => {
@@ -104,7 +104,7 @@ describe("房间描述符", () => {
   });
 
   it("乱输入给中文错误", async () => {
-    await expect(decodeRoom("hello")).rejects.toThrow(/没认出|有效/);
+    await expect(decodeRoom("hello")).rejects.toThrow(/无法识别房间码/);
     expect(() => extractCode("")).toThrow();
   });
 });

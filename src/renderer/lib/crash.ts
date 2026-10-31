@@ -33,7 +33,7 @@ const RULES: Rule[] = [
         id: "java-version",
         severity: "error",
         title: "Java 版本太旧",
-        detail: ver ? `这个服务端需要更新的 Java（提到版本 ${ver}），当前运行的 Java 不够新。` : "服务端用到了当前 Java 不支持的 class 版本。",
+        detail: ver ? `该服务端需要更高版本的 Java（提示版本 ${ver}），当前 Java 版本过低。` : "服务端使用了当前 Java 版本不支持的 class 版本。",
         actions: [{ label: "换一个 Java", kind: "change-java" }],
       };
     },
@@ -45,7 +45,7 @@ const RULES: Rule[] = [
       id: "port-busy",
       severity: "error",
       title: "端口被占用",
-      detail: "25565 已经被别的程序占了——可能还开着另一个服务器实例。",
+      detail: "25565 端口已被其它程序占用，可能还有另一个服务器实例在运行。",
       actions: [{ label: "换端口", kind: "free-port" }],
     }),
   },
@@ -56,7 +56,7 @@ const RULES: Rule[] = [
       id: "oom",
       severity: "error",
       title: "内存不够",
-      detail: "JVM 堆溢出了。装了大型 Mod 的服建议把最大内存调高（同时确认物理内存够）。",
+      detail: "JVM 堆内存溢出。安装大型模组的服务器建议调高最大内存，并确认物理内存充足。",
       actions: [{ label: "调大内存", kind: "raise-memory" }],
     }),
   },
@@ -67,7 +67,7 @@ const RULES: Rule[] = [
       id: "registry",
       severity: "error",
       title: "数据包格式不对",
-      detail: "自定义维度/数据包解析失败，服务器在加载注册表阶段就退出了（26.1 的格式变过）。",
+      detail: "自定义维度或数据包解析失败，服务器在加载注册表阶段退出，该版本数据包格式已变更。",
       actions: [{ label: "修复数据包", kind: "repair-datapacks" }],
     }),
   },
@@ -80,7 +80,7 @@ const RULES: Rule[] = [
         id: "missing-dep",
         severity: "error",
         title: "Mod 依赖不满足",
-        detail: mods.length ? `这些 Mod 缺少前置或版本不匹配：${mods.join("、")}` : "有 Mod 缺少前置，或两个 Mod 要求的版本互相冲突。",
+        detail: mods.length ? `以下模组缺少前置依赖或版本不匹配：${mods.join("、")}` : "某个模组缺少前置依赖，或两个模组要求的版本相互冲突。",
         actions: mods.length ? [{ label: `禁用 ${mods[0]} 试试`, kind: "disable-mod", arg: mods[0] }] : [],
         mods,
       };
@@ -96,8 +96,8 @@ const RULES: Rule[] = [
         severity: "error",
         title: mods.length ? `疑似 ${mods[0]} 导致崩溃` : "有 Mod 抛异常",
         detail: mods.length
-          ? `堆栈里出现了 ${mods.join("、")}，可以先禁用它们再启动，逐个排查。`
-          : "堆栈指向某个 Mod，但没能识别出具体是哪一个。",
+          ? `堆栈中出现 ${mods.join("、")}，可先禁用这些模组再启动，逐个排查。`
+          : "异常堆栈指向某个模组，但无法确定具体是哪一个。",
         actions: mods.length ? [{ label: `禁用 ${mods[0]}`, kind: "disable-mod", arg: mods[0] }] : [],
         mods,
       };
@@ -110,7 +110,7 @@ const RULES: Rule[] = [
       id: "session-lock",
       severity: "error",
       title: "存档被占用",
-      detail: "world 目录被另一个进程锁着——通常是同一个服务器开了两份。",
+      detail: "world 目录被其它进程占用，通常是因为同一个服务器启动了两份。",
       actions: [{ label: "检查进程", kind: "none" }],
     }),
   },
@@ -140,8 +140,8 @@ export function diagnose(lines: string[]): Diagnosis | null {
     return {
       id: "unknown",
       severity: "warn",
-      title: "启动失败，但没认出原因",
-      detail: "日志里有异常，可以先看控制台最后 30 行，或把日志导出后搜索第一个 Exception。",
+      title: "启动失败，未能识别具体原因",
+      detail: "日志中存在异常记录，可先查看控制台最后 30 行，或导出日志后搜索第一个 Exception。",
       actions: [{ label: "打开控制台", kind: "none" }],
     };
   }

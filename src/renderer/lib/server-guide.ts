@@ -20,21 +20,21 @@ export interface IntentOption {
 export const INTENTS: IntentOption[] = [
   {
     id: "vanilla",
-    title: "和朋友玩原版",
-    subtitle: "最省事：不用装任何东西",
-    points: ["原版生存 / 创造", "朋友用原版客户端就能进", "以后想加插件也不用重开"],
+    title: "原版联机生存",
+    subtitle: "开箱即用，客户端无需额外配置",
+    points: ["原版生存 / 创造", "玩家使用原版客户端即可直接进入", "后续如需添加插件可直接安装，无需重建服务器"],
   },
   {
     id: "plugins",
-    title: "加插件，玩法更多",
+    title: "支持安装插件，拓展丰富玩法",
     subtitle: "传送、地皮、经济、权限",
-    points: ["插件装在服务器上", "朋友仍然什么都不用装", "资源库里点一下就能装"],
+    points: ["插件仅需安装在服务端", "玩家客户端无需安装任何额外内容", "可在内置资源库中一键搜索安装"],
   },
   {
     id: "mods",
-    title: "加模组，改游戏内容",
+    title: "支持安装模组，自定义游戏内容",
     subtitle: "新物品、机械、魔法、整合包",
-    points: ["朋友也要装同样的模组", "需要 Fabric（NeoForge 暂不支持新建）", "版本要选模组多的"],
+    points: ["玩家客户端也需安装相同的模组", "推荐使用 Fabric（NeoForge 暂仅支持导入现有服务器）", "建议优先选择模组生态成熟的游戏版本"],
   },
 ];
 
@@ -57,50 +57,50 @@ export const CORES: CoreMeta[] = [
   {
     type: "paper",
     label: "Paper",
-    tagline: "优化过的原版服务端，能装插件，性能更好",
-    client: "原版客户端，不用装东西",
-    caveat: "红石/刷怪等细节和纯原版略有差异；介意就选 Vanilla",
+    tagline: "兼顾性能优化与原版体验的服务端核心，支持安装插件",
+    client: "支持原版客户端直连，无需安装额外内容",
+    caveat: "Paper 对高频红石与刷怪机制做了性能优化，若需严格保持原版特性，建议选择 Vanilla 纯原版",
     intents: ["vanilla", "plugins"],
   },
   {
     type: "purpur",
     label: "Purpur",
-    tagline: "Paper 的增强版，多出几百个玩法开关",
-    client: "原版客户端，不用装东西",
-    caveat: "同样会改一些原版细节；适合想折腾玩法的服主",
+    tagline: "基于 Paper 扩展的服务端核心，提供丰富的玩法与特性自定义配置",
+    client: "支持原版客户端直连，无需安装额外内容",
+    caveat: "在 Paper 基础上提供更多底层机制微调，适合需要深度定制玩法的服主",
     intents: ["plugins"],
   },
   {
     type: "fabric",
     label: "Fabric",
-    tagline: "轻量模组平台，优化模组和小地图多",
-    client: "要装 Fabric + 同样的模组",
-    caveat: "多数模组还需要先装 Fabric API",
+    tagline: "轻量高效的模组加载器，拥有丰富的性能优化与辅助类模组",
+    client: "客户端需安装 Fabric 加载器与对应模组",
+    caveat: "大多数 Fabric 模组需配合前置模组 Fabric API 运行",
     intents: ["mods"],
   },
   {
     type: "neoforge",
     label: "NeoForge",
-    tagline: "大型整合包/科技魔法模组常用",
-    client: "要装 NeoForge + 同样的模组",
-    caveat: "新建暂不支持（安装器还不稳定）；已有 NeoForge 服务器可从「全部实例 → 导入」继续管理",
+    tagline: "广泛用于大型整合包及科技、魔法类模组",
+    client: "客户端需安装 NeoForge 加载器与对应模组",
+    caveat: "暂不支持直接新建 NeoForge 服务端；如有现成的 NeoForge 服务器，可通过「全部服务器 → 导入现有服务器」接入管理",
     intents: ["mods"],
     supported: false,
   },
   {
     type: "forge",
     label: "Forge",
-    tagline: "老整合包（1.12–1.19）常用",
-    client: "要装 Forge + 同样的模组",
-    caveat: "新版本不建议从 Forge 起步；启动也偏慢",
+    tagline: "经典版本整合包（1.12–1.19）的主流选择",
+    client: "客户端需安装 Forge 加载器与对应模组",
+    caveat: "高版本模组已逐步迁移至 NeoForge 与 Fabric，且 Forge 启动耗时相对较长",
     intents: ["mods"],
   },
   {
     type: "vanilla",
     label: "Vanilla（纯原版）",
-    tagline: "Mojang 官方服务端，一点不改",
-    client: "原版客户端，不用装东西",
-    caveat: "不能装插件或模组；性能不如 Paper",
+    tagline: "Mojang 官方原版服务端，保持原汁原味的游戏机制",
+    client: "支持原版客户端直连，无需安装额外内容",
+    caveat: "不支持安装插件或模组，综合性能低于 Paper 核心",
     intents: ["vanilla"],
   },
 ];
@@ -120,25 +120,25 @@ const PRESET_DEFS: Omit<VersionPreset, "java">[] = [
   {
     id: "26.3",
     tag: "最新",
-    why: "2026 年 9 月的最新正式版；新内容多，Mod/插件还在跟进",
+    why: "2026 年 9 月发布的最新正式版，包含最新游戏特性，部分模组与插件仍在适配中",
     intents: ["vanilla", "plugins"],
   },
   {
     id: "26.1.2",
-    tag: "新版本里最稳",
-    why: "26.1 系列的热修版，Mod/插件比 26.3 多",
+    tag: "当前高版本中生态最稳定的选择",
+    why: "26.1 系列稳定修复版，目前已适配的模组与插件数量多于 26.3",
     intents: ["plugins"],
   },
   {
     id: "1.21.11",
-    tag: "兼容性最好",
-    why: "最后一个旧编号版本；Mod 和插件都多，只要 Java 21",
+    tag: "生态成熟，模组与插件兼容性最佳",
+    why: "旧版本号体系的最后一个大版本，模组与插件生态丰富，使用 Java 21 即可运行",
     intents: ["vanilla", "mods"],
   },
   {
     id: "1.21.1",
-    tag: "老 Mod 最多",
-    why: "大型整合包大多还停在这里；Java 21",
+    tag: "兼容经典模组最多",
+    why: "目前主流大型整合包集中于该版本，需使用 Java 21 运行",
     intents: ["mods"],
   },
 ];
@@ -148,7 +148,7 @@ export function buildVersionPresets(releases: McVersion[]): VersionPreset[] {
   const latest = releases.find((r) => r.type === "release")?.id;
   const defs = [...PRESET_DEFS];
   if (latest && !defs.some((d) => d.id === latest)) {
-    defs.unshift({ id: latest, tag: "最新", why: "当前最新的正式版", intents: ["vanilla", "plugins"] });
+    defs.unshift({ id: latest, tag: "最新", why: "当前最新发布的正式版本", intents: ["vanilla", "plugins"] });
   }
   return defs.filter((d) => ids.has(d.id));
 }
@@ -170,9 +170,9 @@ export function recommendedCore(intent: ServerIntent, mcVersion: string): Server
 
 export function clientRequirementText(type: ServerType): string {
   if (type === "paper" || type === "purpur" || type === "vanilla") {
-    return "朋友用原版客户端就能进，不用装东西";
+    return "玩家使用原版客户端即可进入，无需安装额外内容";
   }
-  return "朋友也要装同样的模组平台和模组";
+  return "玩家客户端需安装相同的加载器与模组";
 }
 
 export function serverLabel(type: ServerType): string {
@@ -186,34 +186,34 @@ export function serverLabel(type: ServerType): string {
 export const TERMS = {
   java: {
     label: "Java",
-    detail: "运行 Minecraft 服务端的引擎。装过 Minecraft 的电脑通常已经有；没有就装 Java 21/25。",
+    detail: "运行 Minecraft 服务端所需的 Java 环境。若电脑已安装过 Minecraft 客户端，通常可自动检测到；如未安装，可一键下载 Java 21 或 25。",
   },
   core: {
     label: "服务端核心",
-    detail: "决定这个服能装插件还是模组。Paper 能装插件；Fabric/Forge 能装模组；NeoForge 暂只支持导入已有服务器；Vanilla 两个都不能。",
+    detail: "服务端核心决定了服务器可扩展的内容类型：Paper 与 Purpur 支持安装插件，Fabric 与 Forge 支持安装模组（NeoForge 暂仅支持导入现有服务器），Vanilla 纯原版则不支持扩展。",
   },
   eula: {
     label: "Minecraft 使用条款（EULA）",
-    detail: "Mojang 对服务端的许可，免费，同意一次即可。不同意服务器不会启动。",
+    detail: "运行服务端需同意 Mojang 最终用户许可协议（EULA），首次启动前确认一次即可。",
   },
   port: {
     label: "端口",
-    detail: "朋友连进来用的门牌号，默认 25565。改了之后旧邀请会失效，要重新发。",
+    detail: "玩家连接服务器所使用的端口号，默认为 25565。修改端口后，此前生成的邀请链接与房间码将失效，需重新生成。",
   },
   onlineMode: {
-    label: "只允许正版账号进入",
-    detail: "打开时，没买 Minecraft 的客户端会被拒绝；关闭后任何人都能进，用户名也可能被冒用。",
+    label: "仅允许正版 Minecraft 账号进入服务器",
+    detail: "开启后仅允许正版账号登录；关闭后允许离线客户端进入，但存在同名账号被他人冒用的风险。",
   },
   mod: {
     label: "模组（Mod）",
-    detail: "改游戏内容的插件式扩展，装在服务端和每个玩家的客户端里；版本/加载器必须一致。",
+    detail: "用于深度扩展游戏内容，需在服务端与所有玩家客户端同时安装，且游戏版本、加载器及模组列表须保持一致。",
   },
   plugin: {
     label: "插件",
-    detail: "只装在服务端，给游戏加命令、地皮、经济等；玩家客户端不用装任何东西。",
+    detail: "插件仅安装在服务端，可实现领地保护、传送、经济等功能，玩家使用原版客户端即可直接进入。",
   },
   datapack: {
     label: "数据包",
-    detail: "原版自带的内容扩展，放在 world/datapacks；不改变客户端，但功能比模组少。",
+    detail: "原版内置的扩展机制，存放于 world/datapacks 目录；无需客户端安装，适合轻量玩法扩展。",
   },
 } as const;

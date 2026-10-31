@@ -72,7 +72,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
     try {
       const res = await worldsApi.create(instance.dir, { ...draft, namespace: "wulons" });
       if (!res.success) throw new Error(res.error || "创建失败");
-      toast.success("世界数据包已生成", { description: "服务器运行中会自动 reload 生效" });
+      toast.success("世界数据包已生成", { description: "服务器运行期间会自动执行 reload 生效" });
       setCreating(false);
       setDraft({ name: "", label: "", type: "overworld", description: "" });
       await load();
@@ -101,7 +101,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
               const res = await worldsApi.repair(instance.dir);
               if (!res.success) return toast.error(res.error || "修复失败");
               toast.success(`已修复 ${res.fixed?.length ?? 0} 处`, {
-                description: "旧版生成器产出的维度格式会让服务器起不来，已升级到 26.1 格式",
+                description: "旧版生成器产出的维度格式会导致服务器无法启动，已自动升级为 26.1 格式",
               });
               await load();
             }}
@@ -121,7 +121,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           <EmptyState
             icon={<Globe2 className="size-5" />}
             title="还没有自定义世界"
-            desc="可以生成超平坦、虚空、下界风格等维度，作为挖矿场、跑酷图或活动场地。"
+            desc="可生成超平坦、虚空、下界风格等维度，用作挖矿场、跑酷地图或活动场地。"
             action={
               <Button onClick={() => setCreating(true)}>
                 <Plus className="size-4" />
@@ -201,7 +201,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         </div>
         {backups.length === 0 ? (
           <div className="t-label-12 py-3 text-gray-700">
-            还没有导出。整份打成 zip，适合发给别人或长期归档；平时回滚用下面的「时间机」更省空间。
+            尚未导出。完整导出会打包为 zip，适合分享或长期归档；日常回滚使用下方的「时间机」更节省空间。
           </div>
         ) : (
           <div className="max-h-[220px] divide-y divide-gray-300 overflow-y-auto scroll-thin">            {backups.map((b) => (
@@ -244,13 +244,13 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           {isDesktopVisual() ? (
             <SwitchRow
               label="停止服务器后自动备份"
-              hint="停服时自动打包 world，并按下面的份数清理旧备份"
+              hint="停服时自动打包 world 目录，并按下列份数清理旧备份"
               checked={Boolean(cfg.autoBackupOnStop)}
               onCheckedChange={(v) => patch({ autoBackupOnStop: v })}
             />
           ) : (
             <div className="rounded-lg bg-amber-700/10 p-2.5 t-label-12 text-amber-900">
-              停服自动备份需要桌面版常驻进程；网页版可以点上面的「手动备份」。
+              停止服务器自动备份需要桌面版常驻进程，网页版可使用上方的「手动备份」。
             </div>
           )}
           <div className="mt-2 flex items-center gap-2">
@@ -318,12 +318,11 @@ export function WorldsTab({ instance }: { instance: Instance }) {
         </div>
 
         <p className="t-label-12 text-gray-700">
-          日常回滚用这个：只存变化的部分，没动过的文件在多个快照之间共用一份，
-          磁盘约等于「一份世界 + 改动」。还原前会把当前存档留底。
+          日常回滚建议使用时间机：仅保存变化部分，未改动的文件在多个快照间共用，占用空间约等于「一份世界 + 改动」。还原前会自动备份当前存档。
         </p>
 
         {snaps.length === 0 ? (
-          <div className="t-label-12 py-3 text-gray-700">还没有快照。第一个快照是完整的，之后的只补增量。</div>
+          <div className="t-label-12 py-3 text-gray-700">尚无快照。第一个快照为完整备份，后续快照仅记录增量。</div>
         ) : (
           <div className="mt-2 space-y-1">
             <div className="t-label-12 text-gray-700">
@@ -332,7 +331,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
                 const full = snaps.reduce((n, s) => n + s.bytesTotal, 0);
                 if (!full) return null;
                 const saved = Math.max(0, Math.round((1 - snaps[0].stored / full) * 100));
-                return saved > 0 ? ` · 比存 ${snaps.length} 份完整存档省了 ${saved}%` : "";
+                return saved > 0 ? ` · 相比保存 ${snaps.length} 份完整存档，节省了 ${saved}% 空间` : "";
               })()}
             </div>
             <div className="max-h-[200px] divide-y divide-gray-300 overflow-y-auto scroll-thin">
@@ -354,7 +353,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
       </Card>
 
       <Dialog open={Boolean(restoringSnap)} onOpenChange={(v) => !v && setRestoringSnap(null)} widthClass="max-w-md">
-        <DialogHeader title="还原到这个快照？" desc="会先把当前的 world 改名留底，再按快照拼回去。" />
+        <DialogHeader title="还原到这个快照？" desc="会先将当前 world 目录改名备份，再按快照还原内容。" />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
             服务器必须处于停止状态。当前存档会变成 <span className="t-mono-12">world.before-restore-*</span>，随时可以找回。
@@ -384,7 +383,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
       </Dialog>
 
       <Dialog open={Boolean(restoring)} onOpenChange={(v) => !v && setRestoring(null)} widthClass="max-w-md">
-        <DialogHeader title="恢复到这个备份？" desc="会先把当前的 world 改名留底，再解压备份。" />
+        <DialogHeader title="恢复到这个备份？" desc="会先将当前 world 目录改名备份，再解压备份文件。" />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
             恢复前请确认服务器已经停止，否则会写坏存档。当前存档会被保留为 <span className="t-mono-12">world.before-restore-*</span>。
@@ -411,7 +410,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
       </Dialog>
 
       <Dialog open={creating} onOpenChange={setCreating} widthClass="max-w-lg">
-        <DialogHeader title="新建世界" desc="会在服务端生成一份数据包，重启或 reload 后生效。" />
+        <DialogHeader title="新建世界" desc="会在服务端生成数据包，重启或执行 reload 后生效。" />
         <DialogBody className="space-y-3">
           <Field label="世界名称（英文，用于命名空间）">
             <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="mining_world" />

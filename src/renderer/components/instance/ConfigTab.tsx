@@ -30,7 +30,7 @@ export function ConfigTab({ instance }: { instance: Instance }) {
     try {
       const exists = await window.mcss.fs.exists(path);
       if (!exists) {
-        setError("还没有 server.properties —— 启动一次服务器就会自动生成。");
+        setError("尚未生成 server.properties，启动一次服务器后会自动创建。");
         return;
       }
       const data = await window.mcss.props.read(path);
@@ -124,7 +124,7 @@ export function ConfigTab({ instance }: { instance: Instance }) {
             variant="secondary"
             size="sm"
             onClick={() => {
-              if (dirty && !window.confirm("有未保存的修改，放弃并重新载入？")) return;
+              if (dirty && !window.confirm("存在未保存的修改，确定放弃并重新载入？")) return;
               void load();
             }}
           >
@@ -194,10 +194,10 @@ export function ConfigTab({ instance }: { instance: Instance }) {
                       checked={draft[key] === "true"}
                       onCheckedChange={(v) => {
                         if (key === "online-mode" && !v) {
-                          if (!window.confirm("关掉后任何客户端都能进，用户名也可能被冒用。确定要关吗？")) return;
+                          if (!window.confirm("关闭后任何客户端均可进入，玩家名称可能被冒用，确认关闭？")) return;
                         }
                         if (key === "hardcore" && v) {
-                          if (!window.confirm("极限模式死亡后不能复活，且很难改回来。确定要开吗？")) return;
+                          if (!window.confirm("极限模式下死亡后无法复活，且难以恢复，确认开启？")) return;
                         }
                         setDraft({ ...draft, [key]: String(v) });
                       }}

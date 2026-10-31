@@ -32,7 +32,7 @@ export const PALETTES: PaletteMeta[] = [
     id: "green",
     tea: "绿茶",
     name: "西湖龙井",
-    note: "清、稳，默认的茶室",
+    note: "清爽稳重，默认茶色",
     swatch: {
       light: ["#527736", "#dfedd5", "#f5f7f3"],
       dark: ["#aed58f", "#233522", "#0c100d"],
@@ -42,7 +42,7 @@ export const PALETTES: PaletteMeta[] = [
     id: "white",
     tea: "白茶",
     name: "白毫银针",
-    note: "黑白底，按钮也是黑白",
+    note: "黑白配色，按钮同样呈现黑白质感",
     swatch: {
       light: ["#171717", "#e5e5e5", "#f4f4f4"],
       dark: ["#f2f2f2", "#242424", "#0b0b0b"],
@@ -52,7 +52,7 @@ export const PALETTES: PaletteMeta[] = [
     id: "red",
     tea: "红茶",
     name: "祁门工夫",
-    note: "酒红，暖而不闹",
+    note: "酒红色调，温暖克制",
     swatch: {
       light: ["#9c2f42", "#f2d3d9", "#faf4f2"],
       dark: ["#df7788", "#361a20", "#0c0909"],
@@ -62,7 +62,7 @@ export const PALETTES: PaletteMeta[] = [
     id: "yellow",
     tea: "黄茶",
     name: "君山银针",
-    note: "麦芽金，柔和但不弱",
+    note: "麦芽金色，柔和而不失力度",
     swatch: {
       light: ["#8a5f12", "#f6e6bb", "#faf5e7"],
       dark: ["#e2b85a", "#362c16", "#0c0a07"],
@@ -72,7 +72,7 @@ export const PALETTES: PaletteMeta[] = [
     id: "puer",
     tea: "黑茶",
     name: "云南普洱",
-    note: "褐色，沉一点的老茶",
+    note: "褐色基调，沉稳如陈茶",
     swatch: {
       light: ["#7a5230", "#e9d8c6", "#f7f1e9"],
       dark: ["#c39a70", "#30231a", "#0c0a08"],

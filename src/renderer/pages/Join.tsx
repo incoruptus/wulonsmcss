@@ -160,7 +160,7 @@ export default function Join() {
     if (res.ok) toast.success("游戏已启动，正在连接服务器…");
     else
       toast.error("启动失败", {
-        description: `${res.error || "未知错误"}。如果服务器要求正版登录，请用下面的进服包从启动器进。`,
+        description: `${res.error || "未知错误"}。若服务器要求正版登录，请使用下方的进服包从启动器进入。`,
       });
   }
 
@@ -235,7 +235,7 @@ export default function Join() {
       setExported({ file: res.file ?? file, size: res.size ?? 0, mods: res.mods ?? 0 });
       void window.mcss.app.openPath(dir);
       if (launchers[0]) window.mcss.app.openPath(launchers[0].path);
-      toast.success("进服包已生成", { description: "在启动器里导入它，就能直接进服" });
+      toast.success("进服包已生成", { description: "在启动器中导入后即可直接进入服务器" });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -251,7 +251,7 @@ export default function Join() {
     try {
       const code = await encodeDiagnostic(buildDiagnostic({ room, reach, checkup, launchers }));
       if (await copyText(code)) {
-        toast.success("诊断已复制", { description: "发给服主，他粘贴就能看到你的情况" });
+        toast.success("诊断已复制", { description: "发送给服主，粘贴后即可看到你的连接情况" });
       } else {
         toast.error("复制失败，请手动选中");
       }
@@ -277,7 +277,7 @@ export default function Join() {
       const added = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: effectiveAddr });
       if (!added.ok) throw new Error(added.error || "写入服务器列表失败");
       toast.success("客户端已备好", {
-        description: room.mods.length ? `${room.mods.length} 个 Mod + 服务器列表` : "服务器列表已写入",
+        description: room.mods.length ? `${room.mods.length} 个模组与服务器列表` : "服务器列表已写入",
       });
     } catch (e) {
       toast.error((e as Error).message);
@@ -293,7 +293,7 @@ export default function Join() {
       <PageHeader
         className="max-w-4xl"
         title="加入游戏"
-        desc="把朋友发来的邀请放进来。版本、模组和连接方式，开服茶会先替你检查。"
+        desc="粘贴朋友发来的邀请，开服茶会先检查版本、模组与连接方式。"
         actions={room ? <Button variant="secondary" onClick={() => { setRoom(null); setInput(""); setError(null); navigate("/"); }}>换个房间</Button> : undefined}
       />
       <PageBody className="max-w-4xl space-y-5">
@@ -302,7 +302,7 @@ export default function Join() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="brand-mark grid size-11 place-items-center rounded-xl"><Users className="size-5" /></span>
-                <div><h2 className="t-h-20 text-gray-1000">朋友的世界，一张邀请就够</h2><p className="t-copy-13 mt-1 text-gray-800">支持完整邀请链接和房间码。</p></div>
+                <div><h2 className="t-h-20 text-gray-1000">加入朋友的世界，一条邀请即可</h2><p className="t-copy-13 mt-1 text-gray-800">支持完整的邀请链接与房间码。</p></div>
               </div>
               <div className="flex gap-2">
                 <Input
@@ -324,7 +324,7 @@ export default function Join() {
                 </div>
               ) : null}
               <p className="t-copy-13 text-gray-700">
-                邀请只包含服务器地址、版本和所需模组，不需要注册账号。链接损坏或过期时，会明确告诉你原因。
+                邀请中仅包含服务器地址、游戏版本与所需模组，无需注册账号；链接损坏或过期时会给出具体原因。
               </p>
             </div>
           </Card>
@@ -347,7 +347,7 @@ export default function Join() {
                       {usingLan ? "同 WiFi 直连" : best.target.kind === "tunnel" ? "走隧道" : "公网直连"} · {best.ms ?? 0}ms
                     </span>
                   ) : room.lan && !reaching ? (
-                    <span className="ml-2 t-label-12 text-gray-700">（内网地址连不上，走公网）</span>
+                    <span className="ml-2 t-label-12 text-gray-700">（内网地址不可用，已改用公网）</span>
                   ) : null}
                 </p>
 
@@ -364,7 +364,7 @@ export default function Join() {
                   ) : reach?.probes.length ? (
                     <span className="inline-flex items-center gap-1 rounded-md bg-gray-300/40 px-2 py-0.5 t-label-12 text-gray-700">
                       <span className="size-1.5 rounded-full bg-gray-700" />
-                      现在没连上（服务器可能没开，或不在同一网络）
+                      当前未连接成功，服务器可能未启动，或双方不在同一网络
                     </span>
                   ) : null}
                   <Button size="xs" variant="ghost" onClick={() => void refreshReach()}>
@@ -417,13 +417,13 @@ export default function Join() {
                   )}
                   <span className={cx("t-label-13 font-medium", checkup.verdict === "ready" ? "text-green-900" : "text-gray-1000")}>
                     {checkup.verdict === "ready"
-                      ? "客户端版本和 Mod 都齐了"
+                      ? "客户端版本与模组均已齐全"
                       : checkup.verdict === "need-mods"
-                        ? `版本对了，但本地没找到 ${checkup.mods.missing.length} 个 Mod`
+                        ? `游戏版本匹配，但本地缺少 ${checkup.mods.missing.length} 个模组`
                         : checkup.verdict === "need-version"
                           ? `没有 ${room.mc} · ${room.loader} 的实例`
                           : checkup.verdict === "no-version"
-                            ? "这个 .minecraft 里还没装过游戏"
+                            ? "该 .minecraft 目录中尚未安装游戏"
                             : "没找到 .minecraft"}
                   </span>
                   <Button size="xs" variant="ghost" className="ml-auto" onClick={pickClientDir}>
@@ -433,14 +433,14 @@ export default function Join() {
 
                 <p className="t-label-12 mt-1 text-gray-800">
                   {checkup.verdict === "ready"
-                    ? `已找到 ${checkup.match}，房间需要的 Mod 都在（${checkup.mods.present}/${checkup.mods.total}）。可以直接启动，也可以从启动器选这个实例。`
+                    ? `已找到 ${checkup.match}，房间所需的模组齐备（${checkup.mods.present}/${checkup.mods.total}），可直接启动，也可在启动器中选择该服务器。`
                     : checkup.verdict === "need-mods"
-                      ? `缺：${checkup.mods.missing.map((m) => m.n).slice(0, 6).join("、")}${checkup.mods.missing.length > 6 ? " 等" : ""}。用下面的进服包最省事，不会动你现有的客户端。`
+                      ? `缺少：${checkup.mods.missing.map((m) => m.n).slice(0, 6).join("、")}${checkup.mods.missing.length > 6 ? " 等" : ""}。使用下方的进服包更省事，不会影响现有客户端。`
                       : checkup.verdict === "need-version"
-                        ? `现有：${checkup.candidates.map((c) => c.id).slice(0, 5).join("、") || "（无）"}。用进服包会在启动器里新建一个对应实例。`
+                        ? `现有：${checkup.candidates.map((c) => c.id).slice(0, 5).join("、") || "（无）"}。使用进服包会在启动器中新建一个对应的服务器实例。`
                         : checkup.verdict === "no-version"
-                          ? "看起来还没用启动器装过游戏。用进服包最省事，导入后就是一个现成实例。"
-                          : "选一下你的 .minecraft 目录，我看看版本和 Mod 齐不齐。"}
+                          ? "当前环境尚未通过启动器安装游戏。使用进服包更省事，导入后即可得到现成的服务器实例。"
+                          : "请选择你的 .minecraft 目录，以便检查版本与模组是否齐全。"}
                 </p>
               </div>
             ) : null}
@@ -450,8 +450,7 @@ export default function Join() {
               <div className="flex flex-wrap items-start gap-2 rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1">
-                  服务器现在没响应：可能还没开，或者你们不在同一个网络。
-                  可以先把进服包准备好，等服主开好再进。
+                  服务器当前无响应，可能尚未启动，或双方不在同一网络。可先准备好进服包，待服主开服后再进入。
                 </span>
                 <Button size="xs" variant="secondary" className="shrink-0" onClick={copyDiagnostic}>
                   <ClipboardCopy className="size-3" />
@@ -478,10 +477,10 @@ export default function Join() {
                 )}
                 <span className="t-label-12 text-gray-700">
                   {canLaunch
-                    ? `用你已装的 ${plan?.versionId} 启动，直接连 ${effectiveAddr}`
+                    ? `使用已安装的 ${plan?.versionId} 启动，直接连接 ${effectiveAddr}`
                     : room.mods.length
-                      ? "生成一个进服包并打开启动器，导入后服务器已在列表里"
-                      : "这个房间不需要额外 Mod，进游戏加地址即可"}
+                      ? "生成进服包并打开启动器，导入后服务器已添加到列表"
+                      : "该房间无需额外模组，进入游戏后添加地址即可"}
                 </span>
               </div>
 
@@ -496,7 +495,7 @@ export default function Join() {
                     aria-label="离线用户名"
                   />
                   <span className="t-label-12 text-gray-700">
-                    这是离线启动，只对关闭了正版验证的服务器有效；如果进不去，用下面的进服包从启动器登录。
+                    离线启动仅适用于已关闭正版验证的服务器；若无法进入，请使用下方的进服包从启动器登录。
                   </span>
                 </div>
               ) : null}
@@ -521,8 +520,8 @@ export default function Join() {
                     <span className="t-mono-12 truncate text-gray-700">{exported.file}</span>
                   </div>
                   <ol className="mt-1 space-y-0.5 t-label-12 text-gray-800">
-                    <li>1. 在启动器里点「导入整合包」，选刚生成的文件</li>
-                    <li>2. 启动游戏，服务器已经在多人列表：<span className="t-mono-12">{effectiveAddr}</span></li>
+                    <li>1. 在启动器中点击「导入整合包」，选择刚生成的文件</li>
+                    <li>2. 启动游戏，服务器已出现在多人游戏列表中：<span className="t-mono-12">{effectiveAddr}</span></li>
                   </ol>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(exported.file.replace(/[\\/][^\\/]+$/, ""))}>

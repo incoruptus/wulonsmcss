@@ -187,20 +187,20 @@ export function playerVerdict(probes: ReachProbe[]): PlayerVerdict {
 export function hostSummary(verdict: HostVerdict): { title: string; detail: string } {
   switch (verdict) {
     case "public":
-      return { title: "外网可以直连", detail: "公网地址已经从外部探测通过，把邀请发出去就行。" };
+      return { title: "外网可以直连", detail: "公网地址已通过外部探测，可以直接发送邀请。" };
     case "tunnel":
-      return { title: "隧道已通", detail: "朋友走中继进来，延迟会比直连高；能直连时优先直连。" };
+      return { title: "隧道已通", detail: "通过中继进入的延迟高于直连，可直连时应优先选择直连。" };
     case "lan-only":
-      return { title: "只通了局域网", detail: "同一 WiFi 的朋友能进；外网朋友还进不来，需要一条隧道或端口映射。" };
+      return { title: "只通了局域网", detail: "同一 Wi-Fi 下的朋友可以进入，外网访问仍需隧道或端口映射。" };
     case "local-only":
       return {
         title: "只接受本机连接",
-        detail: "连同一 WiFi 都进不来：检查 server-ip 是不是被写成了 127.0.0.1，或者防火墙拦了 Java。",
+        detail: "同一 Wi-Fi 下也无法进入，请检查 server-ip 是否被设为 127.0.0.1，或防火墙是否拦截了 Java。",
       };
     case "offline":
-      return { title: "服务器没响应", detail: "本机和公网都没连上。先确认服务器启动完成、端口没被占用。" };
+      return { title: "服务器没响应", detail: "本机与公网均未连通，请先确认服务器已启动完成且端口未被占用。" };
     default:
-      return { title: "还没检测", detail: "点一下检测，看看朋友现在能不能进来。" };
+      return { title: "还没检测", detail: "点击检测，查看朋友当前能否进入。" };
   }
 }
 
@@ -215,9 +215,9 @@ export function hostTone(verdict: HostVerdict): "green" | "amber" | "red" | "gra
 export function playerSummary(verdict: PlayerVerdict): { title: string; detail: string } {
   switch (verdict) {
     case "ready":
-      return { title: "服务器在线", detail: "已经连上服务器，可以进游戏。" };
+      return { title: "服务器在线", detail: "已连接服务器，可以进入游戏。" };
     case "offline":
-      return { title: "服务器没响应", detail: "地址都试过了；可能服务器没开，或者你不在同一个网络。" };
+      return { title: "服务器没响应", detail: "所有地址均已尝试，可能服务器未启动，或双方不在同一网络。" };
     default:
       return { title: "还没探测", detail: "正在确认服务器状态。" };
   }

@@ -250,7 +250,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
       <div className="border-b border-gray-300 px-5 pb-4 pt-5">
         <div className="t-h-20 text-gray-1000">先把它开起来</div>
         <p className="t-label-13 mt-1 text-gray-800">
-          你可以什么都不懂。回答三个问题，剩下的我替你选好。
+          不需要提前了解参数，回答三个问题后，会按推荐配置为你准备好。
         </p>
         <div className="mt-4 flex items-center gap-2">
           {STEPS.map((label, i) => (
@@ -273,7 +273,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
       <DialogBody className="space-y-4">
         {step === 0 ? (
           <div className="space-y-2.5">
-            <p className="t-label-12 text-gray-700">选一个最像你的。选错了随时能改，不会锁死。</p>
+            <p className="t-label-12 text-gray-700">选择最贴近你使用习惯的一项，之后可随时更改。</p>
             {INTENTS.map((it) => {
               const Icon = it.id === "vanilla" ? Gamepad2 : it.id === "plugins" ? Plug : Puzzle;
               const active = intent === it.id;
@@ -305,9 +305,9 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button variant="ghost" size="sm" onClick={() => chooseIntent("vanilla")}>
                 <Sparkles className="size-3.5" />
-                我不知道，用推荐配置
+                不确定，使用推荐配置
               </Button>
-              <span className="t-label-12 text-gray-700">默认：Paper + 最新版，朋友不用装东西</span>
+              <span className="t-label-12 text-gray-700">默认配置：Paper + 最新版本，朋友无需安装额外内容</span>
             </div>
           </div>
         ) : null}
@@ -317,7 +317,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
             <div>
               <div className="mb-1.5 flex items-center gap-2">
                 <span className="t-h-14 text-gray-1000">选游戏版本</span>
-                <span className="t-label-12 text-gray-700">版本不同，能装的 Mod/插件数量差很多</span>
+                <span className="t-label-12 text-gray-700">不同游戏版本可用的模组与插件数量差异较大</span>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {presets.map((p) => {
@@ -335,7 +335,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                     >
                       <div className="flex items-center gap-2">
                         <span className="t-mono-13 font-medium text-gray-1000">{p.id}</span>
-                        <Badge variant={p.tag === "最新" ? "green" : p.tag === "老 Mod 最多" ? "amber" : "blue"} size="sm">
+                        <Badge variant={p.tag === "最新" ? "green" : p.tag === "兼容经典模组最多" ? "amber" : "blue"} size="sm">
                           {p.tag}
                         </Badge>
                         {selected ? <Check className="ml-auto size-3.5 text-gray-1000" /> : null}
@@ -380,7 +380,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                   ))}
                 </div>
                 <p className="mt-2 t-label-12 leading-5 text-gray-700">
-                  NeoForge 新建暂不支持（安装器还不稳定）。已有 NeoForge 服务器可以在「全部实例 → 导入」里继续管理。
+                  暂不支持新建 NeoForge 服务器，官方安装器尚不稳定。已有 NeoForge 服务器可在「全部服务器 → 导入现有服务器」中继续管理。
                 </p>
               </div>
             ) : (
@@ -391,7 +391,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                   className="ml-auto t-label-12 text-blue-900 hover:underline"
                   onClick={() => setCore(core === "paper" ? "vanilla" : "paper")}
                 >
-                  {core === "paper" ? "想要纯原版？换成 Vanilla" : "换回更推荐的 Paper"}
+                  {core === "paper" ? "如需纯原版体验，可改用 Vanilla" : "换回更推荐的 Paper"}
                 </button>
               </div>
             )}
@@ -401,10 +401,10 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
               <span className={cx("t-label-13", javaOk ? "text-green-900" : "text-amber-900")}>
                 {javaOk
                   ? `运行环境已就绪：Java ${chosenJava?.major}`
-                  : `这个版本需要 Java ${requiredJava}，当前没找到`}
+                  : `该版本需要 Java ${requiredJava}，当前未检测到`}
               </span>
               {javaOk ? (
-                <span className="t-label-12 text-gray-700">已检测到，点下一步继续</span>
+                <span className="t-label-12 text-gray-700">已检测到运行环境，点击下一步继续</span>
               ) : (
                 <span className="ml-auto flex items-center gap-2">
                   <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openExternal(JAVA_DOWNLOAD)}>
@@ -438,12 +438,12 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                 </li>
                 <li className="flex items-center gap-1.5 t-label-13 text-gray-900">
                   <Check className="size-3.5 text-green-900" />
-                  {intent === "mods" ? "之后可以在「模组 → 资源库」里加 Mod" : "之后可以在「插件 → 资源库」里加插件"}
+                  {intent === "mods" ? "之后可在「模组 → 资源库」中添加模组" : "之后可在「插件 → 资源库」中添加插件"}
                 </li>
               </ul>
             </div>
 
-            <Field label="服务器名称" hint="朋友在游戏里看到的名字，之后能改">
+            <Field label="服务器名称" hint="玩家在游戏内看到的名称，之后仍可修改">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="我的服务器" />
             </Field>
 
@@ -466,14 +466,14 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
               <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
                 {buildError
                   ? `拿不到 ${serverLabel(core)} ${mcVersion} 的构建：${buildError}`
-                  : `${serverLabel(core)} 目前没有 ${mcVersion} 的构建。换一个版本，或换一个核心。`}
+                  : `${serverLabel(core)} 暂无 ${mcVersion} 的构建，请更换游戏版本或服务端核心。`}
               </div>
             ) : null}
 
             <details className="rounded-lg bg-background-200 p-3">
               <summary className="cursor-pointer t-label-13 text-gray-900">高级选项（内存 / 安装目录 / Java / 构建号）</summary>
               <div className="mt-3 space-y-3">
-                <Field label={`最大内存 ${memoryMax} GB`} hint={totalMem ? `本机约 ${totalMem} GB；小服 4G 够用` : "小服 4G 够用"}>
+                <Field label={`最大内存 ${memoryMax} GB`} hint={totalMem ? `本机内存约 ${totalMem} GB，小型服务器 4 GB 已够用` : "小服 4G 够用"}>
                   <Slider
                     ariaLabel="最大内存"
                     min={2}
@@ -539,7 +539,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                 {name} · {serverLabel(core)} {mcVersion} · {finalDir}
               </p>
               <p className="mt-1 t-label-12 text-gray-700">
-                下一步：启动服务器，然后生成一条邀请发给朋友。
+                下一步：启动服务器，然后生成邀请发给朋友。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

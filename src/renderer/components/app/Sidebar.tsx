@@ -132,7 +132,7 @@ export function Sidebar() {
       {!host && instances.length > 0 ? (
         <div className="mx-3 mt-4 rounded-xl bg-brand-100 p-3.5">
           <div className="t-label-13 font-medium text-brand-700">自己也有服务器？</div>
-          <p className="mt-1 text-[12px] leading-[18px] text-gray-800">切到服主模式，接着管理原来的配置。</p>
+          <p className="mt-1 text-[12px] leading-[18px] text-gray-800">切换到服主模式后，可继续管理原有配置。</p>
           <button onClick={() => void switchMode("host")} className="mt-2 text-[12px] font-medium text-brand-700 hover:underline">
             切换到服主模式
           </button>

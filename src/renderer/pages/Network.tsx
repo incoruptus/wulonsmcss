@@ -102,7 +102,7 @@ export default function Network() {
       <PageHeader
         className="max-w-6xl"
         title="联机与内网穿透"
-        desc="先跑一遍联机体检。同一网络可直接使用内网地址；朋友在外面时，再配置隧道。"
+        desc="建议先执行一次联机体检。同一网络下可直接使用内网地址，朋友在外网时再配置隧道。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDiagOpen(true)}>
@@ -124,7 +124,7 @@ export default function Network() {
             <div><h3 className="t-h-16 text-gray-1000">隧道配置</h3><p className="t-copy-13 mt-1 text-gray-800">把本机服务器安全地映射到公网。</p></div>
           </div>
 
-          <Field label="用哪种隧道" hint="没有自己的 frp 服务器？选樱花穿透（桌面版）或先找现成服务">
+          <Field label="用哪种隧道" hint="若没有自建 frp 服务器，可选择樱花穿透（桌面版），或先使用现成服务">
             <SegmentedControl
               grow
               value={draft.kind}
@@ -141,7 +141,7 @@ export default function Network() {
           </Field>
 
           {draft.kind === "sakura" ? (
-            <Field label="SakuraFrp 启动器路径" hint="软件只负责拉起它，隧道状态以启动器内显示为准">
+            <Field label="SakuraFrp 启动器路径" hint="本软件仅负责启动该程序，隧道状态以启动器内显示为准">
               <div className="flex gap-2">
                 <Input
                   value={draft.exePath ?? ""}
@@ -163,24 +163,24 @@ export default function Network() {
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="frp 服务器地址" hint="填隧道服务商给你的地址，不是你的 Minecraft 服务器地址">
+                <Field label="frp 服务器地址" hint="填写隧道服务商提供的地址，该地址与 Minecraft 服务器地址不同">
                   <Input value={draft.serverAddr} onChange={(e) => setDraft({ ...draft, serverAddr: e.target.value.trim() })} placeholder="frp.example.com" />
                 </Field>
                 <Field label="服务端端口">
                   <Input value={String(draft.serverPort)} onChange={(e) => setDraft({ ...draft, serverPort: Number(e.target.value.replace(/\D/g, "")) || 7000 })} />
                 </Field>
               </div>
-              <Field label="访问密码（Token）" hint="隧道服务商给你的密码，不是 Minecraft 的">
+              <Field label="访问密码（Token）" hint="填写隧道服务商提供的密码，与 Minecraft 服务器密码无关">
                 <Input type="password" value={draft.token} onChange={(e) => setDraft({ ...draft, token: e.target.value })} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field label="本机 MC 端口" hint="一般就是 25565">
                   <Input value={String(draft.localPort)} onChange={(e) => setDraft({ ...draft, localPort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
-                <Field label="公网端口" hint="朋友连接时用的端口；服务商给的说明里会写">
+                <Field label="公网端口" hint="玩家连接时使用的端口，具体以服务商提供的说明为准">
                   <Input value={String(draft.remotePort)} onChange={(e) => setDraft({ ...draft, remotePort: Number(e.target.value.replace(/\D/g, "")) || 25565 })} />
                 </Field>
-                <Field label="协议" hint="Minecraft 一般选 TCP">
+                <Field label="协议" hint="Minecraft 通常使用 TCP">
                   <Picker
                     value={draft.type}
                     onValueChange={(v) => setDraft({ ...draft, type: v as FrpProfile["type"] })}
@@ -224,7 +224,7 @@ export default function Network() {
                 className="ml-auto"
                 onClick={async () => {
                   await copyText(address);
-                  toast.success("地址已复制，发给朋友就能连");
+                  toast.success("地址已复制，发送给朋友即可连接");
                 }}
               >
                 <Copy className="size-3" />

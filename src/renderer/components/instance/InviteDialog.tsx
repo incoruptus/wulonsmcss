@@ -113,7 +113,7 @@ export function InviteDialog({
 
   async function generate() {
     if (!parseAddr(addr)) {
-      toast.error("还没有可用的地址：先开一条隧道，或者让朋友连同一 WiFi");
+      toast.error("暂无可用地址，请先配置隧道，或让朋友连接同一 Wi-Fi");
       return;
     }
     setBusy(true);
@@ -155,7 +155,7 @@ export function InviteDialog({
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-2xl">
       <DialogHeader
         title="邀请朋友"
-        desc="生成一条自包含的邀请链接：朋友点开就知道连哪个地址、要什么版本，不需要我们托管任何数据。"
+        desc="生成一条自包含的邀请链接，朋友打开即可看到连接地址与所需版本，无需托管任何数据。"
       />
       <DialogBody className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -173,7 +173,7 @@ export function InviteDialog({
           </Field>
         </div>
 
-        <Field label="朋友怎么连进来" hint="自动挑一条验证过的地址；同 WiFi 的会走内网，外网的走这条">
+        <Field label="朋友怎么连进来" hint="自动选择一条已验证的地址：同一 Wi-Fi 下优先使用内网地址，外网连接使用此地址">
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-100 p-3 shadow-geist-border">
             <Badge variant={tone}>{checking ? "正在检测…" : summary.title}</Badge>
             <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{addr || "还没有可用地址"}</span>
@@ -190,8 +190,8 @@ export function InviteDialog({
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
             <AlertTriangle className="size-3.5 shrink-0" />
             {verdict === "local-only"
-              ? "服务器只接受本机连接，朋友进不来：先检查 server-ip，或者开一条隧道。"
-              : "还没有一条验证通过的路。先确认服务器在跑，再开一条隧道。"}
+              ? "服务器仅接受本机连接，朋友无法进入，请检查 server-ip 设置或配置一条隧道。"
+              : "尚无验证通过的连接方式，请先确认服务器运行状态，再配置隧道。"}
             <Button
               size="xs"
               variant="secondary"
@@ -225,7 +225,7 @@ export function InviteDialog({
         {stale && code ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-2.5 t-label-12 text-amber-900">
             <AlertTriangle className="size-3.5 shrink-0" />
-            服务器 Mod 清单变了，旧链接里的 Mod 可能不全——建议重新生成再发。
+            服务器模组清单已变更，旧链接中的模组可能不全，建议重新生成后再发送。
             <Button size="xs" variant="secondary" className="ml-auto" onClick={generate} loading={busy}>
               重新生成
             </Button>
@@ -245,11 +245,11 @@ export function InviteDialog({
               </Field>
             ) : (
               <div className="rounded-lg bg-background-200 p-2.5 t-label-12 text-gray-800">
-                先发下面的「房间码」或「进服包」：朋友在 MCSS 里粘贴房间码，或者在启动器里导入进服包，不用打开网页也能进。
+                发送下方的「房间码」或「进服包」即可：朋友可在 MCSS 中粘贴房间码，或在启动器里导入进服包，无需打开网页。
               </div>
             )}
 
-            <Field label="房间码（复制粘贴；带 Mod 时会比较长）">
+            <Field label="房间码（复制粘贴使用，包含模组时会较长）">
               <div className="flex gap-2">
                 <Input value={code} readOnly className="font-mono text-[11.5px]" />
                 <Button variant="secondary" onClick={() => copy(code, "房间码")}>
@@ -277,7 +277,7 @@ export function InviteDialog({
                     const res = await window.mcss.client.exportMrpack({ outFile: target, room });
                     if (!res.ok) throw new Error(res.error || "导出失败");
                     toast.success("进服包已导出", {
-                      description: `${res.mods ?? 0} 个 Mod · 直接发群里，朋友在启动器导入即可`,
+                      description: `${res.mods ?? 0} 个模组 · 可直接发到群里，朋友在启动器导入即可`,
                     });
                   } catch (e) {
                     toast.error((e as Error).message);
@@ -294,7 +294,7 @@ export function InviteDialog({
                 重新生成
               </Button>
               <span className="ml-auto t-label-12 text-gray-700">
-                {webOrigin ? "链接里带着地址、版本和 Mod" : "先发房间码或进服包"}
+                {webOrigin ? "链接中包含地址、版本与模组信息" : "先发房间码或进服包"}
               </span>
             </div>
 

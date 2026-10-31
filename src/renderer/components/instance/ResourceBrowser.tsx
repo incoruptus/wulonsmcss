@@ -301,7 +301,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
     if (source === "row") setInstalling(hit.id);
     else setInstallingVersion(version?.id ?? "latest");
     try {
-      if (!version) throw new Error("这个项目没有适配当前实例的版本");
+      if (!version) throw new Error("该项目没有适配当前服务器的版本");
       const file = version.files.find((f) => f.primary) ?? version.files[0];
       if (!file) throw new Error("这个版本没有可下载文件");
       const res = await window.mcss.modrinth.install({
@@ -396,8 +396,8 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder={
               kind === "plugin"
-                ? "搜索插件，例如 EssentialsX / 地皮 / 权限；也可以直接输中文名"
-                : "搜索 Mod，例如 sodium / 优化 / 小地图；也可以直接输中文名"
+                ? "搜索插件，例如 EssentialsX、领地、权限，也可直接输入中文名"
+                : "搜索模组，例如 sodium、优化、小地图，也可直接输入中文名"
             }
             className="h-9 pl-9"
           />
@@ -505,8 +505,8 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
             title={isCjk(query) ? "没有找到这个中文名的项目" : "没有结果"}
             desc={
               isCjk(query)
-                ? "中文名库只收录 MC 百科有的条目。试试英文名，或者直接用上面的分类筛。"
-                : `换个关键词，或者确认 ${instance.mcVersion} · ${serverTypeLabel(serverType)} 有对应的${kind === "plugin" ? "插件" : "Mod"}。`
+                ? "中文名库仅收录 MC 百科已有的条目，可尝试英文名，或直接使用上方分类筛选。"
+                : `请更换关键词，或确认 ${instance.mcVersion} · ${serverTypeLabel(serverType)} 是否提供对应的${kind === "plugin" ? "插件" : "Mod"}。`
             }
           />
         </Card>
@@ -750,7 +750,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                   </div>
                 ) : versions.length === 0 ? (
                   <div className="rounded-lg bg-amber-700/10 p-2.5 t-label-13 text-amber-900">
-                    没有适配当前实例的版本。可能这个项目只支持别的游戏版本 / 加载器。
+                    该项目没有适配当前服务器的版本，可能仅支持其它游戏版本或加载器。
                     <button
                       className="ml-2 underline underline-offset-2"
                       onClick={() => window.mcss.app.openExternal(`https://modrinth.com/${kind}/${selected.slug}/versions`)}

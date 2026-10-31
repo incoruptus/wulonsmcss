@@ -21,7 +21,7 @@ export default function MyServers() {
       <PageHeader
         className="max-w-5xl"
         title="我的服务器"
-        desc="打开过的邀请会自动留在这里。下次不用翻聊天记录，直接继续。"
+        desc="打开过的邀请会自动保留在此，之后可直接继续，无需翻找聊天记录。"
         actions={<Button variant="accent" onClick={() => navigate("/")}><Plus className="size-4" />加入新服务器</Button>}
       />
       <PageBody className="max-w-5xl space-y-3">
@@ -30,7 +30,7 @@ export default function MyServers() {
             <EmptyState
               icon={<Server className="size-5" />}
               title="还没有去过任何服务器"
-              desc="拿到朋友发来的邀请链接或房间码后，打开一次，它就会出现在这里。"
+              desc="打开朋友发来的邀请链接或房间码后，记录会出现在这里。"
               action={<Button variant="accent" onClick={() => navigate("/")}>粘贴邀请</Button>}
             />
           </Card>
@@ -60,7 +60,7 @@ export default function MyServers() {
                     onClick={async () => {
                       await remove(server.id);
                       toast.success("已从列表移除", {
-                        description: "不会影响服务器和存档。",
+                        description: "不会影响现有服务器与存档。",
                         action: { label: "撤销", onClick: () => void saveServer(server) },
                       });
                     }}
@@ -73,7 +73,7 @@ export default function MyServers() {
 
         {mode === "player" ? (
           <div className="flex items-center justify-between gap-4 rounded-xl bg-brand-100 px-4 py-3.5">
-            <div><div className="t-label-13 font-medium text-brand-700">也想自己开一台？</div><p className="mt-0.5 text-[12px] text-gray-800">玩家记录会保留，随时可以切回来。</p></div>
+            <div><div className="t-label-13 font-medium text-brand-700">也想自己开一台？</div><p className="mt-0.5 text-[12px] text-gray-800">玩家记录会保留，可随时切换回来。</p></div>
             <Button size="sm" variant="secondary" onClick={() => { void setMode("host"); navigate("/"); }}>切换到服主模式</Button>
           </div>
         ) : null}

@@ -12,7 +12,7 @@ const path = require("path");
 const DATAPACK_TYPE_DIR = (pack) => path.join(pack, "data");
 
 function checkJava(p) {
-  if (!p) return { id: "java-missing", level: "error", title: "没有指定 Java", detail: "实例设置里没有 Java 路径，服务器无法启动。", fix: "set-java" };
+  if (!p) return { id: "java-missing", level: "error", title: "没有指定 Java", detail: "未在服务器设置中指定 Java 路径，服务器无法启动。", fix: "set-java" };
   if (!/[\\/]/.test(p)) return null; // PATH 里的 java，交给系统
   if (!fs.existsSync(p)) return { id: "java-path", level: "error", title: "Java 路径不存在", detail: p, fix: "set-java" };
   return null;
@@ -40,7 +40,7 @@ function checkJar(dir) {
     id: "jar-missing",
     level: "error",
     title: "服务端文件不完整",
-    detail: `在 ${dir} 下没找到 server.jar / fabric-server-launch.jar，也没有 Forge/NeoForge 的启动参数。需要在「服务器设置」里重新安装服务端，或新建一个服务器。`,
+    detail: `${dir} 下没有 server.jar、fabric-server-launch.jar 或 Forge/NeoForge 的启动参数文件。请在「服务器设置」中重新安装服务端，或新建一台服务器。`,
     fix: null,
   };
 }
@@ -51,8 +51,8 @@ function checkEula(dir) {
     return {
       id: "eula-missing",
       level: "error",
-      title: "还没同意 Minecraft 使用条款",
-      detail: "这是 Mojang 对服务端的许可，免费，同意一次即可。不同意服务器不会启动。",
+      title: "尚未同意 Minecraft 使用条款",
+      detail: "这是 Mojang 对服务端的许可协议，免费且只需同意一次。未同意时服务器将不会启动。",
       fix: "accept-eula",
     };
   }
@@ -62,8 +62,8 @@ function checkEula(dir) {
     return {
       id: "eula-false",
       level: "error",
-      title: "还没同意 Minecraft 使用条款",
-      detail: "这是 Mojang 对服务端的许可，免费，同意一次即可。不同意服务器会直接退出。",
+      title: "尚未同意 Minecraft 使用条款",
+      detail: "这是 Mojang 对服务端的许可协议，免费且只需同意一次。未同意时服务器会直接退出。",
       fix: "accept-eula",
     };
   } catch (e) {
@@ -86,7 +86,7 @@ async function checkPort(port) {
               id: "port-busy",
               level: "error",
               title: `端口 ${port} 已被占用`,
-              detail: "可能已经有一个服务器在跑，或者别的程序占了这个端口",
+              detail: "该端口可能已被另一个运行中的服务器或其它程序占用",
               fix: "change-port",
             }
           : null
@@ -138,7 +138,7 @@ function checkDatapacks(dir) {
     id: "datapack-format",
     level: "error",
     title: `${broken.length} 个维度定义是旧格式`,
-    detail: "26.1 的数据包会让服务器在「加载注册表」阶段直接失败，无法启动。",
+    detail: "该数据包使用 26.1 格式，会导致服务器在「加载注册表」阶段直接退出。",
     fix: "repair-datapacks",
     samples: broken.slice(0, 3),
   };
@@ -152,7 +152,7 @@ function checkMemory(maxGb) {
       id: "memory-too-high",
       level: "warn",
       title: `最大内存 ${maxGb}G 超过物理内存`,
-      detail: `本机只有约 ${totalGb}G。请在服务器设置里把最大内存调到 ${Math.max(2, totalGb - 2)}G 或更低；设太高会触发系统换页，反而更卡。`,
+      detail: `本机物理内存约 ${totalGb}G。请将最大内存调到 ${Math.max(2, totalGb - 2)}G 或更低，设置过高会触发系统换页，反而更卡。`,
       fix: null,
     };
   }

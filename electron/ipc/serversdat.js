@@ -106,7 +106,7 @@ function addServer(mcDir, { name, ip }) {
       try {
         fs.copyFileSync(file, `${file}.bak`);
       } catch (e) {}
-      throw new Error("servers.dat 里有无法识别的内容，已备份为 servers.dat.bak，没有改动原文件");
+      throw new Error("servers.dat 中存在无法识别的内容，已备份为 servers.dat.bak，原文件未作修改");
     }
     servers = parsed;
   }

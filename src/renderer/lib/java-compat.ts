@@ -37,5 +37,5 @@ export function pickJavaFor(javas: JavaInfo[], required: number): JavaInfo | nul
 /** 给用户看的说明，避免只显示一个数字 */
 export function javaRequirementText(mcVersion: string): string {
   const need = javaMajorFor(mcVersion);
-  return `Minecraft ${mcVersion} 需要 Java ${need} 或更高`;
+  return `Minecraft ${mcVersion} 需要 Java ${need} 或更高版本`;
 }

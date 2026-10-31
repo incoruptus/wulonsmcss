@@ -20,14 +20,14 @@ export function StopServerDialog({
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-md">
       <DialogHeader
         title="停止服务器？"
-        desc={players > 0 ? `现在有 ${players} 人在线，他们会被立刻断开。` : "服务器会先保存世界再退出。"}
+        desc={players > 0 ? `当前有 ${players} 名玩家在线，关闭后将立即断开连接。` : "服务器会先保存世界再退出。"}
       />
       <DialogBody className="space-y-2">
         <div className="flex items-start gap-2 rounded-lg bg-amber-700/10 p-3">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-900" />
           <p className="t-label-13 leading-6 text-amber-900">
             停服会先保存世界，但玩家正在进行的动作不会保留。
-            {players > 0 ? "建议先在控制台发一条公告，给大家几十秒下线。" : ""}
+            {players > 0 ? "建议先在控制台发布公告，给玩家留出下线时间。" : ""}
           </p>
         </div>
       </DialogBody>

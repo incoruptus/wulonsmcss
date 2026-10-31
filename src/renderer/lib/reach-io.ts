@@ -103,7 +103,7 @@ export async function localProbe(target: ReachTarget): Promise<ReachProbe> {
   const base = { target, addr, via: "local" as const };
   const client = api();
   if (!client?.net?.ping) {
-    return { ...base, ok: false, checked: false, error: "本机助手不可用，只能靠外部探测" };
+    return { ...base, ok: false, checked: false, error: "本机助手不可用，仅能依赖外部探测" };
   }
   try {
     const res = await client.net.ping({ host: target.host, port: target.port, timeoutMs: LOCAL_TIMEOUT });
@@ -161,7 +161,7 @@ export async function externalProbe(target: ReachTarget, fresh = false): Promise
   const hostPart = target.host.includes(":") ? `[${target.host}]` : target.host;
   const json = await fetchJson<McsrvResponse>(`https://api.mcsrvstat.us/3/${hostPart}:${target.port}`, EXTERNAL_TIMEOUT);
   if (!json || typeof json.online !== "boolean") {
-    return { ...base, ok: false, checked: false, error: "外部探测服务不可用（不影响本机结论）" };
+    return { ...base, ok: false, checked: false, error: "外部探测服务不可用，不影响本机检测结论" };
   }
 
   const probe: ReachProbe = {
@@ -171,7 +171,7 @@ export async function externalProbe(target: ReachTarget, fresh = false): Promise
     players: json.players ? { online: Number(json.players.online ?? 0), max: Number(json.players.max ?? 0) } : undefined,
     version: json.version,
     motd: motdText(json.motd),
-    error: json.online ? undefined : "外部探测没连上（可能被防火墙/运营商拦了，也可能探测服务被反爬挡了）",
+    error: json.online ? undefined : "外部探测未连通，可能被防火墙或运营商拦截，也可能被探测服务的反爬机制阻挡",
   };
   extCache.set(key, { at: Date.now(), probe });
   return probe;
@@ -247,7 +247,7 @@ export async function checkHostReach(
     publicV6: ips.v6,
     tunnel,
     probes,
-    externalError: externalFailed ? "外部探测服务暂时不可用，公网结论只能算「未知」" : undefined,
+    externalError: externalFailed ? "外部探测服务暂时不可用，公网结果只能标记为「未知」" : undefined,
   };
 }
 
@@ -272,7 +272,7 @@ export async function checkRoomReach(room: RoomAddresses): Promise<ReachReport> 
         publicV6: null,
         tunnel: null,
         probes: [fallback],
-        externalError: "本机助手不可用，状态来自第三方探测",
+        externalError: "本机助手不可用，当前状态来自第三方探测",
       };
     }
   }

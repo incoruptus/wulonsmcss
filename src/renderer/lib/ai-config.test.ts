@@ -17,7 +17,7 @@ describe("配置提示词", () => {
     expect(prompt).toContain("周末生存，别太肝");
     expect(prompt).toContain('"difficulty": "easy"');
     expect(prompt).toContain("max-players");
-    expect(prompt).toContain('{ "changes": { "键": "新值" }');
+    expect(prompt).toContain('{ "changes": { "配置项键名": "修改后的值" }');
   });
 });
 
@@ -32,7 +32,7 @@ describe("从回复里取 JSON", () => {
   });
 
   it("没有 JSON 时给明确错误", () => {
-    expect(() => extractJson("我觉得挺好的")).toThrow(/没有找到 JSON/);
+    expect(() => extractJson("我觉得挺好的")).toThrow(/识别到 JSON|JSON 数据/);
   });
 });
 

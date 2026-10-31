@@ -59,27 +59,23 @@ export function buildMegaPack(worlds: WorldConfig[], namespace = "wulons"): Gene
     });
   }
 
-  files.push({ path: "pack.mcmeta", content: json(buildPackMeta("全部世界", "Wulon's MCSS — 多世界管理合并包")) });
+  files.push({ path: "pack.mcmeta", content: json(buildPackMeta("全部世界", "Wulon's MCSS 多世界管理数据包")) });
   files.push({ path: "README.txt", content: buildReadme(worlds, namespace) });
   return { packName, files };
 }
 
 function buildReadme(worlds: WorldConfig[], namespace: string): string {
   const first = worlds[0] ? `${worlds[0].namespace || namespace}:${worlds[0].name}` : "<namespace>:<world>";
-  return `# Wulon's MCSS Multi-World — 生成的数据包
+  return `# Wulon's MCSS Multi-World 数据包
 
-生成器: wulons-mcss-mwm v26.1.0
-
-## 包含的世界
-
+生成器：wulons-mcss-mwm v26.1.0
+包含的世界：
 ${worlds.map((w) => `- \`${w.namespace || namespace}:${w.name}\` — ${w.label || w.name} (${w.type || "overworld"})`).join("\n")}
 
 ## 安装
-
 将本数据包放入 \`world/datapacks/\` 目录，然后执行 \`/reload\` 即可加载。
 
 ## 传送
-
 \`/execute in ${first} run tp @s ~ ~ ~\`
 `;
 }

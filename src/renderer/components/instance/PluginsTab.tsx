@@ -80,7 +80,7 @@ export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrows
       </div>
 
       <p className="t-label-12 text-gray-800">
-        插件只跑在服务端，玩家用原版客户端就能进；装完重启服务器生效。
+        插件仅在服务端运行，玩家使用原版客户端即可进入；安装后重启服务器生效。
       </p>
 
       {files.length === 0 && !loading ? (
@@ -88,7 +88,7 @@ export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrows
           <EmptyState
             icon={<Plug className="size-5" />}
             title="还没有装插件"
-            desc="地皮保护、传送、经济、权限这些都在「资源库」里，搜到点安装就会落到 plugins/。"
+            desc="领地保护、传送、经济、权限等插件均可在「资源库」中搜索并安装，安装后存放于 plugins/ 目录。"
             action={
               <Button onClick={onBrowse} disabled={!onBrowse}>
                 去资源库

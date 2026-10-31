@@ -106,7 +106,7 @@ export function BindModDialog({
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-2xl">
       <DialogHeader
         title="绑定到 Modrinth"
-        desc={`${mod?.name ?? ""} · ${mod?.file ?? ""} —— 绑定后玩家侧可以按版本自动拉取`}
+        desc={`${mod?.name ?? ""} · ${mod?.file ?? ""}，绑定后玩家侧可按版本自动拉取`}
       />
       <DialogBody className="space-y-3">
         <div className="flex gap-2">
@@ -142,7 +142,7 @@ export function BindModDialog({
           ) : (
             <EmptyState
               title={searching ? "搜索中…" : "先搜一下"}
-              desc="用 Mod 的名字搜最省事；同名项目多时，看 slug 或描述确认。"
+              desc="建议直接搜索模组名称；若同名项目较多，可通过 slug 或描述确认。"
               className="py-8"
             />
           )
@@ -159,7 +159,7 @@ export function BindModDialog({
                 <Spinner /> 读取版本…
               </div>
             ) : versions.length === 0 ? (
-              <div className="t-label-12 py-3 text-gray-700">这个项目没有适配当前版本/加载器的版本。</div>
+              <div className="t-label-12 py-3 text-gray-700">该项目未提供适配当前游戏版本与加载器的文件。</div>
             ) : (
               <div className="max-h-[300px] divide-y divide-gray-300 overflow-y-auto rounded-lg bg-background-100 shadow-geist-border scroll-thin">
                 {versions.map((v) => {

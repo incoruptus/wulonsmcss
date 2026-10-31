@@ -40,8 +40,8 @@ export function buildAiPrompt(input: HandoffInput): string {
   lines.push(`- 端口：${instance.port} · 内存上限：${instance.memoryMax} GB`);
   if (symptom) {
     lines.push("");
-    lines.push(`【症状】${symptom.title}`);
-    lines.push(`【我的观察】${symptom.detail}`);
+    lines.push(`【故障现象】${symptom.title}`);
+    lines.push(`【排查观察】${symptom.detail}`);
   }
   lines.push("");
   lines.push(`【最近日志（${tail.length} 行，已脱敏）】`);

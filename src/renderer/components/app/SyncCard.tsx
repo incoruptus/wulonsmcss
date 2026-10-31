@@ -87,17 +87,16 @@ export function SyncCard() {
               ? `上次同步 ${formatDateTime(sync.lastSyncAt)}`
               : configured
                 ? "还没有同步过"
-                : "配对码 + Token 一次配置，多台设备共用一份 Gist"}
+                : "配置一次配对码与 Token，即可在多台设备间共用同一份 Gist"}
         </span>
       </div>
 
       <p className="t-label-12 mb-3 text-gray-700">
-        上传前会用配对码做 AES-GCM 加密，Gist 里只有密文。同步内容：实例清单、服务端 Mod 清单、快捷操作、FRP 配置；
-        本机的目录与 Java 路径不会上传。
+        上传前会使用配对码进行 AES-GCM 加密，Gist 中仅保存密文。同步内容包括服务器清单、服务端模组清单、快捷操作与 FRP 配置；本机目录与 Java 路径不会上传。
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="配对码" hint="同一串码配到每台设备，别发给外人">
+        <Field label="配对码" hint="同一配对码请配置到各台设备，避免外传">
           <div className="flex gap-2">
             <Input
               value={code}
@@ -122,7 +121,7 @@ export function SyncCard() {
                 const next = generatePairCode();
                 setCode(next);
                 void saveSync({ pairCode: next, lastPushHash: null });
-                toast.success("新配对码已生成，记得复制给每一台设备");
+                toast.success("新配对码已生成，请复制到每一台设备");
               }}
             >
               生成
@@ -130,7 +129,7 @@ export function SyncCard() {
           </div>
         </Field>
 
-        <Field label="GitHub Token" hint={sync?.token ? "已保存（只留在这台设备）" : "fine-grained / classic 均可，只需 gist 权限"}>
+        <Field label="GitHub Token" hint={sync?.token ? "已保存（只留在这台设备）" : "fine-grained 与 classic 令牌均可，仅需 gist 权限"}>
           <div className="flex gap-2">
             <Input
               type="password"
@@ -165,7 +164,7 @@ export function SyncCard() {
             const next = generatePairCode();
             setCode(next);
             void saveSync({ pairCode: next, gistId: null, lastPushHash: null, excludeGistIds: [...(sync?.excludeGistIds ?? []), ...(sync?.gistId ? [sync.gistId] : [])] });
-            toast.success("已清空仓库连接，下次同步会新建一个 Gist");
+            toast.success("已断开仓库连接，下次同步将新建一个 Gist");
           }}
         >
           <KeyRound className="size-3.5" />
@@ -183,17 +182,17 @@ export function SyncCard() {
       <div className="mt-3 border-t border-gray-300 pt-3">
         <SwitchRow
           label="启用自动同步"
-          hint="启动应用时同步一次；手动同步不受影响"
+          hint="应用启动时自动同步一次，手动同步不受此设置影响"
           checked={Boolean(sync?.enabled)}
           onCheckedChange={(v) => saveSync({ enabled: v })}
         />
       </div>
 
       <Dialog open={confirmReset} onOpenChange={setConfirmReset} widthClass="max-w-md">
-        <DialogHeader title="断开同步？" desc="会清空本机的 Token 与配对信息，Gist 里的密文不会删除。" />
+        <DialogHeader title="断开同步？" desc="将清空本机的 Token 与配对信息，Gist 中的密文不会被删除。" />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
-            重新开启时需要再次填写 Token 并输入同一配对码，才能读到之前的云端内容。
+            重新开启时需再次填写 Token 并输入原配对码，才能读取此前的云端内容。
           </p>
         </DialogBody>
         <DialogFooter>
@@ -213,7 +212,7 @@ export function SyncCard() {
 
       <div className="mt-2 flex items-center gap-1.5 t-label-12 text-gray-700">
         <ShieldCheck className="size-3.5" />
-        内容先 gzip 再 AES-GCM-256 加密（PBKDF2-SHA256 · 60 万次迭代）
+        内容先经 gzip 压缩，再使用 AES-GCM-256 加密（PBKDF2-SHA256，60 万次迭代）
       </div>
     </Card>
   );

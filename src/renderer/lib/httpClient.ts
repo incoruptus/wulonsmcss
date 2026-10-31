@@ -35,7 +35,7 @@ export function createHttpClient(base: string, token: string): McssApi {
         body: JSON.stringify({ channel, args } satisfies InvokeEnvelope),
       });
     } catch (e) {
-      throw new Error(`连不上本机助手（${base}）——它启动了吗？`);
+      throw new Error(`无法连接本机助手（${base}），请确认其是否已启动。`);
     }
     const text = await res.text();
     let data: { result?: T; error?: string } = {};
@@ -61,7 +61,7 @@ export function createHttpClient(base: string, token: string): McssApi {
       };
       const group = channel.split(":")[0];
       const label = name[group] ?? name[channel] ?? channel;
-      return `${label}需要桌面版，网页版暂不支持。装一个 Wulon's MCSS 桌面版就能用。`;
+      return `${label}需要桌面版，网页版暂不支持，安装 Wulon's MCSS 桌面版后即可使用。`;
     }
     return error || `助手返回 ${status}`;
   }

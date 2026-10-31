@@ -45,7 +45,7 @@
 
 **工程**
 - 网页版能力对齐 **100%**（75 个通道，`scripts/check-parity.cjs` 守门，`pnpm test` 里 `--strict`）
-- 测试：198 vitest + 72 node:test + 20 Rust；另有 `scripts/web-e2e.cjs` 16/16
+- 测试：202 vitest + 72 node:test + 20 Rust；另有 `scripts/web-e2e.cjs` 16/16
 - NeoForge 新建暂不支持；已有 NeoForge 目录仍可导入/预检/启动
 - 已有客户端开服：`client:scan` 识别版本/加载器/Mod，`CreateServerFromClientDialog` 创建服务端，`ModsTab` 可勾选客户端 Mod 一键回灌（Modrinth 下载，失败复制本地 jar）
 - 增量备份「时间机」：sha1 内容寻址，磁盘 ≈ 一份世界 + 改动（Rust 自带零依赖 SHA-1）

@@ -64,7 +64,7 @@ function start(java, dir, jvmArgs) {
   // 目录为空时绝不能落到 process.cwd()：那会在应用自己的目录里起一个服务器，
   // 生成 world/logs/crash-reports，而用户以为开的是他那台服。
   if (!dir) {
-    emitOutput('ERROR', '实例没有配置服务器目录，请先在实例设置里指定')
+    emitOutput('ERROR', '尚未配置服务器目录，请先在服务器设置中指定')
     emitStatus('stopped')
     return { ok: false, error: '实例目录为空' }
   }
@@ -78,14 +78,14 @@ function start(java, dir, jvmArgs) {
     jar = join(serverDir, 'fabric-server-launch.jar')
     if (!existsSync(jar)) jar = join(serverDir, 'server.jar')
     if (!existsSync(jar)) {
-      emitOutput('ERROR', `未在 ${serverDir} 找到 argsfile、fabric-server-launch.jar 或 server.jar`)
+      emitOutput('ERROR', `在 ${serverDir} 中未找到 argsfile、fabric-server-launch.jar 或 server.jar`)
       emitStatus('stopped')
       return { ok: false, error: '未找到可启动的服务端' }
     }
   }
   // 只有传进来的是具体路径时才检查存在性，避免把 PATH 里的 "java" 误判成缺失
   if (/[\\/]/.test(javaPath) && !existsSync(javaPath)) {
-    emitOutput('ERROR', `Java 路径不存在：${javaPath}（请在设置中重新指定）`)
+    emitOutput('ERROR', `Java 路径不存在：${javaPath}，请在设置中重新指定`)
     emitStatus('stopped')
     return { ok: false, error: 'Java 路径不存在' }
   }
@@ -99,7 +99,7 @@ function start(java, dir, jvmArgs) {
     try {
       writeManagedJvmArgs(userArgs, jvm)
     } catch (e) {
-      emitOutput('WARN', `写 user_jvm_args.txt 失败：${e.message}`)
+      emitOutput('WARN', `写入 user_jvm_args.txt 失败：${e.message}`)
     }
     args = ['@user_jvm_args.txt', `@${argsFile}`, 'nogui']
     emitOutput('INFO', `检测到 Forge/NeoForge 启动参数：${argsFile}`)
@@ -172,7 +172,7 @@ function stop() {
   if (stopKillTimer) clearTimeout(stopKillTimer)
   stopKillTimer = setTimeout(() => {
     if (serverProcess === proc) {
-      emitOutput('WARN', '服务器 10 秒内未退出，强制结束进程')
+      emitOutput('WARN', '服务器 10 秒内未退出，已强制结束进程')
       try { proc.kill() } catch (e) {}
       serverProcess = null
       cleanupStreams()

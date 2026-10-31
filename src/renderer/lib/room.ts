@@ -135,7 +135,7 @@ export async function decodeRoom(input: string): Promise<RoomDescriptorV1> {
   } catch {
     throw new Error("房间码内容损坏");
   }
-  if (hash6(json) !== check) throw new Error("房间码校验不通过（可能少抄了几位）");
+  if (hash6(json) !== check) throw new Error("房间码校验未通过，可能复制时遗漏了部分字符");
 
   let parsed: RoomDescriptorV1;
   try {
@@ -143,8 +143,8 @@ export async function decodeRoom(input: string): Promise<RoomDescriptorV1> {
   } catch {
     throw new Error("房间码内容无法解析");
   }
-  if (parsed.v !== ROOM_VERSION) throw new Error("房间码来自更新的版本，请升级后再试");
-  if (parsed.exp && Date.now() > parsed.exp) throw new Error("这个房间已经过期了，让服主重新发一个");
+  if (parsed.v !== ROOM_VERSION) throw new Error("房间码来自更高版本，请升级后再试");
+  if (parsed.exp && Date.now() > parsed.exp) throw new Error("该房间已过期，请让服主重新发送");
   if (!parsed.addr || !parsed.mc) throw new Error("房间信息不完整");
   return parsed;
 }
@@ -155,7 +155,7 @@ export function extractCode(input: string): string {
   if (!text) throw new Error("房间码是空的");
   const m = text.match(/(?:w1[zp]\.[0-9a-z]{6}\.[A-Za-z0-9\-_]+)/);
   if (m) return m[0];
-  throw new Error("没认出房间码，检查一下是不是漏了开头几位");
+  throw new Error("无法识别房间码，请检查是否遗漏了开头几位");
 }
 
 /** 邀请链接（给网页用）；origin 由调用方按当前部署地址传入 */
@@ -191,10 +191,10 @@ export function roomShareText(room: RoomDescriptorV1, code: string, origin?: str
     `来一起玩「${room.name}」吧！`,
     `外网：${room.addr}`,
   ];
-  if (room.lan && room.lan !== room.addr) lines.push(`同一 WiFi：${room.lan}（同 WiFi 时优先用这个，快很多）`);
-  if (room.addrs?.length) lines.push(`地址一共 ${room.addrs.length} 条，进服时会自动挑最快的一条`);
+  if (room.lan && room.lan !== room.addr) lines.push(`同一 Wi-Fi：${room.lan}（同一网络下优先使用，速度更快）`);
+  if (room.addrs?.length) lines.push(`共 ${room.addrs.length} 条地址，进服时会自动选择最快的一条`);
   lines.push(`版本：Minecraft ${room.mc}${loader ? ` · ${loader}` : ""}`);
-  if (room.mods.length) lines.push(`朋友要准备：${room.mods.length} 个 Mod（打开链接会自动准备）`);
+  if (room.mods.length) lines.push(`玩家需准备 ${room.mods.length} 个模组，打开链接后会自动准备`);
   lines.push("");
   if (origin) {
     lines.push(`一键进服：${roomWebLink(code, origin)}`);

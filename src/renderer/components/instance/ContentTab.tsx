@@ -35,8 +35,7 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
         <div className="min-w-0 flex-1">
           <div className="t-h-14 text-gray-1000">原版服务端没有模组或插件</div>
           <p className="t-label-13 mt-1 text-gray-800">
-            插件（地皮、传送、经济）需要 Paper 核心；模组需要 Fabric / Forge / NeoForge。
-            换核心不影响玩家：插件服仍然用原版客户端就能进。
+            插件（领地、传送、经济等）需使用 Paper 核心，模组需使用 Fabric、Forge 或 NeoForge 核心。更换核心不影响玩家，插件服玩家仍可用原版客户端进入。
           </p>
         </div>
         {onEdit ? (
@@ -64,8 +63,8 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
         />
         <span className="t-label-12 text-gray-700">
           {view === "browse"
-            ? `按 ${instance.mcVersion} · ${serverTypeLabel(serverTypeOf(instance))} 过滤；安装后落在 ${instance.dir}\\${kind === "plugin" ? "plugins" : "mods"}`
-            : "安装后重启生效。禁用不会删除文件，随时可以恢复。"}
+            ? `按 ${instance.mcVersion} · ${serverTypeLabel(serverTypeOf(instance))} 过滤，安装后存放于 ${instance.dir}\\${kind === "plugin" ? "plugins" : "mods"}`
+            : "安装后需重启生效；禁用不会删除文件，可随时恢复。"}
         </span>
       </div>
 

@@ -48,16 +48,16 @@ export function contentKindOf(t: ServerType): ContentKind {
 export function clientRequirementOf(t: ServerType): string {
   switch (t) {
     case "vanilla":
-      return "原版客户端即可进";
+      return "支持原版客户端直连";
     case "paper":
     case "purpur":
-      return "原版客户端即可进（插件只在服务端跑）";
+      return "支持原版客户端直连（插件仅在服务端运行）";
     case "fabric":
-      return "需要 Fabric 客户端 + 同款 Mod";
+      return "需使用 Fabric 客户端并安装同款模组";
     case "forge":
-      return "需要 Forge 客户端 + 同款 Mod";
+      return "需使用 Forge 客户端并安装同款模组";
     case "neoforge":
-      return "需要 NeoForge 客户端 + 同款 Mod";
+      return "需使用 NeoForge 客户端并安装同款模组";
   }
 }
 

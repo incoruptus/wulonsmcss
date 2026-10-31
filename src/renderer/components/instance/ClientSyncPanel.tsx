@@ -34,8 +34,8 @@ export function ClientSyncPanel({ plan, mcDir, onSynced }: { plan: SyncPlan; mcD
       const history = await readManifests(mcDir);
       setUndoCount(history.length);
       if (res.copied.length) {
-        toast.success(`已补 ${res.copied.length} 个 Mod 到客户端`, {
-          description: "重启客户端才会生效；复制进去的文件随时可以撤销。",
+        toast.success(`已向客户端补充 ${res.copied.length} 个模组`, {
+          description: "重启客户端后生效，复制的文件可随时撤销。",
         });
       }
       if (res.failed.length) {
@@ -44,7 +44,7 @@ export function ClientSyncPanel({ plan, mcDir, onSynced }: { plan: SyncPlan; mcD
         });
       }
       if (!res.copied.length && !res.failed.length) {
-        toast("没有需要复制的文件", { description: "客户端 mods 里已经有同名文件，没有覆盖。" });
+        toast("没有需要复制的文件", { description: "客户端 mods 目录中已存在同名文件，未覆盖。" });
       }
       onSynced();
     } catch (e) {
@@ -59,8 +59,8 @@ export function ClientSyncPanel({ plan, mcDir, onSynced }: { plan: SyncPlan; mcD
     try {
       const res = await undoServerToClient(mcDir);
       setUndoCount((await readManifests(mcDir)).length);
-      toast.success(`已撤销：删掉 ${res.removed} 个上次复制的文件`, {
-        description: res.failed ? `有 ${res.failed} 个没删掉（可能已被移动）` : undefined,
+      toast.success(`已撤销，删除了上次复制的 ${res.removed} 个文件`, {
+        description: res.failed ? `有 ${res.failed} 个文件未能删除，可能已被移动` : undefined,
       });
       onSynced();
     } catch (e) {
@@ -80,7 +80,7 @@ export function ClientSyncPanel({ plan, mcDir, onSynced }: { plan: SyncPlan; mcD
         <>
           <span className="t-label-12 text-gray-900">
             服务端比客户端多 <span className="font-medium text-gray-1000">{plan.add.length}</span> 个双端也要的 Mod
-            {plan.serverOnly ? `（另有 ${plan.serverOnly} 个服务端专用，不用装）` : ""}
+            {plan.serverOnly ? `（另有 ${plan.serverOnly} 个服务端专用模组，无需安装）` : ""}
           </span>
           <Button size="sm" onClick={sync} loading={busy} disabled={!mcDir}>
             <CheckCircle2 className="size-3.5" />
@@ -89,12 +89,12 @@ export function ClientSyncPanel({ plan, mcDir, onSynced }: { plan: SyncPlan; mcD
         </>
       ) : (
         <span className="t-label-12 text-gray-900">
-          {plan.conflict.length ? `有 ${plan.conflict.length} 个 Mod 版本和服务端不一致，没有自动覆盖。` : "上次同步的文件还在。"}
+          {plan.conflict.length ? `有 ${plan.conflict.length} 个模组版本与服务端不一致，未自动覆盖。` : "上次同步的文件仍保留在本机。"}
         </span>
       )}
 
       {plan.conflict.length ? (
-        <span className="t-label-12 text-amber-900">版本不一致的请用进服包重建实例，或手动替换。</span>
+        <span className="t-label-12 text-amber-900">版本不一致时，建议通过进服包重建服务器，或手动替换对应文件。</span>
       ) : null}
 
       {undoCount ? (

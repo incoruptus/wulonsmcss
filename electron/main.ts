@@ -256,8 +256,8 @@ ipcMain.on("window:close", async () => {
       defaultId: 1,
       cancelId: 0,
       title: "服务器仍在运行",
-      message: "Minecraft 服务器仍在运行，关闭应用会先停止服务器。",
-      detail: "建议先在控制台用 say 通知玩家，再关闭。"
+      message: "Minecraft 服务器仍在运行，关闭应用前会先停止服务器。",
+      detail: "建议先在控制台用 say 通知玩家，再关闭服务器。"
     });
     if (response === 0) return;
     // 等服务器真的退出再关窗；否则 java 可能变孤儿，自动备份也来不及跑
@@ -617,7 +617,7 @@ ipcMain.handle("backup:remove", (_e, serverDir, name) => backup.remove(serverDir
 ipcMain.handle("backup:snapshot", (_e, serverDir) => backups.createSnapshot(serverDir));
 ipcMain.handle("backup:snapshots", (_e, serverDir) => backups.listSnapshots(serverDir));
 ipcMain.handle("backup:restore-snapshot", (_e, serverDir, name) => {
-  if (server.getStatus() !== "stopped") return { ok: false, error: "先把服务器停掉再恢复，否则会写坏存档" };
+  if (server.getStatus() !== "stopped") return { ok: false, error: "请先停止服务器再执行恢复，运行中恢复可能损坏存档" };
   return backups.restoreSnapshot(serverDir, name);
 });
 
@@ -699,7 +699,7 @@ ipcMain.handle("modrinth:install", async (_e, opts) => {
 
 ipcMain.handle("frp:start", async (_e, profile) => {
   if (profile?.kind === "sakura") return frp.startSakura(profile.exePath);
-  return frp.start(profile, (got, total) => send("frp:log", `下载 frpc ${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB`));
+  return frp.start(profile, (got, total) => send("frp:log", `正在下载 frpc ${(got / 1048576).toFixed(1)}/${(total / 1048576).toFixed(1)} MB`));
 });
 ipcMain.handle("frp:stop", () => frp.stop());
 ipcMain.handle("frp:status", () => frp.status());

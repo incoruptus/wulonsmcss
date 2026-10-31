@@ -122,7 +122,7 @@ describe("下载器", () => {
     });
 
     expect(await hashFile(dest)).toBe(SHA1);
-    expect(retries.some((m) => m.includes("校验不通过"))).toBe(true);
+    expect(retries.some((m) => m.includes("文件校验未通过"))).toBe(true);
     expect(res.ok).toBe(true);
   });
 

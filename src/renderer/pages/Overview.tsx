@@ -70,13 +70,13 @@ export default function Overview() {
   if (!active) {
     return (
       <>
-        <PageHeader title="从第一台服务器开始" desc="不用先研究参数。选好版本，剩下的交给开服茶一步步带你做。" />
+        <PageHeader title="从第一台服务器开始" desc="无需提前研究参数，选好版本后，开服茶会逐步引导完成配置。" />
         <PageBody>
           <Card className="panel-wash">
             <EmptyState
               icon={<Server className="size-5" />}
-              title="茶已备好，就差一个世界"
-              desc="新建服务器后，可以在这里启动、装模组、管理玩家，也能把邀请直接发给朋友。"
+              title="茶已备好，只差一个世界"
+              desc="新建服务器后，可在此启动、安装模组、管理玩家，也能直接向朋友发送邀请。"
               action={<Button size="lg" variant="accent" onClick={() => setCreating(true)}><Plus className="size-4" />新建服务器</Button>}
             />
           </Card>
@@ -96,7 +96,7 @@ export default function Overview() {
     <>
       <PageHeader
         title="服务器总览"
-        desc="状态、联机和性能都在这里。需要你处理的事，会放在最前面。"
+        desc="运行状态、联机情况与性能数据集中在此，需要处理的问题会优先显示。"
         actions={<Button variant="secondary" onClick={() => setCreating(true)}><Plus className="size-4" />新建服务器</Button>}
       />
 
@@ -142,7 +142,7 @@ export default function Overview() {
             <CardHead
               icon={<Link2 className="size-[18px]" />}
               title="联机状态"
-              desc="先确认朋友能连上，再把邀请发出去。"
+              desc="建议先确认朋友能够连接，再发送邀请。"
               action={<Button variant="ghost" size="sm" onClick={() => navigate("/network")}>联机设置<ArrowUpRight className="size-3.5" /></Button>}
             />
             <div className="mt-5 space-y-3">
@@ -155,7 +155,7 @@ export default function Overview() {
             <CardHead
               icon={<Gauge className="size-[18px]" />}
               title="运行状态"
-              desc={running ? "数据会随服务器运行自动更新。" : "启动后，这里会记录实时表现。"}
+              desc={running ? "数据会随服务器运行自动更新。" : "启动服务器后，此处会记录实时运行表现。"}
             />
             <div className="mt-5">
               <div className="flex items-end justify-between gap-4">
@@ -186,7 +186,7 @@ export default function Overview() {
               <div className="mt-5 rounded-lg bg-background-200 p-3">
                 <div className="flex items-center gap-2 t-label-12 text-gray-800"><Zap className="size-3.5" />最近卡顿</div>
                 {lagEvents.length === 0 ? (
-                  <p className="t-copy-13 mt-1.5 text-gray-700">{running ? "目前没有发现卡顿告警。" : "还没有数据，启动后再看也不迟。"}</p>
+                  <p className="t-copy-13 mt-1.5 text-gray-700">{running ? "目前没有发现卡顿告警。" : "暂无数据，启动服务器后即可查看。"}</p>
                 ) : (
                   <p className="t-mono-12 mt-1.5 text-gray-1000">{formatDateTime(lagEvents[0].at)} · {describeLag(lagEvents[0].behindMs)}{lagEvents.length > 1 ? `（共 ${lagEvents.length} 次）` : ""}</p>
                 )}
@@ -195,7 +195,7 @@ export default function Overview() {
           </Card>
 
           <Card className="xl:col-span-5">
-            <CardHead icon={<Zap className="size-[18px]" />} title="常用操作" desc="备份、配置和目录，一键到达。" />
+            <CardHead icon={<Zap className="size-[18px]" />} title="常用操作" desc="备份、配置与目录，一键直达。" />
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <Shortcut icon={<Save />} label="整包备份" hint="保存完整 ZIP" busy={busy === "backup"} onClick={() => run("backup", async () => {
                 const res = await window.mcss.backup.create(active.dir);
@@ -227,13 +227,13 @@ export default function Overview() {
             <CardHead
               icon={<ScrollText className="size-[18px]" />}
               title="最近日志"
-              desc="最新输出在最后，完整记录去控制台。"
+              desc="最新输出显示在末尾，完整记录请前往控制台查看。"
               action={<Button variant="ghost" size="sm" onClick={() => navigate(`/instances/${active.id}/console`)}>打开控制台<ArrowUpRight className="size-3.5" /></Button>}
             />
             <div className="mt-5 min-h-[176px] rounded-lg bg-background-200 p-3.5" role="log" aria-label="最近服务器日志">
               {logs.length === 0 ? (
                 <div className="grid min-h-[148px] place-items-center text-center">
-                  <p className="t-copy-13 text-gray-700">{running ? "服务器已启动，正在等待日志输出。" : "还没有日志。启动服务器后，这里会实时更新。"}</p>
+                  <p className="t-copy-13 text-gray-700">{running ? "服务器已启动，正在等待日志输出。" : "暂无日志，启动服务器后此处会实时更新。"}</p>
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -253,7 +253,7 @@ export default function Overview() {
           <Card className="flex flex-col gap-4 border-amber-700/20 bg-amber-700/5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="t-h-14 text-gray-1000">原版服务器不能安装插件</div>
-              <p className="t-copy-13 mt-1 text-gray-800">如果需要地皮保护、传送或经济系统，可以换用 Paper；朋友仍能用原版客户端加入。</p>
+              <p className="t-copy-13 mt-1 text-gray-800">如需领地保护、传送或经济系统，可改用 Paper 核心，玩家仍可使用原版客户端加入。</p>
             </div>
             <Button variant="secondary" onClick={() => navigate(`/instances/${activeId ?? ""}/content`)}>查看服务器核心</Button>
           </Card>
@@ -261,7 +261,7 @@ export default function Overview() {
       </PageBody>
 
       <CreateInstanceDialog open={creating} onOpenChange={setCreating} />
-      <PreflightDialog open={preflightOpen} onOpenChange={setPreflightOpen} instance={active} onStarted={() => toast.success("服务器已启动", { description: "现在可以生成邀请，把地址发给朋友了。", action: { label: "生成邀请", onClick: () => setInviteOpen(true) } })} />
+      <PreflightDialog open={preflightOpen} onOpenChange={setPreflightOpen} instance={active} onStarted={() => toast.success("服务器已启动", { description: "现在可以生成邀请，将地址发送给朋友。", action: { label: "生成邀请", onClick: () => setInviteOpen(true) } })} />
       <StopServerDialog open={stopOpen} onOpenChange={setStopOpen} players={players.length} />
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} instance={active} />
     </>

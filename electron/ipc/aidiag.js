@@ -46,37 +46,35 @@ function stamp() {
 }
 
 function buildReadme({ instance, appVersion }) {
-  return `# Wulon's MCSS 排错现场包
+  return `# Wulon's MCSS 故障诊断包
 
 生成时间：${new Date().toLocaleString("zh-CN")}
 应用版本：${appVersion || "v27"}
-实例：${instance?.name ?? "(未知)"} · Minecraft ${instance?.mcVersion ?? "?"} · ${instance?.loader ?? "?"}
+服务器实例：${instance?.name ?? "(未知)"} · Minecraft ${instance?.mcVersion ?? "?"} · ${instance?.loader ?? "?"}
 
-## 这是什么
+## 诊断包说明
 
-Wulon's MCSS 是本地 Minecraft 服务器管理器（Electron 应用）。这份包是在出问题时导出的现场，
-目的是让 AI 或人不用来回追问，就能定位问题。
+Wulon's MCSS 是一款本地 Minecraft 服务器管理工具。此压缩包在服务器出现故障时导出，汇总了运行环境与日志上下文，便于快速定位问题原因。
 
-## 文件说明
+## 文件清单
 
-| 文件 | 内容 |
+| 文件 | 说明 |
 |---|---|
-| \`context.md\` | 实例信息、症状、预检结果、最近操作 —— **先读这个** |
-| \`logs/recent.log\` | 最近的控制台输出（已脱敏） |
-| \`config.sanitized.json\` | 应用配置（令牌/密钥已替换为 *** REDACTED ***） |
-| \`knowledge.md\` | 常见故障的「症状 → 原因 → 修法」对照表 |
+| \`context.md\` | 实例配置、故障现象、开服前预检结果及近期操作记录（**请优先阅读**） |
+| \`logs/recent.log\` | 近期控制台输出日志（敏感信息已脱敏） |
+| \`config.sanitized.json\` | 应用配置文件（令牌与密钥已替换为 \`*** REDACTED ***\`） |
+| \`knowledge.md\` | 常见故障的「现象 → 原因 → 解决方案」速查表 |
 
-## 希望你（AI）怎么做
+## 排查步骤建议（供 AI 参考）
 
-1. 先读 \`context.md\`，用一句话复述症状与证据；
-2. 对照 \`knowledge.md\` 判断最可能的原因；
-3. 给不超过 3 个**可逆**步骤（改名/备份，不要删存档、不要重装系统）；
-4. 证据不足就说明还需要哪一段日志，不要猜。
+1. 优先阅读 \`context.md\`，结合日志概述故障现象与关键报错依据；
+2. 对照 \`knowledge.md\` 排查最可能的故障原因；
+3. 提供不超过 3 个可安全回退的修复步骤（优先采取修改配置或备份后操作，避免直接删除存档）；
+4. 若现有日志不足以定位问题，请明确指出还需补充哪类日志信息。
 
-## 隐私
+## 隐私说明
 
-令牌、密钥已被替换为 \`*** REDACTED ***\`；服务器目录等路径是真实路径，便于定位问题。
-如果不想暴露路径，可以在粘贴前手动替换。
+配置文件中的令牌与密钥已自动替换为 \`*** REDACTED ***\`。为便于排查路径相关故障，包内保留了服务器目录的真实路径；如需隐藏本地路径，可在发送前手动替换。
 `;
 }
 
@@ -115,7 +113,7 @@ function buildContext({ instance, symptom, preflight, logsCount, extra }) {
   }
 
   lines.push("");
-  lines.push(`日志共 ${logsCount} 行，见 \`logs/recent.log\`。`);
+  lines.push(`共截取 ${logsCount} 行日志，详见 \`logs/recent.log\`。`);
   return lines.join("\n");
 }
 

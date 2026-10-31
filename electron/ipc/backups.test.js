@@ -193,6 +193,6 @@ test("服务器在跑时不允许整包恢复（防止写坏存档）", async ()
   makeWorld(dir);
   const res = await restore(dir, "whatever.zip", { getStatus: () => "running" });
   assert.equal(res.ok, false);
-  assert.match(res.error, /先把服务器停掉/);
+  assert.match(res.error, /请先停止服务器/);
   fs.rmSync(dir, { recursive: true, force: true });
 });

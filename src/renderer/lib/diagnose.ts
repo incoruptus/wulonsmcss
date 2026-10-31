@@ -94,14 +94,14 @@ export async function encodeDiagnostic(d: DiagnosticV1): Promise<string> {
 export async function decodeDiagnostic(input: string): Promise<DiagnosticV1> {
   const text = String(input || "");
   const match = text.match(/d1[zp]\.[0-9a-z]{6}\.[A-Za-z0-9\-_]+/);
-  if (!match) throw new Error("没认出诊断码：应该以 d1z. 或 d1p. 开头");
+  if (!match) throw new Error("无法识别诊断码，应以 d1z. 或 d1p. 开头");
 
   const [, mode, check, body] = /^d1([zp])\.([0-9a-z]{6})\.([A-Za-z0-9\-_]+)$/.exec(match[0])!;
   let bytes = fromB64Url(body);
   if (mode === "z") bytes = await inflate(bytes);
 
   const json = new TextDecoder().decode(bytes);
-  if (hash6(json) !== check) throw new Error("诊断码校验不通过（可能复制少了几位）");
+  if (hash6(json) !== check) throw new Error("诊断码校验未通过，可能复制时遗漏了部分字符");
 
   let parsed: DiagnosticV1;
   try {
@@ -109,7 +109,7 @@ export async function decodeDiagnostic(input: string): Promise<DiagnosticV1> {
   } catch {
     throw new Error("诊断码内容损坏");
   }
-  if (parsed.v !== 1) throw new Error("诊断码来自更新的版本，请升级后再看");
+  if (parsed.v !== 1) throw new Error("诊断码来自更高版本，请升级后再查看");
   if (!parsed.room?.mc || !Array.isArray(parsed.probes)) throw new Error("诊断码信息不完整");
   return parsed;
 }
@@ -119,14 +119,14 @@ export function diagnosticHeadline(d: DiagnosticV1): string {
   const online = d.probes.filter((p) => p.checked && p.ok);
   if (!online.length) {
     return d.probes.length
-      ? "玩家一条地址都没连上：先确认服务器在跑、隧道没掉。"
-      : "玩家没有拿到任何可探测的地址：邀请可能生成错了。";
+      ? "玩家未能连接任何地址，请先确认服务器运行状态与隧道连接。"
+      : "玩家未获取到可探测的地址，邀请可能生成有误。";
   }
   const client = d.client;
-  if (!client) return "网络是通的，但还没读到玩家的客户端信息。";
-  if (client.verdict === "ready") return "网络和客户端都正常，问题可能在正版验证或白名单。";
-  if (client.verdict === "need-mods") return `网络通，但玩家缺 ${client.missing.length} 个 Mod。`;
-  if (client.verdict === "need-version") return "网络通，但玩家没有对应版本/加载器的实例。";
-  if (client.verdict === "no-client" || client.verdict === "no-version") return "网络通，但玩家这台机器还没有可用的客户端。";
-  return "网络通，客户端还需要检查。";
+  if (!client) return "网络连接正常，但尚未读取到玩家的客户端信息。";
+  if (client.verdict === "ready") return "网络与客户端均正常，问题可能出在正版验证或白名单。";
+  if (client.verdict === "need-mods") return `网络连接正常，但玩家缺少 ${client.missing.length} 个模组。`;
+  if (client.verdict === "need-version") return "网络连接正常，但玩家没有对应版本与加载器的服务器。";
+  if (client.verdict === "no-client" || client.verdict === "no-version") return "网络连接正常，但该玩家的机器上没有可用客户端。";
+  return "网络连接正常，客户端仍需进一步检查。";
 }

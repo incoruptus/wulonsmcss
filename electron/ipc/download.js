@@ -87,7 +87,7 @@ function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60
         const location = res.headers.location;
         res.resume();
         if (!location || redirects >= 5) {
-          finish(reject, new Error(`HTTP ${res.statusCode}（重定向过多或缺少 Location）`));
+          finish(reject, new Error(`HTTP ${res.statusCode}：重定向次数过多或缺少 Location 响应头`));
           return;
         }
         // 不要先 resolve，交给下一跳；只做清理并标记已交接
@@ -145,7 +145,7 @@ function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60
     req.on("error", (e) => finish(reject, e));
     req.setTimeout(stallMs, () => {
       req.destroy();
-      finish(reject, new Error("连接卡住（长时间没有数据），已中断"));
+      finish(reject, new Error("连接长时间无数据，已中断"));
     });
     timer = setTimeout(() => {
       req.destroy();
@@ -154,7 +154,7 @@ function fetchOnce(url, dest, { onProgress, stallMs = 20000, timeoutMs = 10 * 60
     watchdog = setInterval(() => {
       if (Date.now() - lastActivity > stallMs) {
         req.destroy();
-        finish(reject, new Error("连接卡住（长时间没有数据），已中断"));
+        finish(reject, new Error("连接长时间无数据，已中断"));
       }
     }, 1000);
   });
@@ -200,7 +200,7 @@ async function download({ url, mirrors, dest, hash, onProgress, onRetry, stallMs
         try {
           fs.unlinkSync(part);
         } catch {}
-        throw new Error("校验不通过（文件可能被截断或源被篡改）");
+        throw new Error("文件校验未通过，可能下载中断或源文件已被篡改");
       }
 
       if (fs.existsSync(dest)) fs.unlinkSync(dest);

@@ -82,12 +82,12 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
 
         <div className="grid items-start gap-5 xl:grid-cols-12">
           <Card className="xl:col-span-7">
-            <SectionHead icon={<Send />} title="邀请朋友来玩" desc="检查可达性，再分享最合适的地址。" />
+            <SectionHead icon={<Send />} title="邀请朋友来玩" desc="先检查联机状态，再分享最合适的地址。" />
             <div className="mt-5"><ReachabilityPanel port={instance.port} onInvite={() => setInviting(true)} /></div>
           </Card>
 
           <Card className="xl:col-span-5">
-            <SectionHead icon={<Info />} title="服务器信息" desc="当前实例的基础配置。" />
+            <SectionHead icon={<Info />} title="服务器信息" desc="当前服务器的基本配置。" />
             <dl className="mt-4 divide-y divide-gray-300">
               <Row label="版本" value={`${instance.mcVersion} · ${instance.loader}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ""}`} />
               <Row label="内存" value={`${instance.memoryMin}–${instance.memoryMax} GB`} />
@@ -110,23 +110,23 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
         </div>
 
         <Card>
-          <SectionHead icon={<Puzzle />} title="接下来可以做" desc="不用一次全配完，按你需要的方式来。" />
+          <SectionHead icon={<Puzzle />} title="接下来可以做" desc="无需一次配置完成，可按实际需要逐步设置。" />
           <div className="mt-4 grid gap-2 lg:grid-cols-3">
             <NextStep
               title={`装点${contentLabel}`}
-              desc={contentKindOf(serverTypeOf(instance)) === "plugin" ? "地皮、传送、经济，装完重启生效。" : "按游戏版本挑选，装完重启生效。"}
+              desc={contentKindOf(serverTypeOf(instance)) === "plugin" ? "领地、传送、经济类插件安装后需重启生效。" : "按游戏版本筛选，安装后需重启生效。"}
               onClick={() => navigate(`/instances/${instance.id}/content?view=browse`)}
             />
-            <NextStep title="管理玩家" desc="设置 OP、白名单和封禁名单。" onClick={() => navigate(`/instances/${instance.id}/players`)} />
+            <NextStep title="管理玩家" desc="设置管理员（OP）、白名单与封禁名单。" onClick={() => navigate(`/instances/${instance.id}/players`)} />
             <NextStep title="照顾世界" desc="创建新维度，或留一份备份。" onClick={() => navigate(`/instances/${instance.id}/worlds`)} />
           </div>
         </Card>
 
         <Card>
-          <SectionHead icon={<Timer />} title="自动化" desc="让重复的事按时发生；只在服务器运行时生效。" />
+          <SectionHead icon={<Timer />} title="自动化" desc="按设定周期自动执行任务，仅在服务器运行期间生效。" />
           {!isDesktopVisual() ? (
             <div className="mt-5 rounded-lg bg-amber-700/10 p-3.5 t-copy-13 text-amber-900">
-              定时任务需要桌面版常驻。网页版可以查看设置，但不会自动触发。
+              定时任务需要桌面版常驻运行，网页版可查看设置，但不会自动触发。
             </div>
           ) : (
             <div className="mt-5 grid gap-5 lg:grid-cols-3">

@@ -26,7 +26,7 @@ export interface DoctorAdvice {
 export function describeDoctor(d: NetDoctor | null): DoctorAdvice {
   const lan = d ? physicalLan(d.interfaces) : null;
   if (!d) {
-    return { tone: "gray", title: "还没体检", detail: "点一下检测，看看外网进来的希望大不大。", lan: null };
+    return { tone: "gray", title: "还没体检", detail: "点击检测，评估外网访问是否可行。", lan: null };
   }
 
   const nat = d.stun?.nat ?? "unknown";
@@ -36,7 +36,7 @@ export function describeDoctor(d: NetDoctor | null): DoctorAdvice {
     return {
       tone: "amber",
       title: "对称 NAT：直连基本不通",
-      detail: "打洞和 UPnP 都救不了对称 NAT，开一条隧道最稳；能拿到公网 IPv6 的话优先 IPv6。",
+      detail: "对称 NAT 下打洞与 UPnP 均无法生效，建议使用隧道；若可获得公网 IPv6 地址，优先使用 IPv6。",
       lan,
     };
   }
@@ -45,7 +45,7 @@ export function describeDoctor(d: NetDoctor | null): DoctorAdvice {
     return {
       tone: "green",
       title: "有直连的机会",
-      detail: "NAT 允许打洞，路由器也支持 UPnP；给 25565 做一条 TCP 端口映射，朋友就能直连。",
+      detail: "NAT 支持打洞，路由器也支持 UPnP，为 25565 添加一条 TCP 端口映射后，朋友即可直连。",
       lan,
     };
   }
@@ -53,8 +53,8 @@ export function describeDoctor(d: NetDoctor | null): DoctorAdvice {
   if (nat === "cone" && !upnp) {
     return {
       tone: "amber",
-      title: "NAT 能打洞，但路由器没响应 UPnP",
-      detail: "要么去路由器后台手动映射 25565，要么开一条隧道；两条都比干等强。",
+      title: "NAT 支持打洞，但路由器未响应 UPnP 请求",
+      detail: "可在路由器后台手动映射 25565，或直接使用隧道。",
       lan,
     };
   }
@@ -63,7 +63,7 @@ export function describeDoctor(d: NetDoctor | null): DoctorAdvice {
     return {
       tone: "green",
       title: "路由器支持 UPnP",
-      detail: "可以在路由器里给 25565 做 TCP 映射试试；打不通就开隧道。",
+      detail: "可在路由器中为 25565 添加 TCP 映射；若仍不通，建议使用隧道。",
       lan,
     };
   }
@@ -71,7 +71,7 @@ export function describeDoctor(d: NetDoctor | null): DoctorAdvice {
   return {
     tone: "gray",
     title: "NAT 没测出来",
-    detail: "UDP 可能被运营商或防火墙拦了；这种情况隧道最稳。",
+    detail: "UDP 可能被运营商或防火墙拦截，此情况建议使用隧道。",
     lan,
   };
 }

@@ -69,14 +69,14 @@ async function ensureFrpc(onProgress) {
       signal: ctrl.signal,
       headers: { "User-Agent": "WulonsMCSS/27", Accept: "application/vnd.github+json" }
     });
-    if (!res.ok) throw new Error(`获取 frp 版本失败（HTTP ${res.status}）`);
+    if (!res.ok) throw new Error(`获取 frp 版本失败：HTTP ${res.status}`);
     release = await res.json();
   } finally {
     clearTimeout(timer);
   }
 
   const asset = (release.assets || []).find((a) => /windows_amd64\.zip$/i.test(a.name));
-  if (!asset) throw new Error("没有找到 Windows 版 frp 安装包");
+  if (!asset) throw new Error("未找到 Windows 版 frp 安装包");
   emitLog(`正在下载 ${asset.name} …`);
   const zip = path.join(frpDir(), "frp.zip");
   // GitHub Release 现在会给 asset.digest（sha256:...）；有就校验，避免镜像投毒
@@ -89,7 +89,7 @@ async function ensureFrpc(onProgress) {
   });
 
   const buf = readZipEntry(zip, "frpc.exe");
-  if (!buf) throw new Error("frp 安装包里没有 frpc.exe");
+  if (!buf) throw new Error("frp 安装包内未找到 frpc.exe");
   fs.writeFileSync(exe, buf);
   fs.writeFileSync(marker, `${await hashFile(exe, "sha256")}\n`);
   try {
@@ -182,7 +182,7 @@ async function start(profile, onProgress) {
 /** SakuraFrp：只负责拉起用户指定的启动器 */
 function startSakura(exePath) {
   if (proc) return { ok: false, error: "已有隧道在运行" };
-  if (!exePath || !fs.existsSync(exePath)) return { ok: false, error: "找不到 SakuraFrp 启动器，请在设置里指定路径" };
+  if (!exePath || !fs.existsSync(exePath)) return { ok: false, error: "未找到 SakuraFrp 启动器，请在设置中指定路径" };
   lastError = "";
   address = "";
   mode = "sakura";
@@ -190,7 +190,7 @@ function startSakura(exePath) {
   emitLog(`已启动 SakuraFrp：${exePath}`);
   emitStatus();
   proc.on("exit", (code) => {
-    emitLog(`SakuraFrp 退出（代码 ${code}）`);
+    emitLog(`SakuraFrp 已退出（代码 ${code}）`);
     proc = null;
     mode = null;
     emitStatus();

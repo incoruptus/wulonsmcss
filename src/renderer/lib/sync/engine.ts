@@ -105,9 +105,9 @@ async function buildPayload(cfg: AppConfig, deps: SyncDeps): Promise<SyncPayload
 async function runOnce(deps: SyncDeps, manual: boolean): Promise<SyncOutcome> {
   const cfg = deps.getConfig();
   const sync = cfg.sync;
-  if (!sync?.token) throw new Error("还没填 GitHub Token");
+  if (!sync?.token) throw new Error("尚未填写 GitHub Token");
   if (!sync.pairCode || !isPairCodeWellFormed(sync.pairCode)) {
-    throw new Error("配对码还没就绪，先生成一个或粘贴另一台设备的配对码");
+    throw new Error("配对码尚未就绪，请先生成，或粘贴另一台设备的配对码");
   }
   if (!manual && sync.backoffUntil && Date.now() < sync.backoffUntil) {
     return { pulled: false, pushed: false, applied: null, skipped: true };

@@ -47,15 +47,15 @@ export function AiConfigDialog({
     >
       <DialogHeader
         title="AI 配置助手"
-        desc="用一句话说清你想要什么样的服务器，把提示词交给任意 AI，再把它的 JSON 贴回来。"
+        desc="简要描述你期望的服务器玩法与规则，复制提示词发送给 AI，再将生成的 JSON 粘贴至下方即可自动填入。"
       />
       <DialogBody className="space-y-3">
         <div>
-          <div className="t-label-12 mb-1 text-gray-700">你想要什么样的服务器？</div>
+          <div className="t-label-12 mb-1 text-gray-700">描述你期望的服务器玩法与规则</div>
           <Input
             value={wish}
             onChange={(e) => setWish(e.target.value)}
-            placeholder="例如：4 个人周末一起玩，生存为主，别太肝"
+            placeholder="例如：4 人周末联机生存，开启死亡不掉落，怪物难度适中"
           />
         </div>
 
@@ -69,19 +69,19 @@ export function AiConfigDialog({
                 props,
                 wish,
               );
-              (await copyText(prompt)) ? toast.success("提示词已复制，粘给 AI 即可") : toast.error("复制失败");
+              (await copyText(prompt)) ? toast.success("提示词已复制，可发送给任意 AI 工具生成配置") : toast.error("复制失败");
             }}
           >
             <ClipboardCopy className="size-3.5" />
             复制提示词
           </Button>
           <span className="t-label-12 self-center text-gray-700">
-            提示词里已经带上了当前配置和允许修改的键
+            提示词已自动附带当前配置与可修改字段列表
           </span>
         </div>
 
         <div>
-          <div className="t-label-12 mb-1 text-gray-700">把 AI 的回复贴在这里</div>
+          <div className="t-label-12 mb-1 text-gray-700">在此粘贴 AI 返回的 JSON 结果</div>
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
@@ -93,7 +93,7 @@ export function AiConfigDialog({
             <Button
               size="sm"
               onClick={() => {
-                if (!reply.trim()) return toast.info("先贴一段 JSON");
+                if (!reply.trim()) return toast.info("请先粘贴 AI 返回的 JSON 内容");
                 setResult(parseConfigReply(reply, props));
               }}
             >
@@ -102,7 +102,7 @@ export function AiConfigDialog({
             </Button>
             {result ? (
               <Button size="sm" variant="ghost" onClick={reset}>
-                重来
+                清空重填
               </Button>
             ) : null}
           </div>
@@ -132,12 +132,12 @@ export function AiConfigDialog({
                   ))}
                 </div>
               ) : (
-                <div className="t-label-12 text-gray-700">没有可应用的改动。</div>
+                <div className="t-label-12 text-gray-700">未检测到可应用的配置修改。</div>
               )}
 
               {result.rejected.length ? (
                 <div className="rounded-lg bg-amber-700/10 p-2.5">
-                  <div className="t-label-12 mb-1 text-amber-900">这些被拒绝了（不会生效）：</div>
+                  <div className="t-label-12 mb-1 text-amber-900">以下字段未通过校验，已自动忽略：</div>
                   {result.rejected.map((r) => (
                     <div key={r.key} className="t-mono-12 text-amber-900">
                       {r.key} — {r.reason}
@@ -158,7 +158,7 @@ export function AiConfigDialog({
           onClick={() => {
             if (!result || !result.changes.length) return;
             onApply(applyChanges(props, result.changes));
-            toast.success(`已填入 ${result.changes.length} 项改动`, { description: "记得点「保存」写回服务器配置" });
+            toast.success(`已将 ${result.changes.length} 项配置修改填入表单`, { description: "配置已填入表单，请点击「保存」使其生效" });
             reset();
             onOpenChange(false);
           }}

@@ -106,7 +106,7 @@ for (const world of worlds) {
   writeJson(path.join(megaDimDir, `${name}.json`), buildDimension({ ...world, namespace }))
 }
 
-writeJson(path.join(megaPackDir, "pack.mcmeta"), buildPackMeta("全部世界", "Wulon's MCSS — 多世界管理合并包"))
+writeJson(path.join(megaPackDir, "pack.mcmeta"), buildPackMeta("全部世界", "Wulon's MCSS 多世界管理数据包"))
 writeReadme(megaPackDir, worlds)
 
 console.log(`  ✓ 已生成 → ${megaPackName}`)

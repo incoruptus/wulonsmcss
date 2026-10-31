@@ -124,7 +124,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
     for (const line of lines) {
       ok = (await window.mcss.server.command(line).catch(() => false)) && ok;
     }
-    if (!ok) toast.warning("服务器没在运行，指令没有发出去");
+    if (!ok) toast.warning("服务器未运行，指令未发送");
     setHistory((h) => [...h.filter((x) => x !== text), text].slice(-50));
     setHistoryIdx(-1);
     setCommand("");
@@ -240,7 +240,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
       <Dialog open={showLag} onOpenChange={setShowLag} widthClass="max-w-xl">
         <DialogHeader
           title="卡顿记录"
-          desc="服务器 tick 落后时打的 WARN。频繁出现说明 CPU 跟不上、内存吃紧，或某次世界生成卡住了。"
+          desc="服务器 tick 落后时输出的 WARN 日志。频繁出现通常意味着 CPU 或内存不足，也可能是某次世界生成卡住导致。"
         />
         <DialogBody>
           {lagEvents.length === 0 ? (
@@ -297,10 +297,10 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
               title={logs.length ? "没有匹配的日志" : "还没有输出"}
               desc={
                 logs.length
-                  ? "换个关键字，或把过滤的级别打开"
+                  ? "可更换关键字，或调整日志级别过滤"
                   : status === "stopped"
-                    ? "服务器没在运行，启动后这里会实时滚动"
-                    : "稍等一下，正在输出"
+                    ? "服务器未运行，启动后日志会在此实时滚动"
+                    : "正在输出，请稍候"
               }
               action={
                 logs.length === 0 && status === "stopped" ? (
@@ -423,7 +423,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
       </div>
 
       <Dialog open={confirmStop} onOpenChange={setConfirmStop} widthClass="max-w-md">
-        <DialogHeader title="确定关闭服务器？" desc="会先保存世界再退出，在线玩家会被断开。" />
+        <DialogHeader title="确定关闭服务器？" desc="服务器会先保存世界再退出，在线玩家将被断开连接。" />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
             当前在线 {players.length} 人。建议先用快捷指令发一条公告，再关服。
@@ -588,22 +588,22 @@ function DiagnosisCard({
         const list = await window.mcss.mods.scan(`${instance.dir}\\mods`);
         const target = list.find((m) => m.id === action.arg) ?? list.find((m) => m.file.includes(action.arg!));
         if (!target) {
-          toast.error(`没找到 ${action.arg} 的 jar，去 Mod 页手动关掉吧`);
+          toast.error(`未找到 ${action.arg} 的 jar，可在模组页面手动关闭`);
           return;
         }
         await window.mcss.mods.disable(target.path);
-        toast.success(`已禁用 ${target.name}，再启动试试`);
+        toast.success(`已禁用 ${target.name}，可重新启动验证`);
         onDismiss();
       } else if (action.kind === "repair-datapacks") {
         const res = await worldsApi.repair(instance.dir);
         if (!res.success) throw new Error(res.error || "修复失败");
-        toast.success(`已修复 ${res.fixed?.length ?? 0} 处，再启动试试`);
+        toast.success(`已修复 ${res.fixed?.length ?? 0} 处，可重新启动验证`);
         onDismiss();
       } else if (action.kind === "change-java") {
         const picked = await window.mcss.app.pickJava();
         if (picked) {
           await updateInstance(instance.id, { javaPath: picked });
-          toast.success("Java 已更换", { description: "可以重新启动服务器了。" });
+          toast.success("Java 已更换", { description: "现在可以重新启动服务器。" });
           onDismiss();
         }
       } else {
@@ -640,7 +640,7 @@ function DiagnosisCard({
                   logs: useServer.getState().logs.map((l) => `[${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`),
                   docsPath,
                 });
-                (await copyText(prompt)) ? toast.success("已复制排错包，粘给任意 AI 即可") : toast.error("复制失败");
+                (await copyText(prompt)) ? toast.success("已复制故障诊断包，可粘贴给任意 AI 工具") : toast.error("复制失败");
               }}
             >
               让 AI 看看
@@ -661,7 +661,7 @@ function DiagnosisCard({
                   });
                   if (!res.ok) throw new Error(res.error || "导出失败");
                   void window.mcss.app.openPath(dir);
-                  toast.success("现场包已导出", { description: "拖给任意 AI 就能让它接手排查" });
+                  toast.success("现场包已导出", { description: "可将该文件交给任意 AI 工具继续排查" });
                 } catch (e) {
                   toast.error((e as Error).message);
                 }

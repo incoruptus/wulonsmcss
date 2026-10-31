@@ -106,7 +106,7 @@ describe("从磁盘生成启动计划", () => {
       memoryGb: { min: 2, max: 4 },
     });
     expect(plan.command).toHaveLength(0);
-    expect(plan.warnings.join(" ")).toContain("没找到 26.1");
+    expect(plan.warnings.join(" ")).toContain("未找到 26.1");
     expect(plan.versionId).toBeNull();
   });
 

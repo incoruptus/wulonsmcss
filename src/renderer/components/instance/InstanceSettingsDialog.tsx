@@ -49,7 +49,7 @@ export function InstanceSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-lg">
-      <DialogHeader title="实例设置" desc="改动会在下次启动服务器时生效。" />
+      <DialogHeader title="实例设置" desc="改动将在下次启动服务器时生效。" />
       <DialogBody className="space-y-4">
         <Field label="名称">
           <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -80,10 +80,10 @@ export function InstanceSettingsDialog({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="端口" hint="朋友连进来的门牌号；改了之后旧邀请会失效，要重新发">
+          <Field label="端口" hint="服务器连接端口，修改后原有邀请将失效，需重新生成">
             <Input value={port} onChange={(e) => setPort(e.target.value.replace(/[^\d]/g, ""))} />
           </Field>
-          <Field label="JVM 附加参数" hint="高级选项；不确定就留空。只有服务端明确要求时才填">
+          <Field label="JVM 附加参数" hint="高级选项，不确定时留空即可，仅在服务端明确要求时填写">
             <Input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} className="font-mono text-[12px]" />
           </Field>
         </div>

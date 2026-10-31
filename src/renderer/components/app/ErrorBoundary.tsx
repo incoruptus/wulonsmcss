@@ -51,7 +51,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="w-full max-w-2xl rounded-xl bg-background-100 p-6 shadow-geist-border">
           <h1 className="t-h-20">界面出了点问题</h1>
           <p className="t-label-13 mt-1 text-gray-800">
-            这不影响你机器上的服务器和存档——只是这一屏没能画出来。可以先点「重新加载」。
+            界面渲染出错，服务器与存档不受影响。可点击「重新加载」重试。
           </p>
 
           <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-100 p-3 t-mono-12 text-gray-900 scroll-thin">

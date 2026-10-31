@@ -29,3 +29,8 @@ _shot*.png
 # Python
 __pycache__/
 
+
+# 本地探针 / 文案脚本临时产物
+config.json.bak
+docs/copy-apply-report.json
+

@@ -101,7 +101,7 @@ export async function planFromDisk(opts: DiskLaunchOptions): Promise<DiskPlan> {
     return {
       command: [],
       missing: [],
-      warnings: [`没找到 ${opts.room.mc} · ${opts.room.loader} 的客户端版本`],
+      warnings: [`未找到 ${opts.room.mc} · ${opts.room.loader} 的客户端版本`],
       versionId: null,
     };
   }

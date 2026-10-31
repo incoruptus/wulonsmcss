@@ -137,11 +137,11 @@ export function CreateServerFromClientDialog({
     const targetCore: ServerType =
       current.loader === "fabric" ? "fabric" : current.loader === "forge" ? "forge" : core;
     if (targetCore === "paper" && !["vanilla"].includes(current.loader)) {
-      return toast.error("这个客户端带加载器，不能直接套 Paper");
+      return toast.error("该客户端已安装加载器，无法直接使用 Paper 核心");
     }
     if (clientOnly) {
       const ok = window.confirm(
-        `选中的 Mod 里有 ${clientOnly} 个标记为「仅客户端」。服务端通常不需要它们，可能导致起不来。仍然继续？`,
+        `所选模组中有 ${clientOnly} 个标记为「仅客户端」，服务端通常不需要这些模组，可能导致启动失败，仍要继续？`,
       );
       if (!ok) return;
     }
@@ -157,7 +157,7 @@ export function CreateServerFromClientDialog({
       const info = await window.mcss.app.info();
       const javas = await window.mcss.app.detectJava().catch(() => []);
       const java = pickJavaFor(javas, javaMajorFor(current.mcVersion));
-      if (!java) throw new Error(`这个版本需要 Java ${javaMajorFor(current.mcVersion)}，先装好再来`);
+      if (!java) throw new Error(`该版本需要 Java ${javaMajorFor(current.mcVersion)}，请先完成安装`);
 
       const builds = await window.mcss.versions.serverBuilds(targetCore, current.mcVersion).catch(() => []);
       const chosenBuild =
@@ -167,7 +167,7 @@ export function CreateServerFromClientDialog({
             ? current.loaderVersion || builds[0]
             : builds[0];
       if (targetCore !== "vanilla" && !chosenBuild) {
-        throw new Error(`${serverTypeLabel(targetCore)} ${current.mcVersion} 没有可用构建（网络或版本问题）`);
+        throw new Error(`${serverTypeLabel(targetCore)} ${current.mcVersion} 没有可用构建，请检查网络或更换版本`);
       }
 
       const base = `${info.appData}\\instances\\${safeName(name)}`;
@@ -239,10 +239,10 @@ export function CreateServerFromClientDialog({
     <Dialog open={open} onOpenChange={(v) => (creating ? undefined : onOpenChange(v))} widthClass="max-w-2xl">
       <DialogHeader
         title="用现有客户端开服"
-        desc="不用重新想版本和核心：先读你现在的客户端，再把需要的 Mod 下到服务端。"
+        desc="无需重新选择版本与核心：先扫描现有客户端，再将所需模组下载到服务端。"
       />
       <DialogBody className="space-y-3">
-        <Field label="客户端目录" hint="指到 .minecraft 那一层；扫描不会改任何文件">
+        <Field label="客户端目录" hint="请指向 .minecraft 目录本身，扫描过程不会修改任何文件">
           <div className="flex gap-2">
             <Input value={dir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" placeholder="C:\\Users\\你\\AppData\\Roaming\\.minecraft" />
             <Button
@@ -267,7 +267,7 @@ export function CreateServerFromClientDialog({
 
         {scan && scan.versions.length === 0 ? (
           <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
-            这个目录里没找到 versions/。指到 .minecraft 那一层，或者换一个已经有游戏版本的客户端。
+            该目录下未找到 versions 文件夹，请指向 .minecraft 目录本身，或选择已安装游戏版本的客户端。
           </div>
         ) : null}
 
@@ -284,7 +284,7 @@ export function CreateServerFromClientDialog({
                   }))}
                 />
               </Field>
-              <Field label="服务端核心" hint={current?.loader === "vanilla" ? "原版客户端建议 Paper；玩家仍然不用装东西" : "跟随客户端加载器"}>
+              <Field label="服务端核心" hint={current?.loader === "vanilla" ? "原版客户端建议搭配 Paper，玩家无需安装额外内容" : "跟随客户端加载器"}>
                 {current?.loader === "vanilla" ? (
                   <Picker
                     value={core}
@@ -349,7 +349,7 @@ export function CreateServerFromClientDialog({
               </div>
               <div className="mt-2 max-h-[30vh] space-y-1 overflow-y-auto scroll-thin">
                 {scan.mods.length === 0 ? (
-                  <p className="t-label-12 py-3 text-gray-700">这个客户端没有 Mod，创建后就是一个干净服务端。</p>
+                  <p className="t-label-12 py-3 text-gray-700">该客户端未安装模组，创建后将得到一个干净的服务端。</p>
                 ) : (
                   scan.mods.map((m) => (
                     <ModRow

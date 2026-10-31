@@ -130,7 +130,7 @@ export async function remove(serverDir: string, packName: string): Promise<{ suc
 export async function repair(serverDir: string): Promise<{ success: boolean; error?: string; fixed?: string[] }> {
   const root = datapacksDir(serverDir);
   const packs = await listDirs(root);
-  if (!packs.length) return { success: false, error: "没有找到 world/datapacks" };
+  if (!packs.length) return { success: false, error: "未找到 world/datapacks 目录" };
 
   const fixed: string[] = [];
   for (const pack of packs) {

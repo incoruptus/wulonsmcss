@@ -183,7 +183,7 @@ async function stunReport() {
     ip: first?.ip,
     nat: natKind(servers),
     servers,
-    error: first ? undefined : servers[0]?.error || "STUN 不可用（UDP 可能被拦）",
+    error: first ? undefined : servers[0]?.error || "STUN 不可用，UDP 可能被拦截",
   };
 }
 
@@ -357,10 +357,10 @@ function soapRequest(controlURL, serviceType, action, extraBody, timeoutMs = 300
 
 async function discoverGateway() {
   const location = await ssdpSearch();
-  if (!location) return { error: "路由器没有响应 SSDP（可能没开 UPnP）" };
+  if (!location) return { error: "路由器未响应 SSDP，可能未开启 UPnP" };
   const xml = await httpText(location, 2500);
   const service = parseRootDesc(xml, location);
-  if (!service) return { error: "网关没有 WANIPConnection 服务", location };
+  if (!service) return { error: "网关未提供 WANIPConnection 服务", location };
   return { location, ...service };
 }
 
@@ -376,7 +376,7 @@ function faultOf(xml) {
   const code = /<errorCode>\s*(\d+)\s*<\/errorCode>/i.exec(xml || "")?.[1];
   const desc = /<errorDescription>\s*([^<]*?)\s*<\/errorDescription>/i.exec(xml || "")?.[1];
   if (!code) return "";
-  return `路由器拒绝（${code}${desc ? ` ${desc}` : ""}）`;
+  return `路由器拒绝：${code}${desc ? ` ${desc}` : ""}`;
 }
 
 async function upnpReport() {
@@ -399,7 +399,7 @@ async function upnpReport() {
 async function upnpMap(port, lanIp) {
   const p = Number(port);
   if (!Number.isInteger(p) || p < 1 || p > 65535) return { ok: false, error: "端口不合法" };
-  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(lanIp || "")) return { ok: false, error: "没有可用的局域网 IPv4 地址" };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(lanIp || "")) return { ok: false, error: "未找到可用的局域网 IPv4 地址" };
 
   const gw = await discoverGateway();
   if (gw.error) return { ok: false, error: gw.error };

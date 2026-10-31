@@ -60,7 +60,7 @@ describe("加密载荷", () => {
     await expect(decryptPayload(enc.payloadB64, PAIR, enc)).resolves.toBe(payloadJson);
     await expect(
       decryptPayload(enc.payloadB64, "ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ", enc),
-    ).rejects.toThrow(/配对码不对/);
+    ).rejects.toThrow(/配对码不正确/);
   });
 });
 

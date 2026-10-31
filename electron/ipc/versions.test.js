@@ -168,7 +168,7 @@ test("Forge 安装前必须知道 Java：没给就明确拒绝，且不落任何
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-install-"));
   await assert.rejects(
     () => versions.installServer({ dir, mc: "26.1.2", serverType: "forge" }),
-    /需要先指定 Java/,
+    /需先指定 Java/,
   );
   assert.deepStrictEqual(fs.readdirSync(dir), []);
   fs.rmSync(dir, { recursive: true, force: true });
@@ -178,7 +178,7 @@ test("NeoForge 新建暂不支持：明确拒绝，不落文件", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcss-nf-"));
   await assert.rejects(
     () => versions.installServer({ dir, mc: "1.21.1", serverType: "neoforge", javaPath: "java" }),
-    /NeoForge 新建暂不支持/,
+    /暂不支持新建 NeoForge/,
   );
   assert.deepStrictEqual(fs.readdirSync(dir), []);
   fs.rmSync(dir, { recursive: true, force: true });

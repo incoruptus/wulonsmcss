@@ -38,7 +38,7 @@ export function WebAgentBanner() {
     <div className="flex flex-wrap items-center gap-2 border-b border-amber-700/30 bg-amber-700/10 px-4 py-1.5">
       <AlertTriangle className="size-3.5 shrink-0 text-amber-900" />
       <span className="t-label-12 text-amber-900">
-        没连上本机助手：现在可以浏览房间信息，但开服 / 读本地文件需要它。
+        未连接本机助手：当前可以浏览房间信息，开服与读取本地文件需要本机助手。
       </span>
       <span className="t-mono-12 text-amber-900/70">{agentBaseUrl()}</span>
       <div className="ml-auto flex items-center gap-1.5">
@@ -51,7 +51,7 @@ export function WebAgentBanner() {
             size="xs"
             variant="ghost"
             className="text-amber-900"
-            title="下载后双击运行，这里会自动连上"
+            title="下载后双击运行，连接会自动建立"
             onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}
           >
             <Download className="size-3" />

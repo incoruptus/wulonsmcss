@@ -43,7 +43,7 @@ export function DiagnoseDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-xl">
       <DialogHeader
         title="朋友进不来？"
-        desc="让朋友在加入页点「复制诊断」，把那段 d1z… 开头的码贴进来。"
+        desc="请朋友在加入页点击「复制诊断」，将 d1z 开头的诊断码粘贴到这里。"
       />
       <DialogBody className="space-y-3">
         <Textarea

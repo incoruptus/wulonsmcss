@@ -89,13 +89,13 @@ function parseEnvelopeBase(text: string): SyncEnvelopeV1 {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error("这不是一个同步包（JSON 解析失败）");
+    throw new Error("该文件不是同步包，JSON 解析失败");
   }
   const env = raw as Partial<SyncEnvelopeV1>;
-  if (env.format !== SYNC_FORMAT) throw new Error("这不是 Wulon's MCSS 的同步包");
-  if (env.version !== SYNC_FORMAT_VERSION) throw new Error("同步包来自更新版本的应用，请先升级");
+  if (env.format !== SYNC_FORMAT) throw new Error("该文件不是 Wulon's MCSS 的同步包");
+  if (env.version !== SYNC_FORMAT_VERSION) throw new Error("同步包来自更高版本的应用，请先升级");
   if (typeof env.payload !== "string" || typeof env.checksum !== "string") throw new Error("同步包内容不完整");
-  if (quickHash(env.payload) !== env.checksum) throw new Error("同步包校验和不一致（可能被截断）");
+  if (quickHash(env.payload) !== env.checksum) throw new Error("同步包校验和不一致，可能传输被截断");
   return env as SyncEnvelopeV1;
 }
 

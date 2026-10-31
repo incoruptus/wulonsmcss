@@ -51,7 +51,7 @@ export default function InstanceDetail() {
     return (
       <div className="mx-auto max-w-xl px-6 py-16 text-center">
         <h1 className="t-h-24 text-gray-1000">这台服务器不在了</h1>
-        <p className="t-copy-14 mt-3 text-gray-800">它可能已被移除，或者链接里的编号已经失效。</p>
+        <p className="t-copy-14 mt-3 text-gray-800">该服务器可能已被移除，或链接中的编号已失效。</p>
         <Button className="mt-6" variant="secondary" onClick={() => navigate("/instances")}>返回服务器列表</Button>
       </div>
     );
@@ -116,7 +116,7 @@ export default function InstanceDetail() {
       </div>
 
       <InstanceSettingsDialog open={editing} onOpenChange={setEditing} instance={instance} />
-      <PreflightDialog open={preflightOpen} onOpenChange={setPreflightOpen} instance={instance} onStarted={() => toast.success("服务器已启动", { description: "现在可以生成邀请，把地址发给朋友了。", action: { label: "生成邀请", onClick: () => setInviteOpen(true) } })} />
+      <PreflightDialog open={preflightOpen} onOpenChange={setPreflightOpen} instance={instance} onStarted={() => toast.success("服务器已启动", { description: "现在可以生成邀请，将地址发送给朋友。", action: { label: "生成邀请", onClick: () => setInviteOpen(true) } })} />
       <StopServerDialog open={stopOpen} onOpenChange={setStopOpen} players={players.length} />
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} instance={instance} />
     </>
