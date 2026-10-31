@@ -44,9 +44,10 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
-      # 114 项测试在本地跑、线上不跑等于没有：单测 + 能力一致性检查都在这一步
-      - name: Test
-        run: pnpm test
+      # Electron / Node 的完整测试在 Windows CI 跑；Pages 只跑渲染层单测，
+      # 避免 Ubuntu 上的 Windows 路径用例把部署卡在测试步骤。
+      - name: Renderer tests
+        run: pnpm exec vitest run
 
       - name: Build web
         run: pnpm build:web
