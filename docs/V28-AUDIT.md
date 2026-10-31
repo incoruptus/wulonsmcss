@@ -69,7 +69,7 @@ v27 的功能与视觉已经稳定，v28 不应该再堆功能，而是把「能
 - [x] 511 条文案回填完成（522 处），用户可见片段合并，5 条长文本替换；技术性片段保留原样
 - [ ] 全项目无「实例」误用（房间语境除外）；无「PCL 整理」「特别感谢」
 - [x] i18n 框架（Provider / 词典 / 回退），语言入口与页面迁移下一轮
-- [ ] `pnpm typecheck` / `pnpm test` / `pnpm test:parity` / `release:check --package` 全绿
-- [ ] 关键页截图：总览 / 实例 / 联机 / 设置（中英各一组）
-- [ ] 版本 28.0.0，package 输出 `wulons-mcss-b28.0.0`
+- [x] `pnpm typecheck` / `pnpm test` / `pnpm test:parity` / `release:check --package` 全绿
+- [ ] 关键页截图：总览 / 实例 / 联机 / 设置（中英各一组；本期只有中文截图）
+- [x] 版本 28.0.0，package 输出 `wulons-mcss-b28.0.0`
 - [ ] push + deploy 脚本可执行（仓库建好后）
