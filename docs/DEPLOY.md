@@ -13,6 +13,7 @@
 填完后：
 
 ```bash
+cp .env.example .env.local   # 按需填写，Windows 可直接新建
 pnpm typecheck && pnpm test
 ```
 

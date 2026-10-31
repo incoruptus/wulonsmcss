@@ -34,3 +34,9 @@ __pycache__/
 config.json.bak
 docs/copy-apply-report.json
 
+
+# 本地环境变量（保留 .env.example）
+.env
+.env.local
+!.env.example
+
