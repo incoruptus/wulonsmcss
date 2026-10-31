@@ -65,7 +65,7 @@ describe("页面渲染回归", () => {
     seedConfig();
     const html = render(<Join />, "/join");
     expect(html).toContain("加入游戏");
-    expect(html).toContain("粘贴邀请链接");
+    expect(html).toContain("邀请链接或房间码");
   });
 
   it("设置页：渲染外观与同步区块，且不再有自选强调色", () => {

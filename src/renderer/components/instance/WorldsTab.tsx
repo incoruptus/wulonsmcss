@@ -85,11 +85,11 @@ export function WorldsTab({ instance }: { instance: Instance }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">
         <p className="t-label-13 text-gray-800">
           数据包生成的维度会出现在 <span className="t-mono-12">world/datapacks/</span> 下，多人可用同一套。
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onClick={load} loading={loading}>
             <RefreshCw className="size-3.5" />
             重新扫描
@@ -205,7 +205,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           </div>
         ) : (
           <div className="max-h-[220px] divide-y divide-gray-300 overflow-y-auto scroll-thin">            {backups.map((b) => (
-              <div key={b.name} className="flex items-center gap-2 py-1.5">
+              <div key={b.name} className="flex flex-wrap items-center gap-2 py-2">
                 <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{b.name}</span>
                 <span className="t-label-12 shrink-0 text-gray-700">{formatBytes(b.size)}</span>
                 <span className="t-label-12 shrink-0 text-gray-700">{formatDateTime(b.mtime)}</span>
@@ -222,6 +222,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
                 <Button
                   variant="ghost"
                   size="xs"
+                  aria-label={`删除备份 ${b.name}`}
                   className="hover:text-red-900"
                   onClick={async () => {
                     if (!window.confirm(`删除备份 ${b.name}（${formatBytes(b.size)}）？当前世界不受影响。`)) return;

@@ -1,27 +1,26 @@
-import { useEffect } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/app/TitleBar";
 import { Sidebar } from "@/components/app/Sidebar";
 import { WebAgentBanner } from "@/components/app/WebAgentBanner";
 import { MobileNav } from "@/components/app/MobileNav";
 import { FirstRunWizard } from "@/components/app/FirstRunWizard";
-import Overview from "@/pages/Overview";
-import Instances from "@/pages/Instances";
-import InstanceDetail from "@/pages/InstanceDetail";
-import Network from "@/pages/Network";
-import Join from "@/pages/Join";
-import MyServers from "@/pages/MyServers";
-import Client from "@/pages/Client";
-import Settings from "@/pages/Settings";
 import { ModePicker } from "@/components/app/ModePicker";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { buildDeps, runSync } from "@/lib/sync/engine";
-import { detectShell } from "@/lib/shell";
+
+const Overview = lazy(() => import("@/pages/Overview"));
+const Instances = lazy(() => import("@/pages/Instances"));
+const InstanceDetail = lazy(() => import("@/pages/InstanceDetail"));
+const Network = lazy(() => import("@/pages/Network"));
+const Join = lazy(() => import("@/pages/Join"));
+const MyServers = lazy(() => import("@/pages/MyServers"));
+const Client = lazy(() => import("@/pages/Client"));
+const Settings = lazy(() => import("@/pages/Settings"));
 
 export default function App() {
-  const location = useLocation();
   const load = useConfig((s) => s.load);
   const loaded = useConfig((s) => s.loaded);
   const patch = useConfig((s) => s.patch);
@@ -74,23 +73,37 @@ export default function App() {
 
   if (!loaded) {
     return (
-      <div className="grid h-dvh place-items-center bg-background-200 text-gray-800">
-        <div className="t-label-13">正在加载…</div>
+      <div className="grid h-dvh place-items-center bg-background-200 text-gray-800" role="status">
+        <div className="flex items-center gap-3 t-label-13">
+          <span className="brand-mark size-8 rounded-lg" />
+          正在准备好你的茶室…
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background-200 text-gray-1000">
+      <button
+        type="button"
+        onClick={() => {
+          const main = document.getElementById("main-content");
+          main?.focus();
+          main?.scrollIntoView({ block: "start" });
+        }}
+        className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-lg bg-gray-1000 px-3 py-2 text-background-100 focus:translate-y-0"
+      >
+        跳到主要内容
+      </button>
       <TitleBar />
       <WebAgentBanner />
       <div className="flex min-h-0 flex-1">
-        {/* 手机上不用 228px 侧栏；用底部导航，邀请页则完全沉浸 */}
-        <div className="hidden shrink-0 md:flex">
+        <div className="hidden shrink-0 border-r border-gray-300 md:flex">
           <Sidebar />
         </div>
-        <main className="min-w-0 flex-1 overflow-y-auto pb-16 scroll-thin md:pb-0">
-          <Routes>
+        <main id="main-content" className="min-w-0 flex-1 overflow-y-auto pb-20 scroll-thin md:pb-0" tabIndex={-1}>
+          <Suspense fallback={<div className="grid min-h-64 place-items-center t-label-13 text-gray-800" role="status">正在打开页面…</div>}>
+            <Routes>
             {/* 两个模式各自的首页：服主=实例仪表盘，玩家=加入游戏 */}
             <Route path="/" element={mode === "player" ? <Join /> : <Overview />} />
             <Route path="/instances" element={<Instances />} />
@@ -104,13 +117,16 @@ export default function App() {
             <Route path="/join" element={<Join />} />
             <Route path="/join/:code" element={<Join />} />
             <Route path="/settings" element={<Settings />} />
-          </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
-      {location.pathname.startsWith("/join") ? null : <MobileNav />}
+      <MobileNav />
       <Toaster
         position="bottom-right"
-        theme={theme === "light" ? "light" : "dark"}
+        theme={theme}
+        closeButton
         toastOptions={{ style: { fontFamily: "inherit" } }}
       />
       {/* 第一次打开问一次「你是来开服的，还是来玩的」。之后随时能在侧栏切。 */}

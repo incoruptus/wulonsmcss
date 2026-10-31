@@ -34,7 +34,7 @@ import {
   loaderLabel,
 } from "@/lib/modrinth-taxonomy";
 import { copyText, formatBytes, formatCount } from "@/lib/utils";
-import type { Instance } from "@/lib/types";
+import type { AppConfig, Instance } from "@/lib/types";
 
 interface Hit {
   id: string;
@@ -94,6 +94,7 @@ interface Version {
 type Kind = "mod" | "plugin";
 
 const PAGE = 24;
+const EMPTY_MODRINTH_INDEX: NonNullable<AppConfig["modrinthIndex"]> = {};
 
 /**
  * 资源库（模组 / 插件）
@@ -104,7 +105,7 @@ const PAGE = 24;
  * 中文名来自 MC 百科（见 lib/zh-names.ts），没有就老实显示英文。
  */
 export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: Kind }) {
-  const modrinthIndex = useConfig((s) => s.cfg.modrinthIndex) ?? {};
+  const modrinthIndex = useConfig((s) => s.cfg.modrinthIndex) ?? EMPTY_MODRINTH_INDEX;
   const patch = useConfig((s) => s.patch);
 
   const serverType = serverTypeOf(instance);
@@ -530,8 +531,13 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                     role="button"
                     tabIndex={0}
                     onClick={() => void openDetail(hit)}
-                    onKeyDown={(e) => e.key === "Enter" && void openDetail(hit)}
-                    className="group flex cursor-pointer items-start gap-3 px-3 py-2.5 transition-colors hover:bg-gray-100/70 focus-visible:bg-gray-100/70 focus-visible:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        void openDetail(hit);
+                      }
+                    }}
+                    className="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors hover:bg-gray-100/70 focus-visible:bg-gray-100/70 focus-visible:outline-none"
                   >
                     {hit.iconUrl ? (
                       <img src={hit.iconUrl} alt="" className="mt-0.5 size-10 shrink-0 rounded-lg object-cover" loading="lazy" />
@@ -571,7 +577,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                         <span className="t-label-12 text-gray-700">{ENVIRONMENT_LABEL[environment]}</span>
                         {hit.author ? <span className="t-label-12 text-gray-700">· {hit.author}</span> : null}
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-[12px] leading-4 text-gray-800">{hit.description}</p>
+                      <p className="mt-1 line-clamp-2 text-[12px] leading-[18px] text-gray-800">{hit.description}</p>
                     </div>
                     <Button
                       size="sm"

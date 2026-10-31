@@ -75,7 +75,7 @@ export function DiagnoseDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 <span className="t-label-13 text-gray-1000">{diagnosticHeadline(diag)}</span>
               </div>
               <p className="t-label-12 mt-1 text-gray-700">
-                {diag.room.name} · {diag.room.mc} · {diag.room.loader} · {new Date(diag.at).toLocaleString()}
+                {diag.room.name} · {diag.room.mc} · {diag.room.loader} · {new Date(diag.at).toLocaleString("zh-CN")}
               </p>
             </div>
 

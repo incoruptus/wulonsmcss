@@ -100,29 +100,28 @@ export default function Network() {
   return (
     <>
       <PageHeader
-        title="让外网的朋友进来"
-        desc="同一个 WiFi 不用这页：直接发你的内网地址（192.168 / 10 / 172.16 开头）。只有不在同一个网络时才需要内网穿透。"
+        className="max-w-6xl"
+        title="联机与内网穿透"
+        desc="先跑一遍联机体检。同一网络可直接使用内网地址；朋友在外面时，再配置隧道。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDiagOpen(true)}>
               <LifeBuoy className="size-3.5" />
               朋友进不来？
             </Button>
-            <Badge variant={running ? "green" : "gray"} size="md">
-              {running ? "隧道已连接" : "未连接"}
-            </Badge>
+            <Badge variant={running ? "green" : "gray"} size="md"><span className="status-dot" />{running ? "隧道已连接" : "隧道未连接"}</Badge>
           </div>
         }
       />
-      <PageBody className="grid max-w-5xl gap-4 lg:grid-cols-[1.1fr_1fr]">
+      <PageBody className="grid max-w-6xl gap-5 lg:grid-cols-[1.1fr_1fr]">
         <Card className="lg:col-span-2">
           <NetDoctorCard port={activeInstance?.port ?? 25565} />
         </Card>
 
         <Card className="space-y-3">
           <div className="flex items-center gap-2">
-            <Link2 className="size-4 text-gray-800" />
-            <h3 className="t-h-14 text-gray-1000">隧道配置</h3>
+            <Link2 className="size-[18px] text-tea-600" />
+            <div><h3 className="t-h-16 text-gray-1000">隧道配置</h3><p className="t-copy-13 mt-1 text-gray-800">把本机服务器安全地映射到公网。</p></div>
           </div>
 
           <Field label="用哪种隧道" hint="没有自己的 frp 服务器？选樱花穿透（桌面版）或先找现成服务">
@@ -204,7 +203,7 @@ export default function Network() {
                 断开
               </Button>
             ) : (
-              <Button onClick={connect} loading={busy}>
+              <Button variant="accent" onClick={connect} loading={busy}>
                 <Plug className="size-4" />
                 连接
               </Button>
@@ -253,7 +252,7 @@ export default function Network() {
               刷新
             </Button>
           </div>
-          <div ref={logRef} className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-background-100 p-3 font-mono text-[12px] leading-5 shadow-geist-border scroll-thin">
+          <div ref={logRef} role="log" aria-label="隧道日志" className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-background-200 p-3 font-mono text-[12px] leading-5 scroll-thin">
             {logs.length === 0 ? (
               <EmptyState title="还没有日志" desc="点「连接」后，frpc 的输出会显示在这里。" className="py-8" />
             ) : (

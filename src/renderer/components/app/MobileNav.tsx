@@ -1,21 +1,17 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Gamepad2, LayoutDashboard, PackageSearch, Server, Settings, Terminal, UserRound } from "lucide-react";
 import { useConfig } from "@/stores/config";
 import { cx } from "@/lib/utils";
 
-/**
- * 手机上的底部导航。
- * 桌面侧栏在 <md 隐藏后，至少保留四个最常用的面；
- * 邀请链接（/join）不显示，朋友点开就是完整的一页。
- */
 export function MobileNav() {
   const activeId = useConfig((s) => s.cfg.activeInstanceId);
   const mode = useConfig((s) => s.cfg.mode);
+  const location = useLocation();
   const base = activeId ? `/instances/${activeId}` : "/instances";
   const items =
     mode === "player"
       ? [
-          { to: "/join", label: "加入", icon: Gamepad2, end: true },
+          { to: "/", label: "加入", icon: Gamepad2, end: true },
           { to: "/mine", label: "服务器", icon: Server, end: false },
           { to: "/client", label: "客户端", icon: UserRound, end: false },
           { to: "/settings", label: "设置", icon: Settings, end: false },
@@ -30,11 +26,12 @@ export function MobileNav() {
 
   return (
     <nav
-      aria-label="手机导航"
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-gray-300 bg-background-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      aria-label="主导航"
+      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-gray-300 bg-background-100/95 px-1 pb-[max(4px,env(safe-area-inset-bottom))] pt-1 backdrop-blur-xl md:hidden"
     >
       {items.map((item) => {
         const Icon = item.icon;
+        const overviewHere = item.to === "/" && location.pathname === `/instances/${activeId ?? ""}`;
         return (
           <NavLink
             key={item.to}
@@ -42,13 +39,13 @@ export function MobileNav() {
             end={item.end}
             className={({ isActive }) =>
               cx(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 t-label-12",
-                isActive ? "text-gray-1000" : "text-gray-700",
+                "relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] leading-4 transition-colors",
+                isActive || overviewHere ? "bg-tea-100 font-medium text-tea-700" : "text-gray-700 active:bg-gray-100",
               )
             }
           >
-            <Icon className="size-[18px]" />
-            <span className="truncate">{item.label}</span>
+            <Icon className="size-[19px]" strokeWidth={1.8} />
+            <span className="max-w-full truncate">{item.label}</span>
           </NavLink>
         );
       })}

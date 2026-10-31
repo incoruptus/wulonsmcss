@@ -21,6 +21,7 @@ import { ContextMenu, selectedText } from "@/components/ui/context-menu";
 import { TranslateDialog } from "@/components/ui/translate-dialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { useServer } from "@/stores/server";
+import { useConfig } from "@/stores/config";
 import { suggestCommands } from "@/lib/commands";
 import { diagnose, type Diagnosis } from "@/lib/crash";
 import { buildAiPrompt } from "@/lib/ai-handoff";
@@ -162,7 +163,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-168px)] min-h-[360px] flex-col gap-2">
+    <div className="flex h-[calc(100dvh-196px)] min-h-[420px] flex-col gap-3">
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[180px] flex-1">
@@ -189,6 +190,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
             <button
               key={lv}
               onClick={() => toggleLevel(lv)}
+              aria-pressed={levels.has(lv)}
               className={cx(
                 "h-6 rounded-full px-2 t-label-12 tabular-nums transition-colors",
                 levels.has(lv) ? "bg-gray-200 text-gray-1000" : "text-gray-700 hover:bg-gray-100",
@@ -201,7 +203,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
           ))}
         </div>
 
-        <IconButton label="自动滚动" size="sm" onClick={() => setAutoScroll((v) => !v)} className={autoScroll ? "text-blue-800" : ""}>
+        <IconButton label="自动滚动" size="sm" aria-pressed={autoScroll} onClick={() => setAutoScroll((v) => !v)} className={autoScroll ? "bg-tea-100 text-tea-700" : ""}>
           <ArrowDownToLine className="size-3.5" />
         </IconButton>
         <IconButton
@@ -284,7 +286,10 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
             if (!atBottom()) setAutoScroll(false);
             else setAutoScroll(true);
           }}
-          className="h-full overflow-y-auto rounded-xl bg-background-100 p-3 shadow-geist-border scroll-thin"
+          role="log"
+          aria-label="服务器控制台日志"
+          aria-live="off"
+          className="h-full overflow-y-auto rounded-xl bg-background-100 p-4 shadow-geist-border scroll-thin"
         >
           {filtered.length === 0 ? (
             <EmptyState
@@ -547,7 +552,7 @@ function LogRow({
         ) : null}
       </div>
       <button
-        className="hidden shrink-0 text-gray-600 group-hover:block hover:text-gray-1000"
+        className="hidden shrink-0 text-gray-600 group-hover:block group-focus-within:block hover:text-gray-1000 focus-visible:block"
         onClick={async () => {
           await copyText(`[${log.timestamp}] [${log.level}] ${log.message}`);
           toast.success("已复制这一行");
@@ -573,6 +578,7 @@ function DiagnosisCard({
   onDismiss: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const updateInstance = useConfig((s) => s.updateInstance);
 
   async function run(action: Diagnosis["actions"][number]) {
     if (action.kind === "none") return;
@@ -595,7 +601,11 @@ function DiagnosisCard({
         onDismiss();
       } else if (action.kind === "change-java") {
         const picked = await window.mcss.app.pickJava();
-        if (picked) toast.success("Java 已选中，保存到实例设置后再启动");
+        if (picked) {
+          await updateInstance(instance.id, { javaPath: picked });
+          toast.success("Java 已更换", { description: "可以重新启动服务器了。" });
+          onDismiss();
+        }
       } else {
         toast.info("去「实例设置」里改一下就好");
       }

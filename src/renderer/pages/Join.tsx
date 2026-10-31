@@ -17,7 +17,7 @@ import {
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { Badge, Card, EmptyState } from "@/components/ui/misc";
+import { Badge, Card } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
 import { chooseBest, kindLabel, parseAddr } from "@/lib/reach";
 import { useRoomReach } from "@/hooks/useReach";
@@ -291,17 +291,18 @@ export default function Join() {
   return (
     <>
       <PageHeader
+        className="max-w-4xl"
         title="加入游戏"
-        desc="朋友发来的链接或房间码，粘进来就能看到要准备什么。"
-        actions={room ? <Button variant="secondary" onClick={() => navigate("/")}>换个房间</Button> : undefined}
+        desc="把朋友发来的邀请放进来。版本、模组和连接方式，开服茶会先替你检查。"
+        actions={room ? <Button variant="secondary" onClick={() => { setRoom(null); setInput(""); setError(null); navigate("/"); }}>换个房间</Button> : undefined}
       />
-      <PageBody className="max-w-3xl space-y-4">
+      <PageBody className="max-w-4xl space-y-5">
         {!room ? (
-          <Card>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Users className="size-4 text-gray-800" />
-                <span className="t-h-14 text-gray-1000">粘贴邀请链接 / 房间码</span>
+          <Card className="panel-wash p-6 sm:p-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="brand-mark grid size-11 place-items-center rounded-xl"><Users className="size-5" /></span>
+                <div><h2 className="t-h-20 text-gray-1000">朋友的世界，一张邀请就够</h2><p className="t-copy-13 mt-1 text-gray-800">支持完整邀请链接和房间码。</p></div>
               </div>
               <div className="flex gap-2">
                 <Input
@@ -309,10 +310,11 @@ export default function Join() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && load(input)}
                   placeholder="https://…/join/w1z… 或 w1z.a1b2c3.…"
-                  className="font-mono text-[12.5px]"
+                  aria-label="邀请链接或房间码"
+                  className="h-11 font-mono text-[12.5px]"
                 />
-                <Button onClick={() => load(input)} loading={loading}>
-                  打开
+                <Button variant="accent" size="lg" onClick={() => load(input)} loading={loading} disabled={!input.trim()}>
+                  打开邀请
                 </Button>
               </div>
               {error ? (
@@ -321,13 +323,13 @@ export default function Join() {
                   {error}
                 </div>
               ) : null}
-              <p className="t-label-12 text-gray-700">
-                链接里带着服务器地址、版本和需要的 Mod，不经过我们的服务器；房间码被改坏或过期会直接报错。
+              <p className="t-copy-13 text-gray-700">
+                邀请只包含服务器地址、版本和所需模组，不需要注册账号。链接损坏或过期时，会明确告诉你原因。
               </p>
             </div>
           </Card>
         ) : (
-          <Card className="space-y-4">
+          <Card className="space-y-5 p-5 sm:p-6">
             {/* 房间头 */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
@@ -459,16 +461,16 @@ export default function Join() {
             ) : null}
 
             {/* 主路径 */}
-            <div className="rounded-xl bg-background-100 p-3 shadow-geist-border">
+            <div className="rounded-xl bg-tea-100 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 {canLaunch ? (
-                  <Button size="lg" onClick={launchNow}>
+                  <Button size="lg" variant="accent" onClick={launchNow}>
                     <Play className="size-4" />
                     直接进游戏（离线）
                     <ArrowRight className="size-4" />
                   </Button>
                 ) : (
-                  <Button size="lg" onClick={prepareAndPlay} loading={busy} disabled={busy}>
+                  <Button size="lg" variant="accent" onClick={prepareAndPlay} loading={busy} disabled={busy}>
                     {room.mods.length ? <Package className="size-4" /> : <Play className="size-4" />}
                     {room.mods.length ? "准备进游戏" : "复制地址并打开启动器"}
                     <ArrowRight className="size-4" />
@@ -505,8 +507,8 @@ export default function Join() {
                     <span>{progress.stage}</span>
                     <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
-                    <div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${Math.max(2, progress.percent)}%` }} />
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-300" role="progressbar" aria-label={progress.stage} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
+                    <div className="h-full rounded-full bg-tea-600 transition-[width] duration-200" style={{ width: `${Math.max(2, progress.percent)}%` }} />
                   </div>
                 </div>
               ) : null}
@@ -604,12 +606,11 @@ export default function Join() {
         ) : null}
 
         {!room && !error ? (
-          <EmptyState
-            icon={<Users className="size-5" />}
-            title="还没有邀请"
-            desc="让服主在「邀请朋友」里生成一条链接，发给你就行。"
-            className="py-10"
-          />
+          <div className="grid gap-3 text-center sm:grid-cols-3">
+            {["粘贴朋友发来的邀请", "检查版本与所需模组", "准备客户端并进入游戏"].map((text, index) => (
+              <div key={text} className="rounded-lg bg-background-100 px-3 py-3 text-[12px] text-gray-800 shadow-geist-border"><span className="mr-2 font-medium text-tea-600">0{index + 1}</span>{text}</div>
+            ))}
+          </div>
         ) : null}
       </PageBody>
     </>
@@ -618,7 +619,7 @@ export default function Join() {
 
 function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-background-100 p-2.5 shadow-geist-border">
+    <div className="rounded-lg bg-background-200 p-3">
       <div className="flex items-center gap-1.5 text-gray-700">
         {icon}
         <span className="t-label-12">{label}</span>

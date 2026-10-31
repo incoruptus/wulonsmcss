@@ -81,14 +81,15 @@ export default function Client() {
       loader: (uniqueLoaders[0] as never) ?? "vanilla",
       extraMods: mods.map((m) => ({ file: m.name })),
     });
-    toast.success("已保存为我的客户端", { description: "加入房间时默认用它来体检" });
+    toast.success("客户端已保存", { description: "下次加入游戏时，会默认检查这个目录。" });
   }
 
   return (
     <>
       <PageHeader
+        className="max-w-6xl"
         title="我的客户端"
-        desc="这是你自己的那一份：可以比服主多装音效、光影、小地图，不影响进服。"
+        desc="看看本机装了哪些版本和模组。音效、光影、小地图这类客户端模组，可以自由添加。"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={scan} loading={scanning}>
@@ -102,9 +103,9 @@ export default function Client() {
           </div>
         }
       />
-      <PageBody className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-background-100 p-2.5 shadow-geist-border">
-          <span className="t-label-12 shrink-0 pl-1 text-gray-700">客户端目录</span>
+      <PageBody className="max-w-6xl space-y-5">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-background-100 p-3 shadow-geist-border">
+          <span className="t-label-13 shrink-0 pl-1 font-medium text-gray-900">客户端目录</span>
           <Input value={dir} onChange={(e) => setDir(e.target.value)} className="h-8 min-w-[280px] flex-1 font-mono text-[12px]" />
           <Button
             variant="secondary"
@@ -171,7 +172,7 @@ export default function Client() {
 
         {mods.length > 0 ? (
           <Card>
-            <CardTitle desc="只读列表；要增删直接开目录，或者去资源库装">已装的 Mod / 资源</CardTitle>
+            <CardTitle desc="这里只展示扫描结果；需要增删时，可以直接打开 mods 目录。">已安装的客户端模组</CardTitle>
             <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
               {mods.slice(0, 40).map((m) => (
                 <div key={m.path} className="flex items-center gap-2 rounded-lg bg-background-200 px-2.5 py-1.5">
@@ -187,13 +188,13 @@ export default function Client() {
         <Card className="flex items-start gap-3 p-4">
           <Sparkles className="mt-0.5 size-4 shrink-0 text-gray-800" />
           <div className="min-w-0">
-            <div className="t-label-14 text-gray-1000">为什么可以多装东西</div>
-            <p className="t-label-12 mt-0.5 text-gray-800">
-              服主那边判定的是「服务端要不要你装」——插件服你什么都不用装；模组服要装的是那台服指定的 Mod。
-              除此之外你自己加的客户端 Mod（音效、小地图、光影）只影响你自己的画面，不影响能不能进。
+            <div className="t-h-14 text-gray-1000">客户端和服务器，分别该装什么？</div>
+            <p className="t-copy-13 mt-1.5 text-gray-800">
+              插件服通常不需要你额外安装模组；模组服只需要房间要求的那一份清单。
+              音效、小地图、光影等客户端模组只影响自己的体验，不必和服主保持完全一致。
             </p>
-            <Button variant="ghost" size="sm" className="mt-1 px-0" onClick={() => navigate("/")}>
-              去加入一个房间 →
+            <Button variant="ghost" size="sm" className="mt-2 px-0" onClick={() => navigate("/")}>
+              去加入游戏
             </Button>
           </div>
         </Card>

@@ -12,16 +12,21 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={cx("flex items-end justify-between gap-4 px-6 pb-4 pt-5", className)}>
-      <div className="min-w-0">
-        <h1 className="t-h-20 text-gray-1000">{title}</h1>
-        {desc ? <p className="t-label-13 mt-1 text-gray-800">{desc}</p> : null}
+    <div
+      className={cx(
+        "mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 pb-5 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:items-end lg:justify-between lg:px-8",
+        className,
+      )}
+    >
+      <div className="min-w-0 max-w-3xl">
+        <h1 className="t-h-24 text-balance text-gray-1000">{title}</h1>
+        {desc ? <p className="t-copy-13 mt-1.5 text-pretty text-gray-800">{desc}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2 lg:justify-end">{actions}</div> : null}
     </div>
   );
 }
 
 export function PageBody({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cx("px-6 pb-10", className)}>{children}</div>;
+  return <div className={cx("mx-auto w-full max-w-[1440px] px-4 pb-10 sm:px-6 lg:px-8", className)}>{children}</div>;
 }

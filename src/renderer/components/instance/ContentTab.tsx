@@ -42,7 +42,7 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
         {onEdit ? (
           <Button variant="secondary" onClick={onEdit}>
             <Settings2 className="size-4" />
-            换核心
+            服务器设置
           </Button>
         ) : null}
       </Card>
@@ -52,7 +52,7 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
   const label = kind === "plugin" ? "插件" : "模组";
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">
         <SegmentedControl
           size="sm"
           value={view}
@@ -65,7 +65,7 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
         <span className="t-label-12 text-gray-700">
           {view === "browse"
             ? `按 ${instance.mcVersion} · ${serverTypeLabel(serverTypeOf(instance))} 过滤；安装后落在 ${instance.dir}\\${kind === "plugin" ? "plugins" : "mods"}`
-            : "装完重启服务器生效；禁用只是改名，不会删文件。"}
+            : "安装后重启生效。禁用不会删除文件，随时可以恢复。"}
         </span>
       </div>
 

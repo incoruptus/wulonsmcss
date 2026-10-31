@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu, Send, Timer } from "lucide-react";
+import {
+  FolderOpen, FileText, Puzzle, HardDrive, Clock, Users, Cpu, Send, Timer,
+  ArrowUpRight, Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
@@ -16,27 +20,27 @@ import { contentKindOf, serverTypeOf } from "@/lib/config-model";
 import { isDesktopVisual } from "@/lib/shell";
 
 export function InstanceOverview({ instance, onEdit }: { instance: Instance; onEdit: () => void }) {
+  const navigate = useNavigate();
   const status = useServer((s) => s.status);
   const startedAt = useServer((s) => s.startedAt);
   const players = useServer((s) => s.players);
   const memoryUsed = useServer((s) => s.memoryUsed);
   const setMemory = useServer((s) => s.setMemory);
+  const updateInstance = useConfig((s) => s.updateInstance);
   const [now, setNow] = useState(Date.now());
   const [inviting, setInviting] = useState(false);
   const [schedule, setSchedule] = useState<InstanceSchedule>(instance.schedule ?? {});
-  const updateInstance = useConfig((s) => s.updateInstance);
+  const [counts, setCounts] = useState<{ mods: number; worlds: number }>({ mods: 0, worlds: 0 });
+  const running = status === "running" || status === "starting";
 
   function saveSchedule(next: InstanceSchedule) {
     setSchedule(next);
     void updateInstance(instance.id, { schedule: next });
   }
-  const [counts, setCounts] = useState<{ mods: number; worlds: number }>({ mods: 0, worlds: 0 });
-
-  const running = status === "running" || status === "starting";
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -47,185 +51,108 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
       if (alive && bytes > 0) setMemory(bytes);
     };
     void tick();
-    const t = setInterval(tick, 5000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
+    const timer = setInterval(tick, 5000);
+    return () => { alive = false; clearInterval(timer); };
   }, [running, setMemory]);
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    void (async () => {
       const [mods, worlds] = await Promise.all([
         window.mcss.mods.scan(`${instance.dir}\\mods`).catch(() => []),
         worldsApi.scan(instance.dir).catch(() => []),
       ]);
-      if (alive) setCounts({ mods: mods.length, worlds: worlds.reduce((n, p) => n + p.worlds.length, 0) });
+      if (alive) setCounts({ mods: mods.length, worlds: worlds.reduce((n, pack) => n + pack.worlds.length, 0) });
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [instance.dir]);
 
   const uptime = running && startedAt ? Math.floor((now - startedAt) / 1000) : 0;
+  const contentLabel = contentKindOf(serverTypeOf(instance)) === "plugin" ? "插件" : "模组";
 
   return (
     <>
-      <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={<Clock className="size-4" />} label="运行时长" value={running ? formatDuration(uptime) : "未运行"} />
-        <Metric icon={<Users className="size-4" />} label="在线玩家" value={running ? String(players.length) : "—"} />
-        <Metric
-          icon={<Cpu className="size-4" />}
-          label="内存"
-          value={running && memoryUsed ? `${(memoryUsed / 1024 ** 3).toFixed(1)} / ${instance.memoryMax} GB` : `上限 ${instance.memoryMax} GB`}
-        />
-        <Metric
-          icon={<HardDrive className="size-4" />}
-          label="内容"
-          value={`${counts.mods} 个 Mod · ${counts.worlds} 个世界`}
-        />
-      </div>
-
-      <Card>
-        <div className="mb-3 flex items-center gap-2">
-          <Send className="size-4 text-gray-800" />
-          <h3 className="t-h-14 text-gray-1000">朋友能不能进来</h3>
-        </div>
-        <ReachabilityPanel port={instance.port} onInvite={() => setInviting(true)} />
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <h3 className="t-h-14 mb-3 text-gray-1000">服务器信息</h3>
-          <dl className="space-y-2">
-            <Row label="目录" value={<span className="t-mono-12 break-all">{instance.dir}</span>} />
-            <Row label="版本" value={`${instance.mcVersion} · ${instance.loader}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ""}`} />
-            <Row label="Java" value={<span className="t-mono-12 break-all">{instance.javaPath || "未指定"}</span>} />
-            <Row label="内存" value={`${instance.memoryMin} – ${instance.memoryMax} GB`} />
-            <Row label="端口" value={String(instance.port)} />
-            <Row label="上次启动" value={instance.lastStartedAt ? timeAgo(instance.lastStartedAt) : "从未"} />
-            {instance.jvmArgs ? <Row label="JVM 参数" value={<span className="t-mono-12 break-all">{instance.jvmArgs}</span>} /> : null}
-          </dl>
-          <div className="mt-4 flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openPath(instance.dir)}>
-              <FolderOpen className="size-3.5" />
-              打开目录
-            </Button>
-            <Button variant="secondary" size="sm" onClick={onEdit}>
-              编辑设置
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setInviting(true)}>
-              <Send className="size-3.5" />
-              邀请朋友
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                const p = `${instance.dir}\\server.properties`;
-                const ok = await window.mcss.fs.exists(p).catch(() => false);
-                if (!ok) return toast.error("还没有 server.properties，先启动一次服务器");
-                await window.mcss.app.openPath(p);
-              }}
-            >
-              <FileText className="size-3.5" />
-              打开配置文件
-            </Button>
-          </div>
+      <div className="space-y-5">
+        <Card className="grid grid-cols-2 overflow-hidden p-0 lg:grid-cols-4">
+          <Metric icon={<Clock />} label="运行时长" value={running ? formatDuration(uptime) : "未运行"} />
+          <Metric icon={<Users />} label="在线玩家" value={running ? `${players.length} 人` : "—"} />
+          <Metric icon={<Cpu />} label="内存" value={running && memoryUsed ? `${(memoryUsed / 1024 ** 3).toFixed(1)} / ${instance.memoryMax} GB` : `上限 ${instance.memoryMax} GB`} />
+          <Metric icon={<HardDrive />} label="内容与世界" value={`${counts.mods} 个${contentLabel} · ${counts.worlds} 个世界`} />
         </Card>
 
-        <Card>
-          <h3 className="t-h-14 mb-3 text-gray-1000">接下来做什么</h3>
-          <ul className="space-y-2.5">
-            <li className="flex items-start gap-2 t-label-13 text-gray-900">
-              <Puzzle className="mt-0.5 size-4 shrink-0 text-gray-700" />
-              <span>
-                {contentKindOf(serverTypeOf(instance)) === "plugin"
-                  ? "在「插件 → 资源库」里装地皮、传送、经济这些；装完重启服务器生效。"
-                  : "在「模组 → 资源库」里按版本挑 Mod；装完重启服务器生效。"}
-              </span>
-            </li>
-            <li className="flex items-start gap-2 t-label-13 text-gray-900">
-              <Users className="mt-0.5 size-4 shrink-0 text-gray-700" />
-              <span>把自己加为 OP、或开启白名单，在「玩家」页一站式管理。</span>
-            </li>
-            <li className="flex items-start gap-2 t-label-13 text-gray-900">
-              <HardDrive className="mt-0.5 size-4 shrink-0 text-gray-700" />
-              <span>想开新维度？「世界」页可以生成超平坦、虚空等自定义世界的数据包。</span>
-            </li>
-          </ul>
-        </Card>
-      </div>
-      <Card>
-        <div className="mb-3 flex items-center gap-2">
-          <Timer className="size-4 text-gray-800" />
-          <h3 className="t-h-14 text-gray-1000">自动化</h3>
-          <span className="t-label-12 text-gray-700">只在这个实例运行中生效</span>
+        <div className="grid items-start gap-5 xl:grid-cols-12">
+          <Card className="xl:col-span-7">
+            <SectionHead icon={<Send />} title="邀请朋友来玩" desc="检查可达性，再分享最合适的地址。" />
+            <div className="mt-5"><ReachabilityPanel port={instance.port} onInvite={() => setInviting(true)} /></div>
+          </Card>
+
+          <Card className="xl:col-span-5">
+            <SectionHead icon={<Info />} title="服务器信息" desc="当前实例的基础配置。" />
+            <dl className="mt-4 divide-y divide-gray-300">
+              <Row label="版本" value={`${instance.mcVersion} · ${instance.loader}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ""}`} />
+              <Row label="内存" value={`${instance.memoryMin}–${instance.memoryMax} GB`} />
+              <Row label="端口" value={String(instance.port)} />
+              <Row label="上次启动" value={instance.lastStartedAt ? timeAgo(instance.lastStartedAt) : "从未启动"} />
+              <Row label="目录" value={<span className="t-mono-12 break-all" title={instance.dir}>{instance.dir}</span>} />
+              <Row label="Java" value={<span className="t-mono-12 break-all" title={instance.javaPath || "未指定"}>{instance.javaPath || "自动选择"}</span>} />
+            </dl>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openPath(instance.dir)}><FolderOpen className="size-3.5" />打开目录</Button>
+              <Button variant="secondary" size="sm" onClick={onEdit}>编辑设置</Button>
+              <Button variant="ghost" size="sm" onClick={async () => {
+                const path = `${instance.dir}\\server.properties`;
+                const exists = await window.mcss.fs.exists(path).catch(() => false);
+                if (!exists) return toast.error("还没有配置文件", { description: "先启动一次服务器，再打开 server.properties。" });
+                await window.mcss.app.openPath(path);
+              }}><FileText className="size-3.5" />打开配置文件</Button>
+            </div>
+          </Card>
         </div>
 
-        {!isDesktopVisual() ? (
-          <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
-            定时重启、定时公告、定时备份需要桌面版常驻进程；网页版现在不会触发。
-            先用桌面版设置，或者手动在控制台操作。
-          </div>
-        ) : (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="每日重启" hint={schedule.restartAt ? `每天 ${schedule.restartAt} 自动重启` : "留空不重启"}>
-            <div className="flex gap-2">
-              <Input
-                type="time"
-                value={schedule.restartAt ?? ""}
-                onChange={(e) => saveSchedule({ ...schedule, restartAt: e.target.value })}
-              />
-              {schedule.restartAt ? (
-                <Button size="sm" variant="ghost" onClick={() => saveSchedule({ ...schedule, restartAt: "" })}>
-                  清除
-                </Button>
-              ) : null}
-            </div>
-          </Field>
-
-          <Field label="定时公告" hint={schedule.broadcastEvery ? `每 ${schedule.broadcastEvery} 分钟广播一次` : "关闭"}>
-            <div className="space-y-1.5">
-              <Picker
-                value={String(schedule.broadcastEvery ?? 0)}
-                onValueChange={(v) => saveSchedule({ ...schedule, broadcastEvery: Number(v) })}
-                options={[
-                  { value: "0", label: "关闭" },
-                  { value: "30", label: "每 30 分钟" },
-                  { value: "60", label: "每 1 小时" },
-                  { value: "120", label: "每 2 小时" },
-                ]}
-              />
-              {schedule.broadcastEvery ? (
-                <Input
-                  value={schedule.broadcastText ?? ""}
-                  onChange={(e) => saveSchedule({ ...schedule, broadcastText: e.target.value })}
-                  placeholder="宣传语，例如：欢迎加入 QQ 群"
-                />
-              ) : null}
-            </div>
-          </Field>
-
-          <Field label="定时备份" hint={schedule.backupEvery ? `每 ${schedule.backupEvery} 分钟备份一次` : "关闭"}>
-            <Picker
-              value={String(schedule.backupEvery ?? 0)}
-              onValueChange={(v) => saveSchedule({ ...schedule, backupEvery: Number(v) })}
-              options={[
-                { value: "0", label: "关闭" },
-                { value: "30", label: "每 30 分钟" },
-                { value: "60", label: "每 1 小时" },
-                { value: "180", label: "每 3 小时" },
-              ]}
+        <Card>
+          <SectionHead icon={<Puzzle />} title="接下来可以做" desc="不用一次全配完，按你需要的方式来。" />
+          <div className="mt-4 grid gap-2 lg:grid-cols-3">
+            <NextStep
+              title={`装点${contentLabel}`}
+              desc={contentKindOf(serverTypeOf(instance)) === "plugin" ? "地皮、传送、经济，装完重启生效。" : "按游戏版本挑选，装完重启生效。"}
+              onClick={() => navigate(`/instances/${instance.id}/content?view=browse`)}
             />
-          </Field>
-        </div>
-        )}
-      </Card>
-      </div>
+            <NextStep title="管理玩家" desc="设置 OP、白名单和封禁名单。" onClick={() => navigate(`/instances/${instance.id}/players`)} />
+            <NextStep title="照顾世界" desc="创建新维度，或留一份备份。" onClick={() => navigate(`/instances/${instance.id}/worlds`)} />
+          </div>
+        </Card>
 
+        <Card>
+          <SectionHead icon={<Timer />} title="自动化" desc="让重复的事按时发生；只在服务器运行时生效。" />
+          {!isDesktopVisual() ? (
+            <div className="mt-5 rounded-lg bg-amber-700/10 p-3.5 t-copy-13 text-amber-900">
+              定时任务需要桌面版常驻。网页版可以查看设置，但不会自动触发。
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-5 lg:grid-cols-3">
+              <Field label="每日重启" hint={schedule.restartAt ? `每天 ${schedule.restartAt} 自动重启` : "不设置时间就不会自动重启"} htmlFor="schedule-restart">
+                <div className="flex gap-2">
+                  <Input id="schedule-restart" type="time" value={schedule.restartAt ?? ""} onChange={(event) => saveSchedule({ ...schedule, restartAt: event.target.value })} />
+                  {schedule.restartAt ? <Button size="sm" variant="ghost" onClick={() => saveSchedule({ ...schedule, restartAt: "" })}>清除</Button> : null}
+                </div>
+              </Field>
+              <Field label="定时公告" hint={schedule.broadcastEvery ? `每 ${schedule.broadcastEvery} 分钟发送一次` : "当前已关闭"}>
+                <div className="space-y-2">
+                  <Picker value={String(schedule.broadcastEvery ?? 0)} onValueChange={(value) => saveSchedule({ ...schedule, broadcastEvery: Number(value) })} options={[
+                    { value: "0", label: "关闭" }, { value: "30", label: "每 30 分钟" }, { value: "60", label: "每 1 小时" }, { value: "120", label: "每 2 小时" },
+                  ]} />
+                  {schedule.broadcastEvery ? <Input value={schedule.broadcastText ?? ""} onChange={(event) => saveSchedule({ ...schedule, broadcastText: event.target.value })} placeholder="例如：欢迎回来，记得看群公告" /> : null}
+                </div>
+              </Field>
+              <Field label="定时备份" hint={schedule.backupEvery ? `每 ${schedule.backupEvery} 分钟备份一次` : "当前已关闭"}>
+                <Picker value={String(schedule.backupEvery ?? 0)} onValueChange={(value) => saveSchedule({ ...schedule, backupEvery: Number(value) })} options={[
+                  { value: "0", label: "关闭" }, { value: "30", label: "每 30 分钟" }, { value: "60", label: "每 1 小时" }, { value: "180", label: "每 3 小时" },
+                ]} />
+              </Field>
+            </div>
+          )}
+        </Card>
+      </div>
       <InviteDialog open={inviting} onOpenChange={setInviting} instance={instance} />
     </>
   );
@@ -233,21 +160,36 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <Card className="p-3.5">
-      <div className="flex items-center gap-1.5 text-gray-700">
-        {icon}
-        <span className="t-label-12">{label}</span>
-      </div>
-      <div className="t-mono-13 mt-1.5 text-gray-1000">{value}</div>
-    </Card>
+    <div className="border-gray-300 p-4 odd:border-r sm:p-5 lg:border-r lg:last:border-r-0">
+      <div className="flex items-center gap-2 text-gray-700"><span className="[&>svg]:size-4">{icon}</span><span className="t-label-12">{label}</span></div>
+      <div className="t-mono-13 mt-2 truncate font-medium text-gray-1000" title={value}>{value}</div>
+    </div>
+  );
+}
+
+function SectionHead({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="mt-0.5 text-tea-600 [&>svg]:size-[18px]">{icon}</span>
+      <div><h3 className="t-h-16 text-gray-1000">{title}</h3><p className="t-copy-13 mt-1 text-gray-800">{desc}</p></div>
+    </div>
   );
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <dt className="t-label-12 shrink-0 text-gray-700">{label}</dt>
-      <dd className="t-label-13 min-w-0 text-right text-gray-1000">{value}</dd>
+    <div className="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt className="t-label-12 shrink-0 pt-0.5 text-gray-700">{label}</dt>
+      <dd className="t-label-13 min-w-0 max-w-[75%] text-right text-gray-1000">{value}</dd>
     </div>
+  );
+}
+
+function NextStep({ title, desc, onClick }: { title: string; desc: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="group flex items-center gap-3 rounded-lg bg-background-200 p-3.5 text-left transition-colors hover:bg-gray-100">
+      <span className="min-w-0 flex-1"><span className="t-label-13 block font-medium text-gray-1000">{title}</span><span className="mt-1 block text-[12px] leading-[18px] text-gray-700">{desc}</span></span>
+      <ArrowUpRight className="size-4 shrink-0 text-gray-700 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-tea-600" />
+    </button>
   );
 }

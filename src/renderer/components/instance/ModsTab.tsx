@@ -331,8 +331,8 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
             </div>
 
             <ClientSyncPanel plan={syncPlan} mcDir={clientDir} onSynced={() => void compare("local")} />
-            <div className="max-h-[46vh] overflow-y-auto rounded-lg bg-background-100 shadow-geist-border scroll-thin">
-              <table className="w-full border-collapse text-left">
+            <div className="max-h-[46vh] overflow-auto rounded-lg bg-background-100 shadow-geist-border scroll-thin">
+              <table className="w-full min-w-[680px] border-collapse text-left">
                 <thead className="sticky top-0 bg-background-100">
                   <tr className="border-b border-gray-300">
                     <th className="w-8 px-3 py-2" aria-label="选择" />
@@ -392,9 +392,9 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
         </Card>
       ) : (
         <Card className="p-0">
-          <div className="max-h-[52vh] overflow-y-auto scroll-thin">
-            <table className="w-full border-collapse text-left">
-              <thead className="sticky top-0 bg-background-200">
+          <div className="max-h-[52vh] overflow-auto scroll-thin">
+            <table className="w-full min-w-[760px] border-collapse text-left">
+              <thead className="sticky top-0 z-10 bg-background-100">
                 <tr className="border-b border-gray-300">
                   <th className="t-label-12 px-3 py-2 font-medium text-gray-700">名称</th>
                   <th className="t-label-12 px-3 py-2 font-medium text-gray-700">版本</th>

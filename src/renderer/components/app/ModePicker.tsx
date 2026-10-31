@@ -51,7 +51,7 @@ export function ModePicker({ open }: { open: boolean }) {
         <p className="pt-1 t-label-12 text-gray-700">
           提示：同一个程序里两种模式共存，服务器、Mod、存档都在本机，不会因为切换模式丢东西。
         </p>
-        <button className="pt-1 text-left t-label-12 text-blue-900 hover:underline" onClick={lookAround}>
+        <button className="pt-1 text-left t-label-12 text-tea-700 hover:underline" onClick={lookAround}>
           我还不确定，先看看界面 →
         </button>
       </DialogBody>
@@ -75,10 +75,10 @@ function Choice({
       onClick={onClick}
       className={cx(
         "flex w-full items-start gap-3 rounded-xl bg-background-200 p-3.5 text-left transition-colors",
-        "hover:bg-gray-100 focus-visible:outline-none focus-visible:shadow-geist-focus",
+        "hover:bg-gray-100 focus-visible:outline-none",
       )}
     >
-      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-900">{icon}</span>
+      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-tea-100 text-tea-700">{icon}</span>
       <span className="min-w-0">
         <span className="t-label-14 block font-medium text-gray-1000">{title}</span>
         <span className="t-label-13 mt-0.5 block text-gray-800">{desc}</span>

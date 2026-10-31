@@ -222,7 +222,7 @@ export function InviteDialog({
           </div>
         </details>
 
-        {stale ? (
+        {stale && code ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-2.5 t-label-12 text-amber-900">
             <AlertTriangle className="size-3.5 shrink-0" />
             服务器 Mod 清单变了，旧链接里的 Mod 可能不全——建议重新生成再发。

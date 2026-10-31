@@ -5,15 +5,12 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { X } from "lucide-react";
 import { cx } from "@/lib/utils";
 
-/* ---------------- Dialog ---------------- */
-
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
   className?: string;
   widthClass?: string;
-  /** 必须做选择时用：不显示关闭按钮（Esc/遮罩也关不掉，由 onOpenChange 决定） */
   hideClose?: boolean;
 }
 
@@ -21,10 +18,10 @@ export function Dialog({ open, onOpenChange, children, className, widthClass = "
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] transition-opacity data-[state=closed]:opacity-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] transition-opacity duration-200 data-[state=closed]:opacity-0" />
         <DialogPrimitive.Content
           className={cx(
-            "fixed left-1/2 top-[10%] z-50 flex max-h-[82vh] w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-xl bg-background-100 shadow-geist-modal transition-all duration-200 ease-swift focus:outline-none data-[state=closed]:scale-[.97] data-[state=closed]:opacity-0",
+            "fixed left-1/2 top-[6dvh] z-50 flex max-h-[88dvh] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl bg-background-100 shadow-geist-modal transition-[transform,opacity] duration-200 ease-swift focus:outline-none data-[state=closed]:scale-[0.98] data-[state=closed]:opacity-0 sm:top-1/2 sm:max-h-[86dvh] sm:w-[92vw] sm:-translate-y-1/2",
             widthClass,
             className,
           )}
@@ -33,7 +30,7 @@ export function Dialog({ open, onOpenChange, children, className, widthClass = "
           {hideClose ? null : (
             <DialogPrimitive.Close
               aria-label="关闭"
-              className="absolute right-3 top-3 grid size-7 place-items-center rounded-md text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-1000"
+              className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-1000"
             >
               <X className="size-4" />
             </DialogPrimitive.Close>
@@ -44,39 +41,27 @@ export function Dialog({ open, onOpenChange, children, className, widthClass = "
   );
 }
 
-export function DialogHeader({
-  title,
-  desc,
-  children,
-}: {
-  title: React.ReactNode;
-  desc?: React.ReactNode;
-  children?: React.ReactNode;
-}) {
+export function DialogHeader({ title, desc, children }: { title: React.ReactNode; desc?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="border-b border-gray-300 px-5 py-4 pr-12">
-      <DialogPrimitive.Title className="t-h-16 text-gray-1000">{title}</DialogPrimitive.Title>
-      {desc ? (
-        <DialogPrimitive.Description className="t-label-13 mt-1 text-gray-800">{desc}</DialogPrimitive.Description>
-      ) : null}
+    <div className="border-b border-gray-300 px-5 py-5 pr-12 sm:px-6">
+      <DialogPrimitive.Title className="t-h-20 text-balance text-gray-1000">{title}</DialogPrimitive.Title>
+      {desc ? <DialogPrimitive.Description className="t-copy-13 mt-1.5 text-pretty text-gray-800">{desc}</DialogPrimitive.Description> : null}
       {children}
     </div>
   );
 }
 
 export function DialogBody({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cx("min-h-0 flex-1 overflow-y-auto px-5 py-4 scroll-thin", className)}>{children}</div>;
+  return <div className={cx("min-h-0 flex-1 overflow-y-auto px-5 py-5 scroll-thin sm:px-6", className)}>{children}</div>;
 }
 
 export function DialogFooter({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cx("flex items-center justify-end gap-2 border-t border-gray-300 px-5 py-3", className)}>
+    <div className={cx("flex flex-wrap items-center justify-end gap-2 border-t border-gray-300 bg-background-100 px-5 py-4 sm:px-6", className)}>
       {children}
     </div>
   );
 }
-
-/* ---------------- DropdownMenu ---------------- */
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -98,7 +83,7 @@ export function DropdownMenuContent({
         align={align}
         sideOffset={sideOffset}
         className={cx(
-          "z-50 min-w-44 overflow-hidden rounded-xl bg-background-100 p-1 shadow-geist-menu",
+          "z-50 min-w-48 origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-hidden rounded-xl bg-background-100 p-1.5 shadow-geist-menu transition-[transform,opacity] duration-150 ease-swift data-[state=closed]:scale-[0.98] data-[state=closed]:opacity-0",
           className,
         )}
       >
@@ -116,7 +101,7 @@ export function DropdownMenuItem({
   return (
     <DropdownMenuPrimitive.Item
       className={cx(
-        "flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] outline-none transition-colors",
+        "flex min-h-9 cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] outline-none transition-colors",
         danger ? "text-red-900 focus:bg-red-700/10" : "text-gray-1000 focus:bg-gray-100",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
@@ -127,16 +112,12 @@ export function DropdownMenuItem({
 }
 
 export function DropdownMenuLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <DropdownMenuPrimitive.Label className="t-label-12 px-2.5 pb-1 pt-2 text-gray-800">{children}</DropdownMenuPrimitive.Label>
-  );
+  return <DropdownMenuPrimitive.Label className="t-label-12 px-2.5 pb-1.5 pt-2 text-gray-800">{children}</DropdownMenuPrimitive.Label>;
 }
 
 export function DropdownMenuSeparator() {
-  return <DropdownMenuPrimitive.Separator className="mx-1 my-1 h-px bg-gray-300" />;
+  return <DropdownMenuPrimitive.Separator className="mx-1 my-1.5 h-px bg-gray-300" />;
 }
-
-/* ---------------- Popover ---------------- */
 
 export const Popover = PopoverPrimitive.Root;
 export const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -158,7 +139,10 @@ export function PopoverContent({
       <PopoverPrimitive.Content
         align={align}
         sideOffset={sideOffset}
-        className={cx("z-50 rounded-xl bg-background-100 p-3 shadow-geist-menu outline-none", className)}
+        className={cx(
+          "z-50 origin-[var(--radix-popover-content-transform-origin)] rounded-xl bg-background-100 p-3 shadow-geist-menu outline-none transition-[transform,opacity] duration-150 ease-swift data-[state=closed]:scale-[0.98] data-[state=closed]:opacity-0",
+          className,
+        )}
       >
         {children}
       </PopoverPrimitive.Content>
@@ -166,17 +150,7 @@ export function PopoverContent({
   );
 }
 
-/* ---------------- Tooltip ---------------- */
-
-export function Tip({
-  children,
-  tip,
-  side = "top",
-}: {
-  children: React.ReactNode;
-  tip: React.ReactNode;
-  side?: "top" | "bottom" | "left" | "right";
-}) {
+export function Tip({ children, tip, side = "top" }: { children: React.ReactNode; tip: React.ReactNode; side?: "top" | "bottom" | "left" | "right" }) {
   return (
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
@@ -184,7 +158,7 @@ export function Tip({
         <TooltipPrimitive.Content
           side={side}
           sideOffset={6}
-          className="z-50 max-w-64 rounded-md bg-gray-1000 px-2 py-1 text-[12px] leading-4 text-background-100 shadow-geist-md"
+          className="z-50 max-w-64 origin-[var(--radix-tooltip-content-transform-origin)] rounded-lg bg-gray-1000 px-2.5 py-1.5 text-[12px] leading-4 text-background-100 shadow-geist-md"
         >
           {tip}
         </TooltipPrimitive.Content>
