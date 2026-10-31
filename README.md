@@ -17,7 +17,7 @@
 pnpm install
 pnpm dev            # 桌面版
 pnpm build:web      # 静态网页 → dist-web/
-pnpm test           # 206 vitest + 72 node:test + 能力一致性检查
+pnpm test           # 208 vitest + 72 node:test + 能力一致性检查
 ```
 
 编译本地助手（Rust，零第三方依赖）：

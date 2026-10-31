@@ -8,6 +8,7 @@ import { Checkbox, Field, Input, Slider } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { Badge } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
+import { importSinglePlayerSave } from "@/lib/save-import";
 import type { ClientScan, ClientVersion, ModMeta, ServerType } from "@/lib/types";
 import { safeName } from "@/lib/utils";
 import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
@@ -52,6 +53,8 @@ export function CreateServerFromClientDialog({
   const [creating, setCreating] = useState(false);
   const [stage, setStage] = useState("");
   const [percent, setPercent] = useState(0);
+  const [saves, setSaves] = useState<{ name: string; path: string }[]>([]);
+  const [saveName, setSaveName] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +63,8 @@ export function CreateServerFromClientDialog({
     setScanning(false);
     setName("");
     setSelected(new Set());
+    setSaves([]);
+    setSaveName("");
     void window.mcss.app
       .info()
       .then((info) => setDir((d) => d || profile?.dir || info.minecraftDir || ""))
@@ -87,8 +92,13 @@ export function CreateServerFromClientDialog({
           return;
         }
         setScan(res);
+        setSaveName("");
         const rec = res.recommended;
         setVersionId(rec?.id || "");
+        void window.mcss.fs
+          .list(`${res.dir.replace(/[\\/]+$/, "")}\\saves`)
+          .then((entries) => setSaves(entries.filter((e) => e.isDir).map((e) => ({ name: e.name, path: e.path }))))
+          .catch(() => setSaves([]));
         if (rec) {
           setName((n) => n || `${rec.name || "我的"}服务器`);
           setCore(rec.loader === "fabric" ? "fabric" : rec.loader === "forge" ? "forge" : "paper");
@@ -199,6 +209,14 @@ export function CreateServerFromClientDialog({
       });
       if (!install.ok) throw new Error(install.error || "服务端安装失败");
 
+      if (saveName) {
+        const chosen = saves.find((s) => s.name === saveName);
+        if (!chosen) throw new Error("选中的单人存档已经找不到了，请重新扫描客户端目录");
+        setStage("复制单人存档…");
+        setPercent(84);
+        await importSinglePlayerSave(window.mcss.fs, chosen.path, serverDir);
+      }
+
       await addInstance(inst);
       setStage("同步客户端 Mod…");
       setPercent(88);
@@ -239,7 +257,7 @@ export function CreateServerFromClientDialog({
     <Dialog open={open} onOpenChange={(v) => (creating ? undefined : onOpenChange(v))} widthClass="max-w-2xl">
       <DialogHeader
         title="用现有客户端开服"
-        desc="无需重新选择版本与核心：先扫描现有客户端，再将所需模组下载到服务端。"
+        desc="无需重新选择版本与核心：先扫描现有客户端，再把所需模组和单人存档带到服务端。"
       />
       <DialogBody className="space-y-3">
         <Field label="客户端目录" hint="请指向 .minecraft 目录本身，扫描过程不会修改任何文件">
@@ -311,6 +329,29 @@ export function CreateServerFromClientDialog({
                   或者换一个 Fabric 客户端版本。
                 </p>
               </div>
+            ) : null}
+
+            <Field
+              label="把单人存档一起带过来"
+              hint={
+                saves.length
+                  ? "只复制一份到新服务器，原存档仍保留在 .minecraft/saves 里"
+                  : "没有找到 .minecraft/saves。可以先打开一次单人世界，或创建服务器后手动导入"
+              }
+            >
+              <Picker
+                value={saveName}
+                onValueChange={setSaveName}
+                options={[
+                  { value: "", label: "不带存档，只开新服" },
+                  ...saves.map((s) => ({ value: s.name, label: s.name })),
+                ]}
+              />
+            </Field>
+            {saveName ? (
+              <p className="t-label-12 text-gray-700">
+                会把这个存档复制成新服务器的 world。原存档不会被改动；存档版本要和服务器版本一致，不一致时启动可能失败。
+              </p>
             ) : null}
 
             <div className="grid gap-3 sm:grid-cols-3">

@@ -10,13 +10,13 @@
 - **多世界版本门禁**：1.16.2 以下提示原版不支持；1.16.2–26.0 提示当前生成器只支持 26.1 格式；未知版本禁用生成，避免写出起不来的数据包。
 - **联机页可执行化**：体检后直接给「下一步」；有公网 IPv6 时生成 `[v6]:25565` 并一键复制，地址行也可单独复制；总览「联机状态」改名为「朋友能不能进来」。
 - **零基础路径**：网络页主路径只保留「能不能进 + 下一步 + 复制地址」，NAT/IPv6/UPnP 等技术细节折叠到「技术详情」；不再假设校园网、公网 IP 或网络知识。
-- **第一次玩 MC**：加入页补「先安装 Java 版、再粘贴邀请」的三步说明。
+- **单人存档导入**：用现有客户端开服时，可把 `.minecraft/saves` 里选中的存档复制成服务端 `world`；原存档保留，自动清掉 `session.lock`，目标已有 world 时拒绝覆盖。
 - **项目清查**：v28 审计、链接/占位清单、CI、部署清单。
 - **发布链路**：GitHub Actions（typecheck / vitest / node:test / Rust / parity / 桌面构建 / 网页构建 / release check）；`release:agent` 产出 v28 助手 zip 与 SHA256。
 
 ## 验证
 
-- 206 vitest + 72 node:test + 20 Rust 全过
+- 208 vitest + 72 node:test + 20 Rust 全过
 - parity 100%
 - `release:check --package` 37/37
 - 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 272.9 MB）
