@@ -121,6 +121,12 @@ if (fs.existsSync(agentExe)) {
 fs.writeFileSync(path.join(OUT_DIR, 'version'), pkg.version)
 fs.writeFileSync(path.join(OUT_DIR, 'LICENSE'), 'ISC License\nCopyright (c) 2026 隐刻INCO')
 
+// 第三方许可证：Lucide/React/Radix 等随包分发，必须把版权与许可声明一起带上
+const notices = path.join(APP_DIR, 'THIRD-PARTY-NOTICES.md')
+if (fs.existsSync(notices)) {
+  fs.copyFileSync(notices, path.join(OUT_DIR, 'THIRD-PARTY-NOTICES.md'))
+}
+
 // 出包信息：版本 / 提交 / 时间 / agent，排查「这个包到底是哪次构建」
 const buildInfo = {
   version: pkg.version,

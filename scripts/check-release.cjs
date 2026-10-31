@@ -65,6 +65,11 @@ if (process.argv.includes("--package")) {
     const agentExe = path.join(outDir, "resources", "agent", "mcss-agent.exe");
     check("带上了本地助手", fs.existsSync(agentExe));
 
+    const notices = path.join(outDir, "THIRD-PARTY-NOTICES.md");
+    const noticesText = fs.existsSync(notices) ? fs.readFileSync(notices, "utf8") : "";
+    check("带第三方许可证", Boolean(noticesText));
+    check("许可证覆盖 Lucide（ISC）", noticesText.includes("lucide-react") && noticesText.includes("ISC License"));
+
     const asar = path.join(outDir, "resources", "app.asar");
     check("有 app.asar", fs.existsSync(asar));
     if (fs.existsSync(asar)) {
