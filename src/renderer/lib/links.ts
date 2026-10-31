@@ -11,6 +11,17 @@
 /** TODO(11/1)：仓库建好后改成真实仓库，例如 "wulons/mcss" */
 export const REPO = "";
 
+/** 作者主页；建好后填这里，设置页会自动出现「作者主页」按钮 */
+export const AUTHOR_URL = "";
+
+export function projectUrl(): string {
+  return REPO ? `https://github.com/${REPO}` : "";
+}
+
+export function authorUrl(): string {
+  return AUTHOR_URL;
+}
+
 const STABLE_ASSET = "mcss-agent-win64.zip";
 
 export function agentDownloadUrl(): string {

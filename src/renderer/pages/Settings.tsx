@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, FolderOpen, Gamepad2, Globe, Heart, Info, Leaf, Minus, Palette, RotateCcw, Settings2 } from "lucide-react";
+import { Check, ExternalLink, FolderOpen, Gamepad2, Globe, Heart, Info, Minus, Palette, RotateCcw, Settings2 } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Field, SwitchRow } from "@/components/ui/field";
@@ -10,8 +10,10 @@ import { SyncCard } from "@/components/app/SyncCard";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { useConfig } from "@/stores/config";
 import { PALETTES, type PaletteMeta } from "@/lib/themes";
+import { authorUrl, projectUrl } from "@/lib/links";
 import { cx } from "@/lib/utils";
 import type { ThemeMode } from "@/lib/types";
+import authorAvatar from "../assets/author-incoruptus.jpg";
 
 export default function Settings() {
   const cfg = useConfig((s) => s.cfg);
@@ -119,7 +121,7 @@ export default function Settings() {
             <InfoRow label="Electron" value={info?.electron ?? "—"} />
             <InfoRow label="Node" value={info?.node ?? "—"} />
             <InfoRow label="数据目录" value={<span className="t-mono-12 break-all">{info?.appData ?? "—"}</span>} />
-            <InfoRow label="模组数据" value={<span className="text-gray-800">Modrinth · MCIM · MC 百科中文名（经 PCL 整理）</span>} />
+            <InfoRow label="模组数据" value={<span className="text-gray-800">Modrinth · MCIM · MC 百科中文名</span>} />
           </dl>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" disabled={!info} onClick={() => info && window.mcss.app.openPath(info.appData)}><FolderOpen className="size-3.5" />打开数据目录</Button>
@@ -141,14 +143,8 @@ export default function Settings() {
             <div>
               <div className="t-label-13 font-medium text-gray-1000">数据与服务</div>
               <p className="mt-2 t-copy-13 text-pretty text-gray-800">
-                Modrinth API（模组与整合包）· MCIM（中文简介）· MC 百科中文名（经 PCL 整理）·
+                Modrinth API（模组与整合包）· MCIM（中文简介）· MC 百科中文名 ·
                 mcsrvstat.us（公网回连探测）· icanhazip / ipinfo（公网 IP）· GitHub Gist（跨端同步）。
-              </p>
-            </div>
-            <div>
-              <div className="t-label-13 font-medium text-gray-1000">特别感谢</div>
-              <p className="mt-2 t-copy-13 text-pretty text-gray-800">
-                Kimi 老师（首轮视觉方向与改造）；所有帮忙试服、提问题的朋友。
               </p>
             </div>
             <div>
@@ -159,13 +155,29 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          <div className="mt-5 flex items-center gap-3 border-t border-gray-300 pt-4">
-            <span className="brand-mark grid size-10 shrink-0 place-items-center rounded-xl" aria-hidden="true">
-              <Leaf className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <div className="t-label-13 font-medium text-gray-1000">隐刻INCO</div>
-              <div className="t-copy-13 text-gray-800">因为相信，所以看见。</div>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-gray-300 pt-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <img
+                src={authorAvatar}
+                alt="隐刻INCO"
+                className="size-10 shrink-0 rounded-full object-cover"
+              />
+              <div className="min-w-0">
+                <div className="t-label-13 font-medium text-gray-1000">隐刻INCO</div>
+                <div className="t-copy-13 text-gray-800">因为相信，所以看见。</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {authorUrl() ? (
+                <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openExternal(authorUrl())}>
+                  <ExternalLink className="size-3.5" />作者主页
+                </Button>
+              ) : null}
+              {projectUrl() ? (
+                <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openExternal(projectUrl())}>
+                  <ExternalLink className="size-3.5" />项目主页
+                </Button>
+              ) : null}
             </div>
           </div>
         </Card>
