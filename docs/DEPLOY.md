@@ -35,7 +35,7 @@ node scripts/check-release.cjs --package
 pnpm release:agent
 ```
 
-产物在 `release/`（脚本会打 zip + SHA256）。上传到 GitHub Release 的 `latest`，资源名保持 `mcss-agent-win64.zip`，不要带版本号。
+产物在 `release/`（脚本会打安装包 + 便携版 zip + SHA256）。上传到 GitHub Release 的 `latest`，网页按钮用的稳定名是 `mcss-agent-setup.exe`，不要带版本号；便携版 `mcss-agent-win64.zip` 可以一起传。
 
 ## 4. 网页版部署
 

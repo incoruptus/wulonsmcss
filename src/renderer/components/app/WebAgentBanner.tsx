@@ -50,11 +50,11 @@ export function WebAgentBanner() {
             size="xs"
             variant="ghost"
             className="text-amber-900"
-            title="下载后双击运行，连接会自动建立"
+            title="下载后双击安装，启动助手即可连接"
             onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}
           >
             <Download className="size-3" />
-            下载开服茶助手
+            下载安装包
           </Button>
         ) : (
           <span className="t-label-12 text-amber-900/80">安装包请向发你链接的人要</span>

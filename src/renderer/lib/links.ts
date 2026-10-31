@@ -24,7 +24,7 @@ export function authorUrl(): string {
   return AUTHOR_URL;
 }
 
-const STABLE_ASSET = "mcss-agent-win64.zip";
+const STABLE_ASSET = "mcss-agent-setup.exe";
 
 export function agentDownloadUrl(): string {
   // 构建时可用 VITE_AGENT_DOWNLOAD_URL 覆盖

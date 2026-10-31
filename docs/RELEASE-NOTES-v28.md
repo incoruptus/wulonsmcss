@@ -21,7 +21,7 @@
 - **配置 / 内容页**：顶部说明这里改什么、默认值能不能留、保存后是否要重启；内容页说明安装/禁用行为。
 - **单人存档导入**：用现有客户端开服时，可把 `.minecraft/saves` 里选中的存档复制成服务端 `world`；原存档保留，自动清掉 `session.lock`，目标已有 world 时拒绝覆盖。
 - **项目清查**：v28 审计、链接/占位清单、CI、部署清单。
-- **发布链路**：GitHub Actions（typecheck / vitest / node:test / Rust / parity / 桌面构建 / 网页构建 / release check）；`release:agent` 产出 v28 助手 zip 与 SHA256。
+- **发布链路**：GitHub Actions（typecheck / vitest / node:test / Rust / parity / 桌面构建 / 网页构建 / release check）；`release:agent` 产出 v28 助手安装包、便携版 zip 与 SHA256。
 
 ## 验证
 
@@ -29,8 +29,10 @@
 - parity 100%
 - `release:check --package` 37/37
 - 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 272.9 MB）
-- 助手：`release/mcss-agent-28.0.0-win64.zip` + `mcss-agent-win64.zip`
-  - SHA256 `294cd9aff47dde7df72f859a6833b808b6c52b52452cf313955732534cb6d336`
+- 助手安装包：`release/mcss-agent-28.0.0-setup.exe` + 稳定名 `mcss-agent-setup.exe`
+  - SHA256 `cdb372ce2ea43e1a1529ae1a0509d663e1ed5688ddb8f2bafc5143f276dd11a5`
+- 助手便携版：`release/mcss-agent-28.0.0-win64.zip` + `mcss-agent-win64.zip`
+  - SHA256 `09f3cbca9680e04639a62e804ae8a7be1e06974be008de6d54045a56cf8f440c`
 
 ## 已知事项
 

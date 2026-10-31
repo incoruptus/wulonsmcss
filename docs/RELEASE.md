@@ -39,18 +39,18 @@ pnpm release:check --package   # 版本一致 / build-info / agent 在 / asar �
 
 ```bash
 pnpm release:agent
-# → release/mcss-agent-<version>-win64.zip + SHA256SUMS.txt
+# → release/mcss-agent-<version>-setup.exe
+# → release/mcss-agent-<version>-win64.zip（便携版）
+# → SHA256SUMS.txt
 ```
 
 上传到 GitHub Release 后，网页按钮指向：
 
 ```
-<repo>/releases/latest/download/mcss-agent-win64.zip
+<repo>/releases/latest/download/mcss-agent-setup.exe
 ```
 
-`make-release.cjs` 会产出**两个名字**：带版本号的 `mcss-agent-<version>-win64.zip`，
-以及不带版本号的稳定名 `mcss-agent-win64.zip`。**两个都要上传**——
-网页用的是稳定名，否则每次发版链接都会失效。
+`make-release.cjs` 会产出带版本号的安装包，以及不带版本号的稳定名 `mcss-agent-setup.exe`。**两个都要上传**——网页用的是稳定名，否则每次发版链接都会失效。便携版 zip 可以一起传，给不想安装的人用。
 
 还有一步别忘了：把真实仓库填进 `src/renderer/lib/links.ts` 的 `REPO`
 （或构建时给 `VITE_AGENT_DOWNLOAD_URL`）。没填时网页上的按钮会显示

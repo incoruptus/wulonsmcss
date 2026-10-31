@@ -6,6 +6,17 @@
 - 单文件二进制约 **0.3 MB**（`opt-level=z` + LTO + strip）
 - 契约与 Electron preload 完全一致：`POST /api/invoke {channel, args}`，事件走 SSE
 
+## 安装版（Windows）
+
+从 Release 下载 `mcss-agent-setup.exe`，双击安装即可。安装到当前用户目录，不需要管理员权限：
+
+- 默认路径：`%LOCALAPPDATA%\Programs\Wulons MCSS Agent`
+- 开始菜单快捷方式：「Wulon's MCSS 助手」
+- 可选「开机自动启动助手」
+- 卸载走 Windows「应用和功能」，会一并移除自启动项
+
+便携版 `mcss-agent-win64.zip` 仍然保留，解压后直接运行 `mcss-agent.exe`。
+
 ## 跑起来
 
 ```bash

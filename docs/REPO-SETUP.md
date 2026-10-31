@@ -54,14 +54,21 @@ release\WulonsMCSS-28.0.0-win64.zip
 D:\Games\Minecraft\MCServer\wulons-mcss-b28.0.0\WulonsMCSS-win32-x64\
 ```
 
-Agent 包在：
+Agent 安装包在：
+
+```text
+release\mcss-agent-28.0.0-setup.exe
+release\mcss-agent-setup.exe
+```
+
+便携版 zip：
 
 ```text
 release\mcss-agent-28.0.0-win64.zip
 release\mcss-agent-win64.zip
 ```
 
-两个 Agent 名字都要传；网页按钮指向稳定名 `mcss-agent-win64.zip`。
+安装包的稳定名 `mcss-agent-setup.exe` 是网页按钮用的地址；便携版可以一起传，给不想安装的人用。
 
 当前校验值：
 
@@ -70,10 +77,13 @@ WulonsMCSS.exe
 F12EBC300DD9C95EF4B711716561FFCFA20E8DC28E505BC7E98BA3AFC5E42BC8
 
 WulonsMCSS-28.0.0-win64.zip
-8E60719A1F6B3381BC3AC5D79F793EEF9DEFC51B65B071FBA67BD8D601A44C49
+4BD1D165A3D45DBA7B232B2442F95BB17F3B82D2C29E8E97CD01BD248BDA56CB
+
+mcss-agent-28.0.0-setup.exe
+cdb372ce2ea43e1a1529ae1a0509d663e1ed5688ddb8f2bafc5143f276dd11a5
 
 mcss-agent-28.0.0-win64.zip
-c766486824b0ea2f91cb661ec32f7c76af01b858692c631fae2fa68a0e459cf2
+09f3cbca9680e04639a62e804ae8a7be1e06974be008de6d54045a56cf8f440c
 ```
 
 ## 6. 部署网页版
