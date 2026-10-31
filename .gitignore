@@ -26,3 +26,6 @@ tsc.log
 # UI probe screenshots
 _probe*.png
 _shot*.png
+# Python
+__pycache__/
+

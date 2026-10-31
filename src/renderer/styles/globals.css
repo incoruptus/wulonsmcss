@@ -419,8 +419,11 @@
 
   --font-sans: "Sora", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
     "Noto Sans SC", "Source Han Sans SC", system-ui, -apple-system, sans-serif;
+  /* 中文等宽没有 Windows 自带字体：Cascadia 之后必须先接 CJK 无衬线，
+     否则 generic monospace 会落到宋体。Sarasa/Noto Mono CJK 有就用，没有就雅黑。 */
   --font-mono: "Cascadia Code", ui-monospace, "SF Mono", Menlo, "Cascadia Mono",
-    "Noto Sans Mono CJK SC", monospace;
+    "Noto Sans Mono CJK SC", "Sarasa Mono SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    "PingFang SC", "Noto Sans CJK SC", monospace;
 
   --shadow-geist-2xs: 0 1px 1px #10180d08;
   --shadow-geist-xs: 0 1px 2px #10180d0a;

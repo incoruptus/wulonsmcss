@@ -519,3 +519,9 @@ PATH="/c/Windows/System32:$PATH" pnpm test
 - 黑茶 · 云南普洱（褐色）
 
 组件不再写死 `tea-*`，统一改成 `brand-*`；茶色只切 `<html data-palette>`，颜色全在 `globals.css`。完整管线、对比度计算和“加第六种茶”的步骤见 [THEMES.md](THEMES.md)。
+
+## 16. 字体与文案（同日）
+
+- **等宽中文落宋体**：`--font-mono` 原来只有 `"Noto Sans Mono CJK SC", monospace`，Windows 没有前者时 generic monospace 会落到宋体。现在在 Cascadia 之后接 `Sarasa Mono SC / Microsoft YaHei UI / PingFang SC`，Latin 仍等宽，中文回到无衬线。
+- **设置新增「鸣谢」**：技术栈、数据与服务、特别感谢、许可与作者，和「关于开服茶」同页。
+- **文案清单**：`docs/文案清单-2026-10-31.xlsx`，1913 条（去重 1515），含「使用说明 / 全部文案 / 去重文案 / 术语表」四张表；生成脚本 `scripts/export-copy-xlsx.py`。

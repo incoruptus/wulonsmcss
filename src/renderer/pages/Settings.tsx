@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, FolderOpen, Gamepad2, Globe, Info, Minus, Palette, RotateCcw, Settings2 } from "lucide-react";
+import { Check, FolderOpen, Gamepad2, Globe, Heart, Info, Leaf, Minus, Palette, RotateCcw, Settings2 } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Field, SwitchRow } from "@/components/ui/field";
@@ -124,6 +124,49 @@ export default function Settings() {
           <div className="mt-5 flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" disabled={!info} onClick={() => info && window.mcss.app.openPath(info.appData)}><FolderOpen className="size-3.5" />打开数据目录</Button>
             <Button variant="ghost" size="sm" onClick={() => setConfirmReset(true)}><RotateCcw className="size-3.5" />重置全部设置</Button>
+          </div>
+        </Card>
+
+        <Card>
+          <SectionHead icon={<Heart />} title="鸣谢" desc="这套工具站在开源项目、数据服务和朋友的肩膀上。" />
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div>
+              <div className="t-label-13 font-medium text-gray-1000">技术栈</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {["Electron 33", "React 19", "TypeScript", "Vite 5", "Tailwind CSS 4", "Radix UI", "Zustand", "Sonner", "Lucide", "Rust"].map((tech) => (
+                  <Badge key={tech} variant="gray" size="sm">{tech}</Badge>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="t-label-13 font-medium text-gray-1000">数据与服务</div>
+              <p className="mt-2 t-copy-13 text-pretty text-gray-800">
+                Modrinth API（模组与整合包）· MCIM（中文简介）· MC 百科中文名（经 PCL 整理）·
+                mcsrvstat.us（公网回连探测）· icanhazip / ipinfo（公网 IP）· GitHub Gist（跨端同步）。
+              </p>
+            </div>
+            <div>
+              <div className="t-label-13 font-medium text-gray-1000">特别感谢</div>
+              <p className="mt-2 t-copy-13 text-pretty text-gray-800">
+                Kimi 老师（首轮视觉方向与改造）；所有帮忙试服、提问题的朋友。
+              </p>
+            </div>
+            <div>
+              <div className="t-label-13 font-medium text-gray-1000">许可</div>
+              <p className="mt-2 t-copy-13 text-pretty text-gray-800">
+                项目 ISC。Electron、React、Radix、Lucide 等第三方许可证随包分发，
+                完整清单见安装目录的 <span className="t-mono-12">THIRD-PARTY-NOTICES.md</span>。
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex items-center gap-3 border-t border-gray-300 pt-4">
+            <span className="brand-mark grid size-10 shrink-0 place-items-center rounded-xl" aria-hidden="true">
+              <Leaf className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <div className="t-label-13 font-medium text-gray-1000">隐刻INCO</div>
+              <div className="t-copy-13 text-gray-800">因为相信，所以看见。</div>
+            </div>
           </div>
         </Card>
       </PageBody>
