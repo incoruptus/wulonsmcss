@@ -51,6 +51,9 @@ export function ContentTab({ instance, onEdit }: { instance: Instance; onEdit?: 
   const label = kind === "plugin" ? "插件" : "模组";
   return (
     <div className="flex flex-col gap-4">
+      <p className="t-copy-13 text-gray-800">
+        这里管理这台服务器的{label}。从资源库安装后需要重启服务器；禁用不会删除文件。
+      </p>
       <div className="flex flex-wrap items-center gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">
         <SegmentedControl
           size="sm"

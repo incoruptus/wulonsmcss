@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Switch } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
 import { Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
+import { Callout } from "@/components/ui/callout";
 import type { Instance } from "@/lib/types";
 import { AiConfigDialog } from "@/components/instance/AiConfigDialog";
 
@@ -103,6 +104,10 @@ export function ConfigTab({ instance }: { instance: Instance }) {
 
   return (
     <div className="space-y-4">
+      <Callout tone="info" title="这里改的是服务器规则">
+        难度、人数、正版验证、死亡掉落等都在这里。不知道怎么选就保持默认；保存后重启服务器才会生效。
+      </Callout>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <SegmentedControl

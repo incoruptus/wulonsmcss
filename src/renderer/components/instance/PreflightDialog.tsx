@@ -99,7 +99,7 @@ export function PreflightDialog({
           break;
         }
         case "lower-memory":
-          toast.info("请在「服务器设置」中将最大内存调低");
+          toast.info("请在「服务器设置」里把最大内存调低", { description: "路径：实例 → 设置 → 内存" });
           return;
         default:
           toast.info("这条需要你手动处理");
