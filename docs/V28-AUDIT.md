@@ -20,7 +20,7 @@ v27 的功能与视觉已经稳定，v28 不应该再堆功能，而是把「能
 | 项目主页 | `projectUrl()` 由 `REPO` 推导 | 仓库确定后自动可用 |
 | agent 下载 | `agentDownloadUrl()` 在 `REPO` 为空时返回 `""` | 网页版「下载助手」链路要真实可用 |
 | CI / 部署 | 无公开仓库、无 workflow | push 后能跑 typecheck/test/parity/release check |
-| 版本 | `27.7.2` | 统一升 `28.0.0`，build-info、release marker、文档同步 |
+| 版本 | `28.0.0`（已升） | build-info、release marker、文档同步 |
 
 ## 3. 文案（P0/P1）
 
@@ -46,7 +46,7 @@ v27 的功能与视觉已经稳定，v28 不应该再堆功能，而是把「能
 - 词典分 `zh.ts` / `en.ts`，按命名空间拆文件；缺 key 时回退中文并在开发态 warn。
 - 先迁外壳 + 导航 + 设置 + 总览，再按页面推进；错误文案（Electron/Rust）单独一层映射。
 - 设置页加「语言：中文 / English」；切换即时生效，不重载整页。
-- 翻译覆盖度用脚本统计：`node scripts/i18n-coverage.cjs`，v28 先要求核心页面 100%，其余允许中文回退。
+- 翻译覆盖度后续加脚本统计；本期只落框架，不要求覆盖率。
 
 **不建议**把中文原文当 key：文案一改，英文词典全部失配；也不建议现在直接上 `i18next`，当前体量用 200 行以内的 Provider 就够，后续要换再换。
 

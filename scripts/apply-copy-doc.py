@@ -202,6 +202,9 @@ def main() -> None:
             continue
         old = change["old"]
         new = change["new"]
+        if "管理的内存参数" in old:
+            report["skipped"].append({"no": no, "reason": "JVM 托管段标记属于文件格式，不改"})
+            continue
         if no in long_texts:
             old = long_texts[no]["old"]
             new = long_texts[no]["new"]
