@@ -475,9 +475,9 @@ ipcMain.handle("app:detect-launchers", () => {
   const home = require("os").homedir();
   const env = process.env;
   const candidates = [
-    { name: "Plain Craft Launcher 2", path: path.join(home, "Desktop", "Plain Craft Launcher 2.exe") },
+    { name: "第三方启动器", path: path.join(home, "Desktop", "Plain Craft Launcher 2.exe") },
     {
-      name: "Plain Craft Launcher 2",
+      name: "第三方启动器",
       path: path.join(process.env.LOCALAPPDATA || "", "Programs", "Plain Craft Launcher 2", "Plain Craft Launcher 2.exe"),
     },
     { name: "Minecraft Launcher", path: "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe" },

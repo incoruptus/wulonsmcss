@@ -89,8 +89,8 @@ export default function Settings() {
         {isWeb ? (
           <Card>
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <SectionHead icon={<Globe />} title="网页版能力" desc="网页界面通过本机助手完成实际文件和服务器操作。" />
-              <Badge variant="green" size="sm">本机助手已连接</Badge>
+              <SectionHead icon={<Globe />} title="网页版能力" desc="启动本机助手后，网页界面可以完成实际文件和服务器操作。" />
+              <Badge variant="gray" size="sm">网页版</Badge>
             </div>
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <div>

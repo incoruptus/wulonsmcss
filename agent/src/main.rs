@@ -3942,7 +3942,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
             let roaming = std::env::var("APPDATA").unwrap_or_default();
             let candidates = [
-                ("Plain Craft Launcher 2", format!("{home}\\Desktop\\Plain Craft Launcher 2.exe")),
+                ("第三方启动器", format!("{home}\\Desktop\\Plain Craft Launcher 2.exe")),
                 ("Minecraft Launcher", "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe".to_string()),
                 ("Minecraft Launcher", "C:\\Program Files\\Minecraft Launcher\\MinecraftLauncher.exe".to_string()),
                 ("Modrinth App", format!("{local}\\Programs\\Modrinth App\\Modrinth App.exe")),

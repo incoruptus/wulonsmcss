@@ -134,8 +134,20 @@ export default function Client() {
           <Card>
             <EmptyState
               icon={<Layers className="size-5" />}
-              title="该目录下未找到已安装的游戏版本"
-              desc="请指向 .minecraft 目录本身，其中应包含 versions、mods 与 launcher_profiles.json。若使用 PCL 或 HMCL，版本可能存放在其它目录。"
+              title="这个目录里没有找到已安装的游戏版本"
+              desc="请选择 .minecraft 目录本身。里面通常有 versions 和 mods 文件夹；使用第三方启动器时，游戏也可能放在别的目录。"
+              action={
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    const picked = await window.mcss.dialog.openDirectory();
+                    if (picked) setDir(picked);
+                  }}
+                >
+                  <FolderOpen className="size-4" />
+                  选择 .minecraft 目录
+                </Button>
+              }
             />
           </Card>
         ) : (
@@ -151,7 +163,7 @@ export default function Client() {
               <div className="t-label-12 mt-1 text-gray-800">含自行添加的模组（音效、光影前置等）</div>
             </Card>
             <Card className="p-4">
-              <div className="t-label-12 text-gray-700">加载器</div>
+              <div className="t-label-12 text-gray-700">模组加载器</div>
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {uniqueLoaders.length ? (
                   uniqueLoaders.map((l) => (
@@ -165,7 +177,7 @@ export default function Client() {
                   </Badge>
                 )}
               </div>
-              <div className="t-label-12 mt-2 text-gray-800">按 versions/ 里的加载器目录判断</div>
+              <div className="t-label-12 mt-2 text-gray-800">扫描后自动识别，不用手动设置</div>
             </Card>
           </div>
         )}
