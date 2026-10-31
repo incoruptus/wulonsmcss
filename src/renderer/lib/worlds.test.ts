@@ -86,6 +86,15 @@ describe("多世界服务", () => {
     expect(packs[0].worlds[0].generator).toBe("minecraft:noise");
   });
 
+  it("旧版本被拒绝，不会写出 26.1 数据包", async () => {
+    const worlds = await import("./worlds");
+    const res = await worlds.create("D:\\srv", { name: "old", type: "void" }, "1.20.1");
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/26\.1/);
+    expect([...files.keys()].some((k) => k.includes("mwm-wulons-old"))).toBe(false);
+    expect((await worlds.repair("D:\\srv", "1.20.1")).success).toBe(false);
+  });
+
   it("非法世界名被拒绝", async () => {
     const worlds = await import("./worlds");
     const res = await worlds.create("D:\\srv", { name: "../evil", type: "void" });

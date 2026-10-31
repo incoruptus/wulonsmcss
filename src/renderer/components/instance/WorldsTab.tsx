@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw, History } from "lucide-react";
+import { Globe2, Plus, RefreshCw, Trash2, Wrench, Archive, RotateCcw, History, AlertTriangle } from "lucide-react";
 import { SwitchRow } from "@/components/ui/field";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
@@ -12,6 +12,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import type { Instance, WorldPack } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
 import * as worldsApi from "@/lib/worlds";
+import { dimensionSupport, dimensionSupportMessage } from "@/lib/mc-version";
 import { isDesktopVisual } from "@/lib/shell";
 
 const TYPES = [
@@ -42,6 +43,8 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   }
   const cfg = useConfig((s) => s.cfg);
   const patch = useConfig((s) => s.patch);
+  const support = dimensionSupport(instance.mcVersion);
+  const canGenerate = support === "supported";
 
   async function loadBackups() {
     setBackups(await window.mcss.backup.list(instance.dir).catch(() => []));
@@ -64,13 +67,17 @@ export function WorldsTab({ instance }: { instance: Instance }) {
   }, [instance.dir]);
 
   async function create() {
+    if (!canGenerate) {
+      toast.error(dimensionSupportMessage(instance.mcVersion));
+      return;
+    }
     if (!/^[a-z0-9_-]+$/i.test(draft.name)) {
       toast.error("世界名称只能包含字母、数字、下划线和连字符");
       return;
     }
     setBusy(true);
     try {
-      const res = await worldsApi.create(instance.dir, { ...draft, namespace: "wulons" });
+      const res = await worldsApi.create(instance.dir, { ...draft, namespace: "wulons" }, instance.mcVersion);
       if (!res.success) throw new Error(res.error || "创建失败");
       toast.success("世界数据包已生成", { description: "服务器运行期间会自动执行 reload 生效" });
       setCreating(false);
@@ -85,6 +92,18 @@ export function WorldsTab({ instance }: { instance: Instance }) {
 
   return (
     <div className="space-y-4">
+      {!canGenerate ? (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-700/30 bg-amber-700/10 p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-900" />
+          <div className="min-w-0">
+            <div className="t-label-13 font-medium text-amber-900">
+              {support === "unsupported" ? "当前版本不支持数据包维度" : "当前版本暂不支持多世界生成"}
+            </div>
+            <p className="mt-1 t-copy-12 text-amber-900/80">{dimensionSupportMessage(instance.mcVersion)}</p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background-100 p-3 shadow-geist-border">
         <p className="t-label-13 text-gray-800">
           数据包生成的维度会出现在 <span className="t-mono-12">world/datapacks/</span> 下，同一台服务器可共用一套。
@@ -97,8 +116,10 @@ export function WorldsTab({ instance }: { instance: Instance }) {
           <Button
             variant="secondary"
             size="sm"
+            disabled={!canGenerate}
+            title={!canGenerate ? dimensionSupportMessage(instance.mcVersion) : undefined}
             onClick={async () => {
-              const res = await worldsApi.repair(instance.dir);
+              const res = await worldsApi.repair(instance.dir, instance.mcVersion);
               if (!res.success) return toast.error(res.error || "修复失败");
               toast.success(`已修复 ${res.fixed?.length ?? 0} 处`, {
                 description: "旧版生成器产出的维度格式会导致服务器无法启动，已自动升级为 26.1 格式",
@@ -109,7 +130,12 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             <Wrench className="size-3.5" />
             修复数据包
           </Button>
-          <Button size="sm" onClick={() => setCreating(true)}>
+          <Button
+            size="sm"
+            disabled={!canGenerate}
+            title={!canGenerate ? dimensionSupportMessage(instance.mcVersion) : undefined}
+            onClick={() => setCreating(true)}
+          >
             <Plus className="size-3.5" />
             新建世界
           </Button>
@@ -123,7 +149,7 @@ export function WorldsTab({ instance }: { instance: Instance }) {
             title="还没有自定义世界"
             desc="可生成超平坦、虚空、下界风格等维度，用作挖矿场、跑酷地图或活动场地。"
             action={
-              <Button onClick={() => setCreating(true)}>
+              <Button disabled={!canGenerate} onClick={() => setCreating(true)}>
                 <Plus className="size-4" />
                 新建第一个世界
               </Button>

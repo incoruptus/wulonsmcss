@@ -6,6 +6,7 @@
  */
 
 import { buildWorldPack, normalizeDimension, templateFor, type WorldConfig } from "./mwm";
+import { dimensionSupport, dimensionSupportMessage } from "./mc-version";
 
 export interface WorldSummary {
   id: string;
@@ -84,7 +85,11 @@ export async function scan(serverDir: string): Promise<WorldPack[]> {
 export async function create(
   serverDir: string,
   config: WorldConfig & { namespace?: string },
+  mcVersion = "26.1",
 ): Promise<{ success: boolean; error?: string; packName?: string }> {
+  if (dimensionSupport(mcVersion) !== "supported") {
+    return { success: false, error: dimensionSupportMessage(mcVersion) };
+  }
   const name = String(config.name ?? "");
   if (!/^[a-z0-9_-]{1,48}$/i.test(name)) {
     return { success: false, error: "世界名只能包含字母、数字、下划线和连字符" };
@@ -127,7 +132,13 @@ export async function remove(serverDir: string, packName: string): Promise<{ suc
  * 修复旧数据包：pack_format 升到 101，dimension 的 biome_source 换成显式数组，
  * dimension_type 按推断出的类型重写（26.1 少了 has_ender_dragon_fight 会直接起不来）。
  */
-export async function repair(serverDir: string): Promise<{ success: boolean; error?: string; fixed?: string[] }> {
+export async function repair(
+  serverDir: string,
+  mcVersion = "26.1",
+): Promise<{ success: boolean; error?: string; fixed?: string[] }> {
+  if (dimensionSupport(mcVersion) !== "supported") {
+    return { success: false, error: dimensionSupportMessage(mcVersion) };
+  }
   const root = datapacksDir(serverDir);
   const packs = await listDirs(root);
   if (!packs.length) return { success: false, error: "未找到 world/datapacks 目录" };
