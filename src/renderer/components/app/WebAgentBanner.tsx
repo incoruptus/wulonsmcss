@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { AlertTriangle, Download, RefreshCw } from "lucide-react";
+import { AlertTriangle, Download, RefreshCw, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { detectShell } from "@/lib/shell";
 import { agentDownloadReady, agentDownloadUrl } from "@/lib/links";
@@ -39,16 +39,22 @@ export function WebAgentBanner() {
   if (shell !== "web" || agent.status === "online" || agent.status === "checking") return null;
 
   const blocked = agent.status === "blocked";
+  const isEdge = /Edg\//.test(navigator.userAgent);
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-amber-700/30 bg-amber-700/10 px-4 py-1.5">
       <AlertTriangle className="size-3.5 shrink-0 text-amber-900" />
       <span className="t-label-12 text-amber-900">
         {blocked
-          ? "本机助手在运行，但这个页面连不上它。刷新一次；仍然不行就重启助手。"
+          ? "本机助手在运行，但这个页面连不上它。先刷新页面；仍然不行就重启助手。"
           : "还差一步：这台电脑上的「开服茶助手」没有启动。装好并启动后，才能读取存档、开服和准备客户端。"}
+        {blocked && isEdge ? " Edge 询问是否允许访问本地网络时，请点允许。" : ""}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
+        <Button size="xs" variant="ghost" className="text-amber-900" onClick={() => window.location.reload()} title="清掉旧页面缓存，重新加载最新版本">
+          <RotateCw className="size-3" />
+          刷新页面
+        </Button>
         <Button size="xs" variant="secondary" onClick={() => void agent.refresh()} loading={agent.refreshing}>
           <RefreshCw className="size-3" />
           重新连接

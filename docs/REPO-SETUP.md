@@ -77,13 +77,13 @@ WulonsMCSS.exe
 228E08C6AAE7A0B149E7D9EFBF931620405BC9DC52228E269D7CEA3088B1FE2D
 
 WulonsMCSS-28.0.0-win64.zip
-bee43333ebabc96421714adf9b0b31d171140e6e6989c87414d4a6e556e0e76f
+014ad0fe0866e5ccb4229f3e35a89b6254f41cfdab5ec7bde13d1e1b4129da1e
 
 mcss-agent-28.0.0-setup.exe
-d43eda8478d36f263af8b7e629adb042ae6a06962a0d43b9925443c0b3935064
+b968328b0b7212b6cd7e6391ed9c9189ff6304ad02b3bf47e9360a097af1faa9
 
 mcss-agent-28.0.0-win64.zip
-9b7b113945f050dab9d83cbed90abaabd2b5fa82677ea97ff991f823daa240a0
+46beec99f7d7d44b81858164f0fb7419d8cf2deb771943fca3df13bc7f1bb8a4
 ```
 
 ## 6. 部署网页版
@@ -100,6 +100,6 @@ pnpm build:web
 
 - `git status` 干净
 - 211 vitest + 72 node:test + 20 Rust 全过
-- release check 40/40
+- release check 41/41
 - `.env.local` 已被 `.gitignore` 忽略
 - `config.json` 没有进提交

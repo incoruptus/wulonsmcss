@@ -26,11 +26,22 @@ export async function checkAgent(): Promise<AgentState> {
   }
   if (!health.ok) return { status: "offline" };
   let version = "";
+  let product = "";
+  let supportsPair = false;
   try {
-    const data = (await health.json()) as { version?: string };
+    const data = (await health.json()) as { version?: string; product?: string; pair?: boolean };
     version = data.version || "";
+    product = data.product || "";
+    supportsPair = data.pair === true;
   } catch {
     /* health 不是 JSON 也继续往下试 */
+  }
+  if (!product || !supportsPair) {
+    return {
+      status: "blocked",
+      version,
+      message: "这台电脑上的助手是旧版本，不认新的配对接口。请重新运行最新的 mcss-agent-setup.exe，再刷新页面。",
+    };
   }
   try {
     // 助手端口开着但卡死时，不能让首屏永远停在「检查中」

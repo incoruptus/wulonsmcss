@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
+import { toast } from "sonner";
 import App from "./App";
 import "./styles/globals.css";
 import { agentBaseUrl, agentToken, detectShell } from "./lib/shell";
@@ -8,6 +9,9 @@ import { createHttpClient } from "./lib/httpClient";
 import { ErrorBoundary } from "./components/app/ErrorBoundary";
 import { installGlobalErrorHandlers } from "./lib/report";
 import { I18nProvider } from "./i18n";
+
+const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+const BUILD_ID = env?.VITE_BUILD_ID || "";
 
 // 双外壳：Electron 由 preload 注入 window.mcss；Web 版接本机 agent
 const shell = detectShell();
@@ -35,6 +39,41 @@ import "@fontsource/sora/500.css";
 import "@fontsource/sora/600.css";
 import "@fontsource/sora/700.css";
 
+/**
+ * 页面开着的时候部署了新版本：提示刷新。
+ * GitHub Pages 的 index.html 有缓存，光靠浏览器自己不会换掉已经跑起来的旧包。
+ */
+function watchForUpdates() {
+  if (shell !== "web" || !BUILD_ID) return;
+  let announced = false;
+
+  const check = async () => {
+    try {
+      const res = await fetch(`./version.json?ts=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { buildId?: string };
+      if (!data.buildId || data.buildId === BUILD_ID || announced) return;
+      announced = true;
+      toast.info("页面有新版本", {
+        description: "刷新后使用最新版本。",
+        duration: Infinity,
+        action: { label: "刷新", onClick: () => window.location.reload() },
+      });
+    } catch {
+      /* 版本文件拿不到就安静，不影响主流程 */
+    }
+  };
+
+  window.setTimeout(() => void check(), 2500);
+  window.setInterval(() => void check(), 60000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void check();
+  });
+  window.addEventListener("pageshow", (event) => {
+    if ((event as PageTransitionEvent).persisted) void check();
+  });
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
@@ -46,3 +85,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 );
+
+watchForUpdates();

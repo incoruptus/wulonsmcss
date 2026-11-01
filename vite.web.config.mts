@@ -1,7 +1,21 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "path";
+
+const buildId = process.env.VITE_BUILD_ID || new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+
+/** 每次构建写一个版本号：打开着的旧页面可以发现新版本并提示刷新 */
+const versionPlugin: Plugin = {
+  name: "mcss-version",
+  generateBundle() {
+    this.emitFile({
+      type: "asset",
+      fileName: "version.json",
+      source: JSON.stringify({ buildId }),
+    });
+  },
+};
 
 /**
  * 纯静态 Web 构建（GitHub Pages 用）
@@ -14,6 +28,9 @@ export default defineConfig({
   // .env.local 在仓库根目录；不显式指定时 Vite 会去 src/renderer 下找，本地构建就拿不到仓库地址
   envDir: resolve(__dirname),
   base: "./",
+  define: {
+    "import.meta.env.VITE_BUILD_ID": JSON.stringify(buildId),
+  },
   build: {
     outDir: resolve(__dirname, "dist-web"),
     emptyOutDir: true,
@@ -24,5 +41,5 @@ export default defineConfig({
       "@": resolve(__dirname, "src/renderer"),
     },
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), versionPlugin],
 });

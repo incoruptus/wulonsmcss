@@ -4,6 +4,7 @@
 >
 > **2026-11-01 修订**：替换 v28 的网页版链路与本机助手（首次配对、页面内选目录、无窗口后台、开机自启、新品牌图标）。
 > 之前装过 v28 旧助手的机器，请重新运行 `mcss-agent-setup.exe`；旧版只认 `wulons.github.io` 来源，会拒绝新页面。
+> 页面现在会检查新版本并提示刷新；健康接口发现旧助手时会直接说明「版本过旧，请重新安装」。
 
 ## 主要变化
 
@@ -30,14 +31,14 @@
 
 - 211 vitest + 72 node:test + 20 Rust 全过
 - parity 100%
-- `release:check --package` 40/40
+- `release:check --package` 41/41
 - 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 273.4 MB）
 - 桌面版 zip：`release/WulonsMCSS-28.0.0-win64.zip`
-  - SHA256 `bee43333ebabc96421714adf9b0b31d171140e6e6989c87414d4a6e556e0e76f`
+  - SHA256 `014ad0fe0866e5ccb4229f3e35a89b6254f41cfdab5ec7bde13d1e1b4129da1e`
 - 助手安装包：`release/mcss-agent-28.0.0-setup.exe` + 稳定名 `mcss-agent-setup.exe`
-  - SHA256 `d43eda8478d36f263af8b7e629adb042ae6a06962a0d43b9925443c0b3935064`
+  - SHA256 `b968328b0b7212b6cd7e6391ed9c9189ff6304ad02b3bf47e9360a097af1faa9`
 - 助手便携版：`release/mcss-agent-28.0.0-win64.zip` + `mcss-agent-win64.zip`
-  - SHA256 `9b7b113945f050dab9d83cbed90abaabd2b5fa82677ea97ff991f823daa240a0`
+  - SHA256 `46beec99f7d7d44b81858164f0fb7419d8cf2deb771943fca3df13bc7f1bb8a4`
 
 ## 已知事项
 

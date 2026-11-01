@@ -34,6 +34,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// 网页版的默认部署地址。安装包里也可以用 MCSS_WEB_BASE 覆盖。
 const DEFAULT_WEB_BASE: &str = "https://incoruptus.github.io/wulonsmcss";
 const LOG_MAX_BYTES: u64 = 2 * 1024 * 1024;
+/// 多个请求线程同时配对/启动时，日志行会互相穿插；写文件单独串行化。
+static LOG_LOCK: Mutex<()> = Mutex::new(());
 
 struct State {
     config_path: PathBuf,
@@ -68,6 +70,7 @@ fn log_path() -> PathBuf {
 
 /// 写文件日志。GUI 子系统下没有 stdout，所有诊断信息都只能落在这里。
 fn log_line(level: &str, message: &str) {
+    let _guard = LOG_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let path = log_path();
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -4478,6 +4481,7 @@ fn handle(shared: &Shared, mut stream: TcpStream) {
             ("ok", Json::Bool(true)),
             ("product", Json::s("wulons-mcss-agent")),
             ("version", Json::s(PRODUCT_VERSION)),
+            ("pair", Json::Bool(true)),
         ])
         .to_string();
         http::respond_json(&mut stream, 200, &body);

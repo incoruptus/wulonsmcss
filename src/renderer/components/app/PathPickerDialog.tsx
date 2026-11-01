@@ -164,15 +164,25 @@ export function PathPickerDialog() {
     setLoading(true);
     setError("");
     try {
-      const exists = await window.mcss.fs.exists(target).catch(() => false);
-      if (seq !== loadSeq.current) return;
-      if (!exists) {
-        if (alive.current) {
-          setError("这个路径不存在，或者没有权限读取。可以从左侧的磁盘和常用位置重新进。");
-          setTyped(target);
-        }
-        return;
+    let exists = false;
+    try {
+      exists = await window.mcss.fs.exists(target);
+    } catch (e) {
+      if (alive.current && seq === loadSeq.current) {
+        setError(
+          `连不上本机助手，读取不了这台电脑的目录。确认助手已启动后刷新页面；如果浏览器问是否允许访问本地网络，请点允许。(${(e as Error).message})`,
+        );
       }
+      return;
+    }
+    if (seq !== loadSeq.current) return;
+    if (!exists) {
+      if (alive.current) {
+        setError("这个路径不存在，或者没有权限读取。可以从左侧的磁盘和常用位置重新进。");
+        setTyped(target);
+      }
+      return;
+    }
       const list = await window.mcss.fs.list(target);
       if (!alive.current || seq !== loadSeq.current) return;
       setDir(target);
@@ -311,7 +321,12 @@ export function PathPickerDialog() {
                 <Loader2 className="size-4 animate-spin" />
               </div>
             ) : error ? (
-              <p className="p-3 t-label-12 leading-5 text-amber-900">{error}</p>
+              <div className="space-y-2 p-3">
+                <p className="t-label-12 leading-5 text-amber-900">{error}</p>
+                <Button size="xs" variant="secondary" onClick={() => window.location.reload()}>
+                  刷新页面
+                </Button>
+              </div>
             ) : visible.length === 0 ? (
               <p className="p-3 t-label-12 text-gray-700">这个文件夹是空的。</p>
             ) : (

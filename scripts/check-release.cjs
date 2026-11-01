@@ -42,6 +42,10 @@ if (fs.existsSync(indexHtml)) {
   const assets = path.join(distWeb, "assets");
   const js = fs.existsSync(assets) ? fs.readdirSync(assets).filter((f) => f.endsWith(".js")) : [];
   check("有 JS 产物", js.length > 0, assets);
+
+  const versionJson = path.join(distWeb, "version.json");
+  const versionText = fs.existsSync(versionJson) ? fs.readFileSync(versionJson, "utf8") : "";
+  check("有页面版本号（开着旧页面时提示刷新）", /\{"buildId":"\d{8,}"\}/.test(versionText), versionText.slice(0, 80));
 }
 
 /** 3. 打包目录（可选） */
