@@ -35,11 +35,13 @@
 | 多世界数据包生成 | ✅ | ✅ |
 | 世界快照（时间机） | ✅ | ✅ |
 | 开服前预检（7 项） | ✅ | ✅ |
-| Java 探测 / 原生文件选择框 | ✅ | ✅ |
+| Java 探测 / 目录与文件选择（网页版页面内） | ✅ | ✅ |
 | 自动安装 Java（下载 JDK） | ❌ 未做 | ❌ 未做 |
 
 **能力一致性由脚本守着**：`node scripts/check-parity.cjs` 会比对 preload 暴露的
 全部通道与 agent 已实现的通道，`pnpm test` 里带 `--strict`——少了任何一条，测试直接红。
+网页版的目录与保存入口统一走 `pickPath()`，源码里除 `path-picker.ts` 外再出现
+`window.mcss.dialog.` 会被 `check-release` 直接拦下。
 
 网页版遇到确实不支持的通道时，会显示「这个功能需要桌面版」而不是内部错误名
 （agent 返回 `UNSUPPORTED:<channel>`，`httpClient` 负责翻译）。
