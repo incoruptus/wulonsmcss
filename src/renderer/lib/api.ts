@@ -99,6 +99,9 @@ export interface McssApi {
     detectLaunchers: () => Promise<{ name: string; path: string }[]>;
     aiDocs: () => Promise<string>;
     lanAddress: () => Promise<{ ip: string }>;
+    /** 开机自启（网页版由 agent 写 HKCU Run，桌面版由 Electron 托管） */
+    autostart: () => Promise<{ enabled: boolean; command: string; exe: string }>;
+    setAutostart: (enabled: boolean) => Promise<{ enabled: boolean; command: string; exe: string }>;
   };
   config: {
     read: () => Promise<AppConfig>;
@@ -118,6 +121,8 @@ export interface McssApi {
     mkdir: (path: string) => Promise<void>;
     remove: (path: string) => Promise<void>;
     copy: (src: string, dest: string) => Promise<string>;
+    /** 本机磁盘根目录（网页版选目录时需要；桌面版也用同一份契约） */
+    drives: () => Promise<{ path: string; name: string }[]>;
   };
   server: {
     preflight: (instanceId: string) => Promise<PreflightResult>;

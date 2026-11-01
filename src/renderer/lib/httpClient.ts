@@ -6,7 +6,7 @@
  */
 
 import type { McssApi } from "./api";
-import { isLoopbackUrl } from "./shell";
+import { isLoopbackUrl, readAgentToken, storeAgentToken } from "./shell";
 
 interface InvokeEnvelope {
   channel: string;
@@ -21,19 +21,49 @@ interface EventMessage {
 export function createHttpClient(base: string, token: string): McssApi {
   // 纵深防御：即使调用方传了非本机地址，也绝不把配对令牌发出去
   const trusted = isLoopbackUrl(base);
+  // 令牌可能被 /api/pair 换新，所以每次请求都读当前值，而不是建客户端时固定
+  let currentToken = token || readAgentToken();
   const headers = (): Record<string, string> => ({
     "content-type": "application/json",
-    ...(trusted && token ? { "x-mcss-token": token } : {}),
+    ...(trusted && currentToken ? { "x-mcss-token": currentToken } : {}),
   });
+
+  /** 网页第一次打开时没有令牌：向本机助手换一个，并写回 localStorage */
+  async function pair(): Promise<boolean> {
+    if (!trusted) return false;
+    try {
+      const res = await fetch(`${base}/api/pair`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) return false;
+      const data = (await res.json()) as { token?: string };
+      if (!data.token) return false;
+      currentToken = data.token;
+      storeAgentToken(data.token);
+      resetStream();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function post(envelope: InvokeEnvelope): Promise<Response> {
+    return fetch(`${base}/api/invoke`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(envelope),
+    });
+  }
 
   async function invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T> {
     let res: Response;
     try {
-      res = await fetch(`${base}/api/invoke`, {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({ channel, args } satisfies InvokeEnvelope),
-      });
+      res = await post({ channel, args } satisfies InvokeEnvelope);
+      if (res.status === 401 && (await pair())) {
+        res = await post({ channel, args } satisfies InvokeEnvelope);
+      }
     } catch (e) {
       throw new Error(`无法连接本机助手（${base}），请确认其是否已启动。`);
     }
@@ -63,6 +93,7 @@ export function createHttpClient(base: string, token: string): McssApi {
       const label = name[group] ?? name[channel] ?? channel;
       return `${label}需要桌面版，网页版暂不支持，安装 Wulon's MCSS 桌面版后即可使用。`;
     }
+    if (status === 401) return "这台浏览器还没有和本机助手配对。刷新页面会自动重新配对；仍然失败时，重新启动助手。";
     return error || `助手返回 ${status}`;
   }
 
@@ -85,7 +116,7 @@ export function createHttpClient(base: string, token: string): McssApi {
 
   function ensureStream() {
     if (source) return;
-    const url = trusted ? `${base}/api/events?token=${encodeURIComponent(token)}` : `${base}/api/events`;
+    const url = trusted ? `${base}/api/events?token=${encodeURIComponent(currentToken)}` : `${base}/api/events`;
     source = new EventSource(url);
     source.onmessage = (e) => {
       try {
@@ -94,6 +125,14 @@ export function createHttpClient(base: string, token: string): McssApi {
         /* 忽略坏帧 */
       }
     };
+  }
+
+  /** 配对换到新令牌后，旧 SSE 连接会一直 401：重建一次，别让控制台静默失联 */
+  function resetStream() {
+    if (!source) return;
+    source.close();
+    source = null;
+    if (listeners.size > 0) ensureStream();
   }
 
   function on(channel: string, cb: (payload: unknown) => void): () => void {
@@ -143,6 +182,8 @@ export function createHttpClient(base: string, token: string): McssApi {
       detectLaunchers: () => invoke("app:detect-launchers"),
       aiDocs: () => invoke("app:ai-docs"),
       lanAddress: () => invoke("app:lan-address"),
+      autostart: () => invoke("app:autostart"),
+      setAutostart: (enabled: boolean) => invoke("app:autostart-set", enabled),
     },
     config: {
       read: () => invoke("config:read"),
@@ -162,6 +203,7 @@ export function createHttpClient(base: string, token: string): McssApi {
       mkdir: (p) => invoke("fs:mkdir", p),
       remove: (p) => invoke("fs:remove", p),
       copy: (src, dest) => invoke("fs:copy", src, dest),
+      drives: () => invoke("fs:drives"),
     },
     server: {
       preflight: (instanceId) => invoke("server:preflight", instanceId),

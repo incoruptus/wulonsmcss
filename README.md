@@ -1,5 +1,9 @@
 # Wulon's MCSS
 
+<p align="center">
+  <img src="resources/app-icon.png" width="112" alt="Wulon's MCSS" />
+</p>
+
 开服 + 开玩一体化的 Minecraft 工具。单实例灵便管理为骨架，玩家侧做到「收到一条链接就能进服」。
 
 两种交付形态共用同一套 React UI 与同一份通道契约：
@@ -7,7 +11,7 @@
 | 形态 | 需要什么 | 适合 |
 |---|---|---|
 | 桌面版 | `WulonsMCSS.exe`（免安装） | 服主日常：建服、管 Mod、备份、联机 |
-| 网页版 + 助手 | 浏览器 + `mcss-agent.exe`（0.5MB，零依赖） | 不想装大包，打开网页下载助手即用 |
+| 网页版 + 助手 | 浏览器 + `mcss-agent.exe`（0.55MB，零依赖，后台运行） | 不想装大包，打开网页下载助手即用 |
 
 网页版与桌面版**能力一致**，由脚本守着（`scripts/check-parity.cjs`，`pnpm test` 里带 `--strict`）。
 
@@ -17,7 +21,7 @@
 pnpm install
 pnpm dev            # 桌面版
 pnpm build:web      # 静态网页 → dist-web/
-pnpm test           # 208 vitest + 72 node:test + 能力一致性检查
+pnpm test           # 211 vitest + 72 node:test + 能力一致性检查
 ```
 
 编译本地助手（Rust，零第三方依赖）：
@@ -65,6 +69,7 @@ pnpm release:agent            # 编译 agent 并打成 Release 资产 + SHA256
 ## 文档
 
 - [PROJECT.md](PROJECT.md) —— 现状、没做完的、上线步骤
+- [docs/AUDIT-2026-11-01.md](docs/AUDIT-2026-11-01.md) —— 网页版实测修复与安全复查
 - [docs/WEB.md](docs/WEB.md) —— 网页版架构、配对、安全边界
 - [docs/ROADMAP.md](docs/ROADMAP.md) —— 分期与进度
 - [docs/ai/](docs/ai/) —— 给 AI 与人共用的排错知识库

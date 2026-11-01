@@ -74,16 +74,16 @@ release\mcss-agent-win64.zip
 
 ```text
 WulonsMCSS.exe
-F12EBC300DD9C95EF4B711716561FFCFA20E8DC28E505BC7E98BA3AFC5E42BC8
+228E08C6AAE7A0B149E7D9EFBF931620405BC9DC52228E269D7CEA3088B1FE2D
 
 WulonsMCSS-28.0.0-win64.zip
-141FD25F1EC8FBBE8391FC43B0C7B8BA1510CAE542D9302518A7E9A7C57B9FB8
+bee43333ebabc96421714adf9b0b31d171140e6e6989c87414d4a6e556e0e76f
 
 mcss-agent-28.0.0-setup.exe
-cdb372ce2ea43e1a1529ae1a0509d663e1ed5688ddb8f2bafc5143f276dd11a5
+d43eda8478d36f263af8b7e629adb042ae6a06962a0d43b9925443c0b3935064
 
 mcss-agent-28.0.0-win64.zip
-09f3cbca9680e04639a62e804ae8a7be1e06974be008de6d54045a56cf8f440c
+9b7b113945f050dab9d83cbed90abaabd2b5fa82677ea97ff991f823daa240a0
 ```
 
 ## 6. 部署网页版
@@ -94,12 +94,12 @@ mcss-agent-28.0.0-win64.zip
 pnpm build:web
 ```
 
-构建产物在 `out-web/`，按 [DEPLOY.md](./DEPLOY.md) 部署到静态托管。部署后把真实地址填回 `VITE_PUBLIC_URL` 并重新构建，否则邀请链接不会指向网页版。
+构建产物在 `dist-web/`，按 [DEPLOY.md](./DEPLOY.md) 部署到静态托管。部署后把真实地址填回 `VITE_PUBLIC_URL` 并重新构建，否则邀请链接不会指向网页版。
 
 ## 推送前最后确认
 
 - `git status` 干净
-- 208 vitest + 72 node:test + 20 Rust 全过
-- release check 37/37
+- 211 vitest + 72 node:test + 20 Rust 全过
+- release check 40/40
 - `.env.local` 已被 `.gitignore` 忽略
 - `config.json` 没有进提交

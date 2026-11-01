@@ -12,6 +12,7 @@ import { useConfig } from "@/stores/config";
 import { copyText, uid } from "@/lib/utils";
 import { isDesktopVisual } from "@/lib/shell";
 import type { FrpProfile } from "@/lib/types";
+import { pickPath } from "@/lib/path-picker";
 
 const EMPTY: FrpProfile = {
   id: "",
@@ -152,7 +153,11 @@ export default function Network() {
                 <Button
                   variant="secondary"
                   onClick={async () => {
-                    const p = await window.mcss.dialog.openFile([{ name: "应用程序", extensions: ["exe"] }]);
+                    const p = await pickPath({
+                      mode: "file",
+                      title: "选择 frpc 程序",
+                      filters: [{ name: "应用程序", extensions: ["exe"] }],
+                    });
                     if (p) setDraft({ ...draft, exePath: p });
                   }}
                 >

@@ -1,47 +1,55 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AlertTriangle, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { agentBaseUrl, detectShell } from "@/lib/shell";
+import { detectShell } from "@/lib/shell";
 import { agentDownloadReady, agentDownloadUrl } from "@/lib/links";
+import { useAgentStatus } from "@/hooks/useAgentStatus";
+import { useConfig } from "@/stores/config";
+import type { AppConfig } from "@/lib/types";
 
 /**
- * Web 形态下的「助手未连接」提示条。
+ * Web 形态下的「助手连不上」提示条。
  * 不阻塞界面：房间码仍然可以离线解析，只是不能开服/读本地文件。
+ * health 通了还要再确认一次调用能过，否则配对失败会被误报成「已连接」。
  */
 export function WebAgentBanner() {
-  const [up, setUp] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(false);
   const shell = detectShell();
+  const agent = useAgentStatus(shell === "web");
+  const loadConfig = useConfig((s) => s.load);
 
-  async function ping() {
-    setChecking(true);
-    try {
-      const res = await fetch(`${agentBaseUrl()}/api/health`, { signal: AbortSignal.timeout(2500) });
-      setUp(res.ok);
-    } catch {
-      setUp(false);
-    } finally {
-      setChecking(false);
-    }
-  }
-
+  // 页面先打开、助手后装上时，启动那一刻的 config.read 是失败的：
+  // 一旦连上就重新读一次，否则后面新建实例会把本机已有实例覆盖掉。
   useEffect(() => {
-    if (shell !== "web") return;
-    void ping();
-    const t = setInterval(ping, 8000);
-    return () => clearInterval(t);
-  }, [shell]);
+    if (shell !== "web" || agent.status !== "online") return;
+    void (async () => {
+      const before = useConfig.getState().cfg;
+      await loadConfig();
+      const after = useConfig.getState().cfg;
+      // 助手离线时用户做过的选择（模式、已完成引导）不能被一次重读抹掉
+      const restore: Partial<AppConfig> = {};
+      if (before.modeAsked && !after.modeAsked) {
+        restore.mode = before.mode;
+        restore.modeAsked = true;
+      }
+      if (before.setupComplete && !after.setupComplete) restore.setupComplete = true;
+      if (Object.keys(restore).length) await useConfig.getState().patch(restore);
+    })();
+  }, [shell, agent.status, loadConfig]);
 
-  if (shell !== "web" || up !== false) return null;
+  if (shell !== "web" || agent.status === "online" || agent.status === "checking") return null;
+
+  const blocked = agent.status === "blocked";
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-amber-700/30 bg-amber-700/10 px-4 py-1.5">
       <AlertTriangle className="size-3.5 shrink-0 text-amber-900" />
       <span className="t-label-12 text-amber-900">
-        还差一步：这台电脑上的「开服茶助手」没有启动。启动后，才能读取存档、开服和准备客户端。
+        {blocked
+          ? "本机助手在运行，但这个页面连不上它。刷新一次；仍然不行就重启助手。"
+          : "还差一步：这台电脑上的「开服茶助手」没有启动。装好并启动后，才能读取存档、开服和准备客户端。"}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
-        <Button size="xs" variant="secondary" onClick={ping} loading={checking} title={agentBaseUrl()}>
+        <Button size="xs" variant="secondary" onClick={() => void agent.refresh()} loading={agent.refreshing}>
           <RefreshCw className="size-3" />
           重新连接
         </Button>
@@ -50,7 +58,7 @@ export function WebAgentBanner() {
             size="xs"
             variant="ghost"
             className="text-amber-900"
-            title="下载后双击安装，启动助手即可连接"
+            title="下载后双击安装；助手在后台运行，没有窗口"
             onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}
           >
             <Download className="size-3" />

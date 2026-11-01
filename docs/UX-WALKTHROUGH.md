@@ -49,10 +49,10 @@
 ## 4. 验证
 
 - `pnpm typecheck`：通过
-- `pnpm test`：**208 vitest + 72 node:test**，parity 100%
+- `pnpm test`：**211 vitest + 72 node:test**，parity 100%
 - `cargo test`：**20 Rust** 全过
 - `pnpm build` / `pnpm build:web`：通过
-- `node scripts/web-e2e.cjs`：**16/16**
+- `node scripts/web-e2e.cjs`：**24/24**
 - `node scripts/check-release.cjs --package`：**37/37**
 - 桌面包：`D:\Games\Minecraft\MCServer\wulons-mcss-b28.0.0\WulonsMCSS-win32-x64\WulonsMCSS.exe`（约 273 MB）
   - SHA256 `F12EBC300DD9C95EF4B711716561FFCFA20E8DC28E505BC7E98BA3AFC5E42BC8`

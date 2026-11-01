@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLoopbackUrl } from "./shell";
+import { extractAgentToken, isLoopbackUrl } from "./shell";
 
 describe("agent 地址信任边界", () => {
   it("只接受本机回环地址", () => {
@@ -14,5 +14,23 @@ describe("agent 地址信任边界", () => {
     expect(isLoopbackUrl("http://127.0.0.1.evil.tld")).toBe(false);
     expect(isLoopbackUrl("file:///C:/Windows")).toBe(false);
     expect(isLoopbackUrl("not a url")).toBe(false);
+  });
+});
+
+describe("配对令牌从地址里取出后要抹掉", () => {
+  it("Hash 路由里的 t 也能取到（深链曾经就丢在这里）", () => {
+    const got = extractAgentToken("https://incoruptus.github.io/wulonsmcss/#/join/w1z.abc?t=deadbeef&auto=1");
+    expect(got?.token).toBe("deadbeef");
+    expect(got?.cleaned).toBe("https://incoruptus.github.io/wulonsmcss/#/join/w1z.abc?auto=1");
+  });
+
+  it("普通查询参数照旧支持", () => {
+    const got = extractAgentToken("https://incoruptus.github.io/wulonsmcss/?t=abc123#/");
+    expect(got?.token).toBe("abc123");
+    expect(got?.cleaned).toBe("https://incoruptus.github.io/wulonsmcss/#/");
+  });
+
+  it("没有令牌时返回 null，不篡改地址", () => {
+    expect(extractAgentToken("https://incoruptus.github.io/wulonsmcss/#/join/abc")).toBeNull();
   });
 });

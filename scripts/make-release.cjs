@@ -35,6 +35,33 @@ if (!fs.existsSync(AGENT_EXE)) {
 
 fs.mkdirSync(RELEASE_DIR, { recursive: true });
 
+/** 给 Rust 产物补上 Windows 图标与版本信息（Rust 默认没有资源段） */
+function stampAgent() {
+  const rcedit = path.join(
+    ROOT,
+    "node_modules",
+    ".pnpm",
+    "electron-winstaller@5.4.0",
+    "node_modules",
+    "electron-winstaller",
+    "vendor",
+    "rcedit.exe",
+  );
+  const icon = path.join(ROOT, "resources", "agent-icon.ico");
+  if (process.platform !== "win32" || !fs.existsSync(rcedit) || !fs.existsSync(icon)) {
+    console.warn("跳过 exe 图标：找不到 rcedit 或 resources/agent-icon.ico");
+    return;
+  }
+  try {
+    execFileSync(rcedit, [AGENT_EXE, "--set-icon", icon]);
+    console.log("已写入助手图标");
+  } catch (e) {
+    console.warn(`写入 exe 图标失败（不影响运行）：${e.message}`);
+  }
+}
+
+stampAgent();
+
 function sha256(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }

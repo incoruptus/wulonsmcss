@@ -59,9 +59,9 @@
 
 ## 3. 真正验证过的东西
 
-- `pnpm test`：30 个 vitest 文件（208 例）+ 72 个 node:test（含 client scan / client-mods / backup GC / serversdat / netdoctor / files）+ parity + download contract。
+- `pnpm test`：32 个 vitest 文件（211 例）+ 72 个 node:test（含 client scan / client-mods / backup GC / serversdat / netdoctor / files）+ parity + download contract。
 - 真机：Paper 26.1.2 / Forge 26.1.2 安装、已有客户端→Fabric 服务端创建（26 个 Mod 选中）、模组比对勾选、UI 截图探针、打包版启动。
-- 网页 agent：`web-e2e` 16/16（健康/令牌/Origin/CORS/client:scan/内存/net:doctor/SSE/Modrinth/机翻/生态数量）。
+- 网页 agent：`web-e2e` 24/24（健康/令牌/配对/Origin/磁盘/自启/CORS/client:scan/内存/net:doctor/SSE/Modrinth/机翻/生态数量）。
 - 未验证：NeoForge 真实安装（已按产品决定暂停新建）、真实微软登录、真实 Gist、移动端真机、定时任务跨天、第三方外证在 CGNAT/反爬下的假阴性。
 
 ## 4. 已知空壳/死路（本轮处理）

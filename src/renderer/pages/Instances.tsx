@@ -12,6 +12,7 @@ import { CreateServerFromClientDialog } from "@/components/instance/CreateServer
 import { useConfig } from "@/stores/config";
 import { timeAgo } from "@/lib/utils";
 import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
+import { pickPath } from "@/lib/path-picker";
 
 export default function Instances() {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ export default function Instances() {
                     <Button size="sm" onClick={async () => { await setActive(instance.id); navigate("/"); }}>打开服务器<ArrowRight className="size-3.5" /></Button>
                   ) : (
                     <Button size="sm" onClick={async () => {
-                      const dir = await window.mcss.dialog.openDirectory();
+                      const dir = await pickPath({ mode: "dir", title: "选择这个服务器所在的文件夹" });
                       if (!dir) return;
                       const javas = await window.mcss.app.detectJava().catch(() => []);
                       const best = javas.find((java) => (java.major ?? 0) >= 21) ?? javas[0];

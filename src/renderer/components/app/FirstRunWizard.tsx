@@ -13,6 +13,8 @@ import {
   Gamepad2,
   Plug,
   Puzzle,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/overlay";
@@ -25,6 +27,10 @@ import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
 import { cx, formatCount, safeName } from "@/lib/utils";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
 import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
+import { pickPath } from "@/lib/path-picker";
+import { detectShell } from "@/lib/shell";
+import { agentDownloadReady, agentDownloadUrl } from "@/lib/links";
+import { useAgentStatus } from "@/hooks/useAgentStatus";
 import {
   CORES,
   INTENTS,
@@ -57,6 +63,25 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
   const [step, setStep] = useState(0);
   const [intent, setIntent] = useState<ServerIntent>("vanilla");
 
+  // 网页版的第一道门：页面读不到硬盘，必须先把本机助手装起来
+  const shell = detectShell();
+  const webGate = shell === "web";
+  const agent = useAgentStatus(open && webGate);
+  const [gatePassed, setGatePassed] = useState(!webGate);
+
+  useEffect(() => {
+    if (!open) return;
+    // 每次打开都先要求「助手可用」；真的连上了，下面的 effect 会立刻放行
+    if (!webGate) setGatePassed(true);
+    else setGatePassed(false);
+    // agent.status 不放进依赖：反复检查时不该把已经通过的步骤又锁回去
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, webGate]);
+
+  useEffect(() => {
+    if (agent.status === "online") setGatePassed(true);
+  }, [agent.status]);
+
   const [versions, setVersions] = useState<McVersion[]>([]);
   const [presets, setPresets] = useState<VersionPreset[]>([]);
   const [eco, setEco] = useState<Record<string, Eco>>({});
@@ -82,11 +107,18 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
 
   useEffect(() => {
     if (!open) return;
+    // 网页版在助手连上之前拿不到 info / 版本列表；等门通过后再加载一次
+    if (webGate && !gatePassed) return;
     // 重新打开时回到第一步；成功页不应该残留
     setStep(0);
     setCreatedId(null);
     let alive = true;
     void (async () => {
+      // 助手是刚刚装上的：先把启动时没读到的配置补回来，避免用空列表覆盖本机已有实例
+      if (webGate && gatePassed) {
+        await useConfig.getState().load();
+        if (!alive) return;
+      }
       setChecking(true);
       const [info, list, js] = await Promise.all([
         window.mcss.app.info().catch(() => null),
@@ -113,7 +145,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, webGate, gatePassed]);
 
   useEffect(() => {
     if (!open || !presets.length) return;
@@ -201,6 +233,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
     if (!name.trim()) return toast.error("给服务器起个名字");
     if (!mcVersion) return toast.error("选一个 Minecraft 版本");
     if (!chosenJava) return toast.error(`这个版本需要 Java ${requiredJava}`);
+    if (!finalDir) return toast.error("还没有确定安装目录，请在高级选项里选一个文件夹");
     setInstalling(true);
     setProgress({ stage: "准备中", percent: 0 });
     const off = window.mcss.versions.onProgress(setProgress);
@@ -244,34 +277,115 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
   }
 
   const canNext = step === 0 ? true : step === 1 ? Boolean(mcVersion) : true;
+  const steps = webGate ? (["装助手", ...STEPS] as const) : STEPS;
+  const displayStep = gatePassed && webGate ? step + 1 : step;
+  const gate = webGate && !gatePassed;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !installing && finish()} widthClass="max-w-2xl">
       <div className="border-b border-gray-300 px-5 pb-4 pt-5">
         <div className="t-h-20 text-gray-1000">先把它开起来</div>
         <p className="t-label-13 mt-1 text-gray-800">
-          不需要提前了解参数，回答三个问题后，会按推荐配置为你准备好。
+          {webGate
+            ? "网页本身碰不到硬盘。先装一个本机助手，之后的步骤会自动在这台电脑上完成。"
+            : "不需要提前了解参数，回答三个问题后，会按推荐配置为你准备好。"}
         </p>
         <div className="mt-4 flex items-center gap-2">
-          {STEPS.map((label, i) => (
+          {steps.map((label, i) => (
             <div key={label} className="flex flex-1 items-center gap-2">
               <div
                 className={cx(
                   "grid size-6 shrink-0 place-items-center rounded-full t-label-12",
-                  i < step ? "bg-green-800/15 text-green-900" : i === step ? "bg-gray-1000 text-background-100" : "bg-gray-200 text-gray-700",
+                  i < displayStep ? "bg-green-800/15 text-green-900" : i === displayStep ? "bg-gray-1000 text-background-100" : "bg-gray-200 text-gray-700",
                 )}
               >
-                {i < step ? <Check className="size-3.5" /> : i + 1}
+                {i < displayStep ? <Check className="size-3.5" /> : i + 1}
               </div>
-              <span className={cx("t-label-12", i === step ? "text-gray-1000" : "text-gray-700")}>{label}</span>
-              {i < STEPS.length - 1 ? <div className="h-px flex-1 bg-gray-300" /> : null}
+              <span className={cx("t-label-12", i === displayStep ? "text-gray-1000" : "text-gray-700")}>{label}</span>
+              {i < steps.length - 1 ? <div className="h-px flex-1 bg-gray-300" /> : null}
             </div>
           ))}
         </div>
       </div>
 
       <DialogBody className="space-y-4">
-        {step === 0 ? (
+        {gate ? (
+          <div className="space-y-3.5">
+            <div className="rounded-xl bg-background-200 p-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-brand-700" />
+                <span className="t-label-14 font-medium text-gray-1000">网页不能直接读这台电脑</span>
+              </div>
+              <p className="mt-1.5 t-copy-13 leading-6 text-gray-800">
+                浏览器出于安全限制，拿不到硬盘路径，也启动不了 Java。装好助手后，读存档、写服务端文件、启动和停止服务器都由它在本机完成，网页只负责显示。
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {[
+                { step: "1", title: "下载安装包", detail: "点下面的按钮，保存到电脑" },
+                { step: "2", title: "双击安装", detail: "一路下一步，不用改设置" },
+                { step: "3", title: "回到这里", detail: "检测到助手后自动继续" },
+              ].map((item) => (
+                <div key={item.step} className="rounded-lg bg-background-200 p-3">
+                  <span className="grid size-6 place-items-center rounded-full bg-brand-100 t-label-12 text-brand-700">{item.step}</span>
+                  <p className="mt-1.5 t-label-13 font-medium text-gray-1000">{item.title}</p>
+                  <p className="mt-0.5 t-label-12 leading-4 text-gray-700">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-200 p-3">
+              <span
+                className={cx(
+                  "size-2 shrink-0 rounded-full",
+                  agent.status === "online" ? "bg-green-800" : agent.status === "checking" ? "bg-amber-700" : "bg-gray-500",
+                )}
+              />
+              <span className="t-label-13 text-gray-900">
+                {agent.status === "checking"
+                  ? "正在检查这台电脑上的助手…"
+                  : agent.status === "online"
+                    ? `助手已连接${agent.version ? ` · 版本 ${agent.version}` : ""}`
+                    : agent.status === "blocked"
+                      ? "助手在运行，但这个页面还没有连上"
+                      : "还没有检测到助手"}
+              </span>
+              <span className="ml-auto flex flex-wrap items-center gap-2">
+                {agentDownloadReady() ? (
+                  <Button size="sm" onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}>
+                    <Download className="size-3.5" />
+                    下载安装包
+                  </Button>
+                ) : (
+                  <span className="t-label-12 text-gray-700">安装包暂时没有发布地址，请向发你链接的人要</span>
+                )}
+                <Button size="sm" variant="secondary" onClick={() => void agent.refresh()} loading={agent.refreshing}>
+                  <RefreshCw className="size-3.5" />
+                  我已经装好了
+                </Button>
+              </span>
+            </div>
+
+            {agent.status === "blocked" ? (
+              <p className="rounded-lg bg-amber-700/10 p-3 t-label-12 leading-5 text-amber-900">
+                这个页面被助手拒绝了，通常是助手版本太旧，或者浏览器里存着旧的配对信息。先把助手从任务管理器结束，再从开始菜单重新打开；仍然不行就重新运行一次安装包。
+              </p>
+            ) : null}
+
+            <details className="rounded-lg bg-background-200 p-3">
+              <summary className="cursor-pointer t-label-13 text-gray-900">安装后会发生什么</summary>
+              <ul className="mt-2 space-y-1 t-label-12 leading-5 text-gray-800">
+                <li>· 助手在后台运行，没有窗口；开机时会自己起来，也可以稍后在设置里关掉。</li>
+                <li>· 它只监听这台电脑的 127.0.0.1，局域网和互联网上的其他设备都连不进来。</li>
+                <li>· 想彻底关掉时，在任务管理器结束 mcss-agent.exe；不会弹任何确认框。</li>
+                <li>· 安装位置在用户目录，不需要管理员权限；卸载走开始菜单里的卸载项。</li>
+              </ul>
+            </details>
+          </div>
+        ) : null}
+
+        {!gate && step === 0 ? (
           <div className="space-y-2.5">
             <p className="t-label-12 text-gray-700">选择最贴近你使用习惯的一项，之后可随时更改。</p>
             {INTENTS.map((it) => {
@@ -489,7 +603,7 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
                     <Button
                       variant="secondary"
                       onClick={async () => {
-                        const p = await window.mcss.dialog.openDirectory();
+                        const p = await pickPath({ mode: "dir", title: "选择服务器安装位置", defaultPath: finalDir });
                         if (p) setDir(p);
                       }}
                     >
@@ -567,8 +681,10 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
             上一步
           </Button>
         )}
-        <div className="ml-auto flex gap-2">
-          {createdId ? null : step < 2 ? (
+        <div className="ml-auto flex items-center gap-2">
+          {gate ? (
+            <span className="t-label-12 text-gray-700">装好后会自动进入下一步</span>
+          ) : createdId ? null : step < 2 ? (
             <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext || checking}>
               下一步
               <ArrowRight className="size-4" />
@@ -577,13 +693,15 @@ export function FirstRunWizard({ open, onDone }: { open: boolean; onDone: () => 
             <Button
               onClick={install}
               loading={installing}
-              disabled={!chosenJava || (core !== "vanilla" && builds.length === 0) || !name.trim()}
+              disabled={!chosenJava || (core !== "vanilla" && builds.length === 0) || !name.trim() || !finalDir}
               title={
                 !chosenJava
                   ? `需要 Java ${requiredJava}`
                   : core !== "vanilla" && builds.length === 0
                     ? "这个核心/版本没有可用构建"
-                    : undefined
+                    : !finalDir
+                      ? "先确定安装目录"
+                      : undefined
               }
             >
               {installing ? null : <Download className="size-4" />}

@@ -74,19 +74,60 @@ export function agentBaseUrl(): string {
   }
 }
 
+/** 从地址里取出配对令牌，并返回抹掉令牌后的地址（纯函数，便于单测） */
+export function extractAgentToken(href: string): { token: string; cleaned: string } | null {
+  try {
+    const url = new URL(href);
+    const hashRaw = url.hash.replace(/^#/, "");
+    const hashQuery = hashRaw.includes("?") ? hashRaw.slice(hashRaw.indexOf("?") + 1) : "";
+    const hashParams = new URLSearchParams(hashQuery);
+    const token =
+      url.searchParams.get("t") ||
+      url.searchParams.get("token") ||
+      hashParams.get("t") ||
+      hashParams.get("token");
+    if (!token) return null;
+    url.searchParams.delete("t");
+    url.searchParams.delete("token");
+    if (hashQuery) {
+      const [route, query = ""] = hashRaw.split("?");
+      const rest = new URLSearchParams(query);
+      rest.delete("t");
+      rest.delete("token");
+      const nextQuery = rest.toString();
+      url.hash = `#${route}${nextQuery ? `?${nextQuery}` : ""}`;
+    }
+    return { token, cleaned: url.toString() };
+  } catch {
+    return null;
+  }
+}
+
 /** 配对令牌：深链带进来一次，之后存在本地 */
 export function agentToken(): string {
   try {
-    const url = new URL(window.location.href);
-    const t = url.searchParams.get("t") || url.searchParams.get("token");
-    if (t) {
-      localStorage.setItem(TOKEN_KEY, t);
-      // 取完就从地址栏抹掉，避免被截图/复制带出去
-      url.searchParams.delete("t");
-      url.searchParams.delete("token");
-      window.history.replaceState(null, "", url.toString());
-      return t;
-    }
+    const parsed = extractAgentToken(window.location.href);
+    if (!parsed) return readAgentToken();
+    localStorage.setItem(TOKEN_KEY, parsed.token);
+    // 取完就从地址栏抹掉，避免被截图/复制带出去
+    window.history.replaceState(null, "", parsed.cleaned);
+    return parsed.token;
+  } catch {
+    return "";
+  }
+}
+
+/** 配对接口拿到的新令牌写回本地；不写进 URL */
+export function storeAgentToken(token: string): void {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    /* 隐私模式下 localStorage 可能不可写，忽略 */
+  }
+}
+
+export function readAgentToken(): string {
+  try {
     return localStorage.getItem(TOKEN_KEY) || "";
   } catch {
     return "";

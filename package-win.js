@@ -11,6 +11,7 @@ const APP_NAME = 'WulonsMCSS'
 const OUT_DIR = path.join(OUT, APP_NAME + '-win32-x64')
 const RESOURCES_DIR = path.join(OUT_DIR, 'resources')
 const ICON_PNG = path.join(APP_DIR, 'resources', 'app-icon.png')
+const ICON_ICO_SRC = path.join(APP_DIR, 'resources', 'app-icon.ico')
 
 function pngToIco(pngPath) {
   const pngData = fs.readFileSync(pngPath)
@@ -53,7 +54,8 @@ fs.cpSync(path.join(ELECTRON_DIST, 'electron.exe'), path.join(OUT_DIR, APP_NAME 
 if (fs.existsSync(ICON_PNG)) {
   console.log('Setting application icon...')
   const ICON_ICO = path.join(OUT_DIR, APP_NAME + '.ico')
-  fs.writeFileSync(ICON_ICO, pngToIco(ICON_PNG))
+  if (fs.existsSync(ICON_ICO_SRC)) fs.copyFileSync(ICON_ICO_SRC, ICON_ICO)
+  else fs.writeFileSync(ICON_ICO, pngToIco(ICON_PNG))
   const rceditPath = path.join(APP_DIR, 'node_modules', '.pnpm', 'electron-builder-squirrel-w_a0f480f9f253a2ce4ae80312c2b87949', 'node_modules', 'electron-winstaller', 'vendor', 'rcedit.exe')
   if (fs.existsSync(rceditPath)) {
     try {

@@ -57,7 +57,7 @@ node package-win.js
 
 ## 6. CI
 
-`.github/workflows/ci.yml` 已就绪：push / PR 会跑 typecheck、202 vitest、72 node:test、20 Rust、parity、download contract、桌面构建、网页构建与 release check。
+`.github/workflows/ci.yml` 已就绪：push / PR 会跑 typecheck、211 vitest、72 node:test、20 Rust、parity、download contract、桌面构建、网页构建与 release check。
 
 ## 7. push 前最后一遍
 

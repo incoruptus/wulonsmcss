@@ -5,6 +5,7 @@
  *   node scripts/web-e2e.cjs
  */
 const { spawn } = require("child_process");
+const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -73,6 +74,8 @@ async function waitHealth(timeoutMs = 10000) {
 
     const evilOrigin = await invoke("config:read", [], TOKEN, "http://evil.example");
     check("非白名单 Origin 被拒（403）", evilOrigin.status === 403, `status=${evilOrigin.status}`);
+    const nullOrigin = await invoke("config:read", [], TOKEN, "null");
+    check("沙箱页面（Origin: null）被拒（403）", nullOrigin.status === 403, `status=${nullOrigin.status}`);
     const localOrigin = await invoke("config:read", [], TOKEN, "http://127.0.0.1:63729");
     check("本机网页 Origin 可用", localOrigin.status === 200, `status=${localOrigin.status}`);
 
@@ -136,6 +139,53 @@ async function waitHealth(timeoutMs = 10000) {
 
     const wrong = await invoke("config:read", [], "wrong-token");
     check("错误令牌被拒（401）", wrong.status === 401);
+
+    // 首次访问：页面没有令牌时，靠来源白名单换一个
+    const pair = await fetch(`${BASE}/api/pair`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://incoruptus.github.io" },
+      body: "{}",
+    });
+    const pairBody = await pair.json().catch(() => ({}));
+    check("Pages 来源可以配对并拿到令牌", pair.ok && pairBody.token === TOKEN, `status=${pair.status}`);
+
+    const pairEvil = await fetch(`${BASE}/api/pair`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://evil.example" },
+      body: "{}",
+    });
+    check("陌生来源不能配对（403）", pairEvil.status === 403, `status=${pairEvil.status}`);
+
+    const drives = await invoke("fs:drives");
+    check(
+      "fs:drives 返回本机磁盘",
+      Array.isArray(drives.data?.result) && drives.data.result.some((d) => /^[A-Z]:\\$/.test(d.path)),
+      (drives.data?.result || []).map((d) => d.name).join(","),
+    );
+
+    const before = await invoke("app:autostart");
+    check("app:autostart 返回启动项状态", typeof before.data?.result?.enabled === "boolean", String(before.data?.result?.enabled));
+    if (before.data?.result?.enabled) {
+      // 开发机可能已经装了正式助手；不要用 repo 里的 exe 覆盖用户的启动项
+      check("开机自启已是开启状态，跳过写入测试", true, before.data?.result?.command || "");
+    } else {
+      const enabled = await invoke("app:autostart-set", [true]);
+      const enabledCheck = await invoke("app:autostart");
+      check(
+        "开启开机自启后注册表可读回",
+        enabled.data?.result?.enabled === true && enabledCheck.data?.result?.enabled === true,
+        String(enabledCheck.data?.result?.enabled),
+      );
+      await invoke("app:autostart-set", [false]);
+    }
+
+    const info = await invoke("app:info");
+    check("app:info 版本与 package.json 一致", info.data?.result?.version === require("../package.json").version, info.data?.result?.version);
+
+    // 助手是后台进程：GUI 子系统（2），启动时不分配控制台
+    const pe = fs.readFileSync(EXE);
+    const subsystem = pe.readUInt16LE(pe.readInt32LE(0x3c) + 4 + 20 + 68);
+    check("助手按 GUI 子系统编译（不会弹控制台）", subsystem === 2, `subsystem=${subsystem}`);
 
     // SSE：能建立事件流
     const ctrl = new AbortController();

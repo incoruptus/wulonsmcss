@@ -11,6 +11,8 @@ import { resolve } from "path";
  */
 export default defineConfig({
   root: resolve(__dirname, "src/renderer"),
+  // .env.local 在仓库根目录；不显式指定时 Vite 会去 src/renderer 下找，本地构建就拿不到仓库地址
+  envDir: resolve(__dirname),
   base: "./",
   build: {
     outDir: resolve(__dirname, "dist-web"),

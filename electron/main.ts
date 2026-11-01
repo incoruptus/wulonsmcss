@@ -502,6 +502,40 @@ ipcMain.handle("app:detect-launchers", () => {
 /** 本机内网地址（同 WiFi 的朋友可以直接连） */
 ipcMain.handle("app:lan-address", async () => ({ ip: await netdoctor.lanAddress() }));
 
+/**
+ * 开机自启：桌面版交给 Electron 托管，跟 agent 的 HKCU 写入是同一件事的两种外壳。
+ * 返回值保持与 agent 一致，网页版/桌面版共用同一张设置卡片。
+ */
+function autostartState() {
+  const settings = app.getLoginItemSettings();
+  return {
+    enabled: Boolean(settings.openAtLogin),
+    command: process.execPath,
+    exe: process.execPath
+  };
+}
+
+ipcMain.handle("app:autostart", () => autostartState());
+
+ipcMain.handle("app:autostart-set", (_e, enabled: boolean) => {
+  app.setLoginItemSettings({ openAtLogin: Boolean(enabled), path: process.execPath });
+  return autostartState();
+});
+
+ipcMain.handle("fs:drives", () => {
+  const out: { path: string; name: string }[] = [];
+  // A/B 可能是软驱，探测会卡住；从 C 开始足够覆盖实际使用
+  for (const letter of "CDEFGHIJKLMNOPQRSTUVWXYZ") {
+    const root = `${letter}:\\`;
+    try {
+      if (fs.statSync(root).isDirectory()) out.push({ path: root, name: `${letter}:` });
+    } catch {
+      /* 没有这个盘符 */
+    }
+  }
+  return out;
+});
+
 /** 网络体检：网卡 / 公网 IP / NAT 类型 / UPnP 网关（只探测，不改路由器） */
 ipcMain.handle("net:doctor", () => netdoctor.doctor());
 /** 显式端口映射：只在用户点「在路由器上开端口」时调用 */

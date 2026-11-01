@@ -7,6 +7,7 @@ import { WebAgentBanner } from "@/components/app/WebAgentBanner";
 import { MobileNav } from "@/components/app/MobileNav";
 import { FirstRunWizard } from "@/components/app/FirstRunWizard";
 import { ModePicker } from "@/components/app/ModePicker";
+import { PathPickerDialog } from "@/components/app/PathPickerDialog";
 import { useConfig } from "@/stores/config";
 import { useServer } from "@/stores/server";
 import { buildDeps, runSync } from "@/lib/sync/engine";
@@ -132,6 +133,8 @@ export default function App() {
       />
       {/* 第一次打开问一次「你是来开服的，还是来玩的」。之后随时能在侧栏切。 */}
       <ModePicker open={!modeAsked} />
+      {/* 网页版的「选择…」：目录列表由本机助手读取，不依赖系统对话框 */}
+      <PathPickerDialog />
       {mode === "host" ? <FirstRunWizard open={!setupComplete && modeAsked} onDone={() => patch({ setupComplete: true })} /> : null}
     </div>
   );

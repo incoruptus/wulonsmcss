@@ -10,7 +10,7 @@
 └────────┬────────┘                            └──────────────────┘
          │ HTTP/SSE → 127.0.0.1:28471
 ┌────────▼────────┐
-│  mcss-agent     │  0.3 MB 单文件，零依赖
+│  mcss-agent     │  0.55 MB 单文件，零依赖，后台运行
 │  （本机助手）     │  管进程 / 读写文件 / 起 Java
 └─────────────────┘
 ```
@@ -63,20 +63,22 @@ node scripts/web-shot.cjs      # 起 agent + 静态站点 + 截图验证
 ## 配对
 
 1. 助手首次运行生成 32 位令牌，写到 `%APPDATA%/wulons-mcss/agent.token`
-2. 助手注册 `mcss://` 协议；网页点「用助手打开」→ `mcss://join/<房间码>` → 助手拼出
+2. 网页第一次打开时没有令牌，会向本机助手的 `POST /api/pair` 换一个，存进 localStorage
+3. 之后每个请求带 `x-mcss-token`；令牌失效时（例如删了 `agent.token`），下一次调用会自动重新配对
+4. 助手也注册了 `mcss://` 协议；网页点「用助手打开」→ `mcss://join/<房间码>` → 助手拼出
    `网页/#/join/<码>?t=<令牌>` 并打开浏览器
-3. 网页把令牌存 localStorage，之后请求带 `x-mcss-token`
 
-没令牌的请求一律 401；跨域预检带了 `Access-Control-Allow-Private-Network`，
-满足 Chrome 对「公网页面访问本机」的要求。
+没令牌的普通请求一律 401，只有 `/api/pair` 例外；跨域预检带了
+`Access-Control-Allow-Private-Network`，满足 Chrome 对「公网页面访问本机」的要求。
 
-`Origin` 也做白名单：本机页面（127.0.0.1/localhost/::1）和
-`https://wulons.github.io` 直接可用；自定义部署地址需要给助手设置
-`MCSS_ALLOWED_ORIGINS=https://your.site`（逗号分隔）。非白名单来源直接 403。
+`Origin` 做白名单：本机页面（127.0.0.1/localhost/::1）和
+`https://incoruptus.github.io` 直接可用；自定义部署地址需要给助手设置
+`MCSS_ALLOWED_ORIGINS=https://your.site`（逗号分隔）。
+非白名单来源直接 403，`/api/pair` 也一样。
 
 ## 安全边界
 
 - 助手只监听 `127.0.0.1`，不对外网开放
-- 令牌是唯一凭据，等价于本机密码；泄露了就在 `agent.token` 里换一个
+- 令牌与来源白名单一起使用：白名单决定「谁能开口」，令牌决定「口令对不对」
 - 房间码自带校验位，篡改/过期会直接报错；内容不经过我们的服务器
 - 助手能做的仅限「配置/文件/进程」三组 channel；`fs:*` 仍是本机文件能力，配对时要当密码对待

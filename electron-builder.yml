@@ -25,7 +25,7 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: resources/app-icon.png
+  icon: resources/app-icon.ico
 
 nsis:
   oneClick: false

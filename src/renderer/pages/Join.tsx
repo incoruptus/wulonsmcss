@@ -27,6 +27,7 @@ import { planFromDisk, type DiskPlan } from "@/lib/launch";
 import { copyText, cx, safeName } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
 import { serverTypeLabel } from "@/lib/config-model";
+import { pickPath } from "@/lib/path-picker";
 
 interface Exported {
   file: string;
@@ -114,7 +115,7 @@ export default function Join() {
   }, [room, clientDir]);
 
   async function pickClientDir() {
-    const picked = await window.mcss.dialog.openDirectory();
+    const picked = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
     if (picked) {
       setCheckup(null);
       setClientDir(picked);
@@ -149,7 +150,9 @@ export default function Join() {
   useEffect(() => {
     try {
       localStorage.setItem("mcss.playerName", username.trim());
-    } catch {}
+    } catch {
+      /* 隐私模式下 localStorage 不可写，名字只在本页生效 */
+    }
   }, [username]);
 
   const canLaunch = Boolean(plan && plan.command.length > 0 && plan.missing.length === 0 && username.trim());
@@ -263,7 +266,7 @@ export default function Join() {
   /** 旁路：把 Mod 直接装进现有客户端，并把服务器写进多人列表 */
   async function installIntoClient() {
     if (!room) return;
-    const dir = await window.mcss.dialog.openDirectory();
+    const dir = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
     if (!dir) return;
     setBusy(true);
     setProgress({ stage: "准备中", percent: 0 });

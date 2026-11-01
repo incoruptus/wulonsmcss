@@ -1,6 +1,9 @@
 # v28.0.0 发布说明
 
 > 2026-10-31 · 一个“把 v27 收干净”的大版本，不堆新功能，补发布、维护、翻译三件事。
+>
+> **2026-11-01 修订**：替换 v28 的网页版链路与本机助手（首次配对、页面内选目录、无窗口后台、开机自启、新品牌图标）。
+> 之前装过 v28 旧助手的机器，请重新运行 `mcss-agent-setup.exe`；旧版只认 `wulons.github.io` 来源，会拒绝新页面。
 
 ## 主要变化
 
@@ -25,18 +28,21 @@
 
 ## 验证
 
-- 208 vitest + 72 node:test + 20 Rust 全过
+- 211 vitest + 72 node:test + 20 Rust 全过
 - parity 100%
-- `release:check --package` 37/37
-- 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 272.9 MB）
+- `release:check --package` 40/40
+- 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 273.4 MB）
+- 桌面版 zip：`release/WulonsMCSS-28.0.0-win64.zip`
+  - SHA256 `bee43333ebabc96421714adf9b0b31d171140e6e6989c87414d4a6e556e0e76f`
 - 助手安装包：`release/mcss-agent-28.0.0-setup.exe` + 稳定名 `mcss-agent-setup.exe`
-  - SHA256 `cdb372ce2ea43e1a1529ae1a0509d663e1ed5688ddb8f2bafc5143f276dd11a5`
+  - SHA256 `d43eda8478d36f263af8b7e629adb042ae6a06962a0d43b9925443c0b3935064`
 - 助手便携版：`release/mcss-agent-28.0.0-win64.zip` + `mcss-agent-win64.zip`
-  - SHA256 `09f3cbca9680e04639a62e804ae8a7be1e06974be008de6d54045a56cf8f440c`
+  - SHA256 `9b7b113945f050dab9d83cbed90abaabd2b5fa82677ea97ff991f823daa240a0`
 
 ## 已知事项
 
-- `REPO` / `AUTHOR_URL` 仍为空：仓库建好后填 `src/renderer/lib/links.ts`，项目主页、作者主页、网页版“下载助手”才会出现。
+- 网页地址与作者主页已写入 `.env.local` / Pages workflow；换域名时同步改 `VITE_PUBLIC_URL` 和助手的 `MCSS_ALLOWED_ORIGINS`。
+- 旧版助手只放行 `wulons.github.io`，与新页面不兼容，需要重新安装。
 - i18n 只有框架，页面仍是中文；英文词典为空时回退中文。
 - 19 条 §5.2 技术性片段（AI 提示、进程信号、路由器错误、MWM 数据包说明等）保留原文，避免破坏协议/日志语义。
-- 部署前需要设置 `VITE_PUBLIC_URL`；网页版为纯静态 `dist-web/`，HashRouter 不需要 rewrite。
+- 网页版为纯静态 `dist-web/`，HashRouter 不需要 rewrite。

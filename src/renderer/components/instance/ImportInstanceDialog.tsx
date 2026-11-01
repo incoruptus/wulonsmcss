@@ -11,6 +11,7 @@ import { useConfig, makeInstance } from "@/stores/config";
 import { serverTypeLabel } from "@/lib/config-model";
 import type { McVersion, ServerType } from "@/lib/types";
 import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
+import { pickPath } from "@/lib/path-picker";
 
 type Detected = Awaited<ReturnType<typeof window.mcss.versions.detectServer>>;
 
@@ -48,7 +49,7 @@ export function ImportInstanceDialog({ open, onOpenChange }: { open: boolean; on
   }, [open]);
 
   async function pick() {
-    const picked = await window.mcss.dialog.openDirectory();
+    const picked = await pickPath({ mode: "dir", title: "选择现有服务器所在的文件夹" });
     if (!picked) return;
     setDir(picked);
     setName(leafOf(picked));

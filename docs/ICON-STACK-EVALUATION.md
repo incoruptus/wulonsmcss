@@ -1,5 +1,8 @@
 # 图标栈评估：Lucide → Aviala（2026-10-31）
 
+> **2026-11-01 补充：产品图标已换成 MCSS 字标**（`resources/app-icon.png` / `.ico`，网页 `src/renderer/public/favicon.png`），
+> 顶栏的叶片图标暂时保留。本文只讨论 UI 图标库，不涉及产品图标。
+>
 > **决定（2026-10-31）：暂不切换。**
 > Lucide 是 **ISC 许可，允许商业使用**（保留版权与许可声明即可），当前没有任何版权问题；
 > 已新增 `THIRD-PARTY-NOTICES.md`，并随安装包分发。Aviala 评估留档，未来要做“粗细/填充”视觉升级时再启用。

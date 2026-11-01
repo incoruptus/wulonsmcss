@@ -5,6 +5,13 @@
 //!
 //! 契约与 Electron preload 完全一致：POST /api/invoke {channel, args}
 //! 事件走 SSE：/api/events，帧格式 {channel, payload}
+//!
+//! 这个进程没有窗口、没有托盘、也没有控制台：安装后只在后台监听 127.0.0.1。
+//! 需要退出时，在任务管理器结束 mcss-agent.exe 即可。
+
+// 控制台窗口会在登录时、开机自启时、用户双击时各闪一次，所以整个二进制按 GUI 子系统编译。
+// 排查问题看 %APPDATA%\wulons-mcss\agent.log，而不是看一个不存在的控制台。
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 mod http;
 mod json;
@@ -16,13 +23,17 @@ mod sha1;
 const PRODUCT_VERSION: &str = env!("MCSS_VERSION");
 
 use json::Json;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// 网页版的默认部署地址。安装包里也可以用 MCSS_WEB_BASE 覆盖。
+const DEFAULT_WEB_BASE: &str = "https://incoruptus.github.io/wulonsmcss";
+const LOG_MAX_BYTES: u64 = 2 * 1024 * 1024;
 
 struct State {
     config_path: PathBuf,
@@ -44,6 +55,45 @@ type Shared = Arc<Mutex<State>>;
 
 /* ------------------------------- 工具 ------------------------------- */
 
+fn app_data_dir() -> PathBuf {
+    std::env::var("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("wulons-mcss")
+}
+
+fn log_path() -> PathBuf {
+    app_data_dir().join("agent.log")
+}
+
+/// 写文件日志。GUI 子系统下没有 stdout，所有诊断信息都只能落在这里。
+fn log_line(level: &str, message: &str) {
+    let path = log_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if std::fs::metadata(&path).map(|m| m.len() > LOG_MAX_BYTES).unwrap_or(false) {
+        let old = path.with_extension("log.1");
+        let _ = std::fs::remove_file(&old);
+        let _ = std::fs::rename(&path, old);
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(file, "[{}] [{}] {}", now_stamp(), level, message);
+    }
+}
+
+/// 拉起控制台程序时不要给它分配新窗口：agent 是后台进程，弹一个黑框就算 bug。
+fn quiet_cmd(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
 fn now_hms() -> String {
     // 东八区；agent 是本机工具，不做复杂时区处理
     let secs = SystemTime::now()
@@ -57,7 +107,7 @@ fn now_hms() -> String {
 
 fn default_config() -> Json {
     Json::obj(vec![
-        ("version", Json::n(27.0)),
+        ("version", Json::n(28.0)),
         ("theme", Json::s("dark")),
         ("accent", Json::s("#2f6feb")),
         ("instances", Json::Arr(vec![])),
@@ -65,7 +115,7 @@ fn default_config() -> Json {
         ("consoleViewMode", Json::s("code")),
         ("maxLogLines", Json::n(2000.0)),
         ("animationsEnabled", Json::Bool(true)),
-        ("setupComplete", Json::Bool(true)),
+        ("setupComplete", Json::Bool(false)),
         ("quickActions", Json::Arr(vec![])),
         ("frpProfiles", Json::Arr(vec![])),
         ("sync", Json::Null),
@@ -76,14 +126,9 @@ fn config_path() -> PathBuf {
     if let Ok(p) = std::env::var("MCSS_CONFIG") {
         return PathBuf::from(p);
     }
-    let local = PathBuf::from("config.json");
-    if local.exists() {
-        return local;
-    }
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        return PathBuf::from(appdata).join("wulons-mcss").join("config.json");
-    }
-    local
+    // 不再优先读「当前目录的 config.json」：快捷方式/任务管理器/别的程序拉起时，
+    // 工作目录可能是任意项目目录，会把别人的配置当成自己的。
+    app_data_dir().join("config.json")
 }
 
 fn load_config(path: &Path) -> Json {
@@ -113,10 +158,7 @@ fn save_config(path: &Path, config: &Json) {
 /* --------------------------- 配对与深链 --------------------------- */
 
 fn token_path() -> PathBuf {
-    let base = std::env::var("APPDATA")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("."));
-    base.join("wulons-mcss").join("agent.token")
+    app_data_dir().join("agent.token")
 }
 
 fn gen_token() -> String {
@@ -157,17 +199,17 @@ fn ensure_protocol() {
         let exe = std::env::current_exe()
             .map(|p| p.display().to_string())
             .unwrap_or_default();
-        let _ = Command::new("reg")
+        let _ = quiet_cmd("reg")
             .args(["add", r"HKCU\Software\Classes\mcss", "/ve", "/t", "REG_SZ", "/d", "URL:Wulon MCSS", "/f"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
-        let _ = Command::new("reg")
+        let _ = quiet_cmd("reg")
             .args(["add", r"HKCU\Software\Classes\mcss", "/v", "URL Protocol", "/t", "REG_SZ", "/d", "", "/f"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
-        let _ = Command::new("reg")
+        let _ = quiet_cmd("reg")
             .args([
                 "add",
                 r"HKCU\Software\Classes\mcss\shell\open\command",
@@ -184,27 +226,170 @@ fn ensure_protocol() {
     }
 }
 
+/* ---------------------------- 开机自启 ---------------------------- */
+
+#[cfg(windows)]
+const AUTOSTART_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+const AUTOSTART_NAME: &str = "WulonsMCSSAgent";
+
+fn autostart_exe() -> String {
+    std::env::current_exe()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default()
+}
+
+fn autostart_command_line() -> String {
+    format!("\"{}\" --silent", autostart_exe())
+}
+
+/// 读注册表里真正登记的命令；返回 None 表示没有启动项。
+fn autostart_registered() -> Option<String> {
+    #[cfg(windows)]
+    {
+        let out = quiet_cmd("reg")
+            .args(["query", AUTOSTART_KEY, "/v", AUTOSTART_NAME])
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            if let Some(index) = line.find("REG_SZ") {
+                return Some(line[index + "REG_SZ".len()..].trim().to_string());
+            }
+        }
+        // 值存在但格式不是 REG_SZ：按“已登记”处理，命令回退到当前 exe
+        Some(String::new())
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+fn autostart_status() -> Json {
+    let registered = autostart_registered();
+    Json::obj(vec![
+        ("enabled", Json::Bool(registered.is_some())),
+        (
+            "command",
+            Json::s(&registered.filter(|s| !s.is_empty()).unwrap_or_else(autostart_command_line)),
+        ),
+        ("exe", Json::s(&autostart_exe())),
+    ])
+}
+
+fn set_autostart(enabled: bool) -> Result<Json, String> {
+    #[cfg(windows)]
+    {
+        let status = if enabled {
+            quiet_cmd("reg")
+                .args([
+                    "add",
+                    AUTOSTART_KEY,
+                    "/v",
+                    AUTOSTART_NAME,
+                    "/t",
+                    "REG_SZ",
+                    "/d",
+                    &autostart_command_line(),
+                    "/f",
+                ])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+        } else {
+            quiet_cmd("reg")
+                .args(["delete", AUTOSTART_KEY, "/v", AUTOSTART_NAME, "/f"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+        };
+        match status {
+            Ok(s) if s.success() => {}
+            // 删除一个本来就不存在的值也会返回非 0，这不算失败
+            Ok(_) if !enabled => {}
+            Ok(s) => return Err(format!("写入开机自启失败（reg 退出码 {:?}）", s.code())),
+            Err(e) => return Err(format!("调用 reg 失败：{e}")),
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = enabled;
+    }
+    Ok(autostart_status())
+}
+
+fn web_base() -> String {
+    std::env::var("MCSS_WEB_BASE")
+        .ok()
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_WEB_BASE.to_string())
+}
+
+fn redact(url: &str, token: &str) -> String {
+    if token.is_empty() {
+        url.to_string()
+    } else {
+        url.replace(token, "***")
+    }
+}
+
+/// 用系统默认程序打开 URL。
+/// 不用 `cmd /c start`：URL 里的 `%`、`&`、引号会被 cmd 二次解释，这里直接交给 Shell 的 URL 处理器。
+fn open_url(url: &str) -> Result<(), String> {
+    quiet_cmd("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("打开浏览器失败：{e}"))
+}
+
+/// 直接把已经配对好的页面交给默认浏览器。令牌放在 # 之后，不会进服务器日志。
+fn open_web(token: &str) {
+    let url = format!("{}/#/?t={token}", web_base());
+    // 日志可能被用户贴出来求助：令牌不能跟着出去
+    log_line("INFO", &format!("打开网页：{}", redact(&url, token)));
+    if std::env::var("MCSS_NO_OPEN").is_err() {
+        let _ = open_url(&url);
+    }
+}
+
+fn url_component(raw: &str) -> String {
+    let mut out = String::new();
+    for byte in raw.bytes() {
+        let safe = byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~');
+        if safe {
+            out.push(byte as char);
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
+}
+
 /// 被 mcss:// 唤起时：把房间码转成网页链接并打开
 ///   mcss://join/<code>      → 打开房间页
 ///   mcss://install/<code>   → 打开并自动开始准备（少点一次）
 fn handle_join(arg: &str, token: &str) {
     let parts: Vec<&str> = arg.trim_end_matches('/').split('/').collect();
-    let code = parts.last().unwrap_or(&"").to_string();
+    let code = url_component(parts.last().unwrap_or(&""));
     let auto = parts.iter().any(|p| p.contains(":install")) || arg.contains("//install");
     if code.is_empty() {
-        eprintln!("深链里没有房间码：{arg}");
+        log_line("ERROR", &format!("深链里没有房间码：{}", redact(arg, token)));
         return;
     }
-    let base = std::env::var("MCSS_WEB_BASE").unwrap_or_else(|_| "https://wulons.github.io/mcss".into());
+    let base = web_base();
     let url = if auto {
         format!("{base}/#/join/{code}?auto=1&t={token}")
     } else {
         format!("{base}/#/join/{code}?t={token}")
     };
-    println!("打开：{url}");
+    log_line("INFO", &format!("打开：{}", redact(&url, token)));
     if std::env::var("MCSS_NO_OPEN").is_err() {
-        #[cfg(windows)]
-        let _ = Command::new("cmd").args(["/c", "start", "", &url]).status();
+        let _ = open_url(&url);
     }
 }
 
@@ -316,7 +501,7 @@ fn start_server(shared: &Shared, instance_id: &str) -> Result<Json, String> {
         return Err("目录中未找到 Forge/NeoForge 的 argsfile 或 server.jar".into());
     };
 
-    let mut cmd = Command::new(&java);
+    let mut cmd = quiet_cmd(&java);
     if let Some(af) = &args_file {
         // 这两家的内存写在 user_jvm_args.txt 里，命令行只引用它
         let mut user_args = format!("-Xms{mem_min}G -Xmx{mem_max}G");
@@ -434,7 +619,7 @@ const UA: &str = "WulonsMCSS/27.0 (github.com/wulons)";
 
 /// 调系统 curl（Windows 10+ 自带）。用 curl 而不是手写 TLS：更稳、更省事。
 pub(crate) fn curl(args: &[&str]) -> Result<Vec<u8>, String> {
-    let out = Command::new("curl")
+    let out = quiet_cmd("curl")
         .args(args)
         .output()
         .map_err(|e| format!("调用 curl 失败：{e}"))?;
@@ -745,7 +930,7 @@ fn export_mrpack(shared: &Shared, opts: &Json) -> Result<Json, String> {
 
     let mut args: Vec<String> = vec!["-a".into(), "-c".into(), "-f".into(), out_file.clone()];
     args.extend(entries);
-    let status = Command::new("tar")
+    let status = quiet_cmd("tar")
         .args(&args)
         .current_dir(&stage)
         .status()
@@ -1028,7 +1213,7 @@ fn backup_create(server_dir: &str) -> Result<Json, String> {
     let name = format!("world-{}.zip", now_stamp());
     let out = dir.join(&name);
 
-    let status = Command::new("tar")
+    let status = quiet_cmd("tar")
         .args(["-a", "-c", "-f"])
         .arg(&out)
         .arg("world")
@@ -1056,6 +1241,32 @@ fn backup_remove(server_dir: &str, name: &str) -> Result<Json, String> {
 }
 
 /// 恢复：先把现有 world 改名留底，解压失败自动回滚
+/// 备份 zip 里的路径必须留在世界目录内；`..` 或盘符绝对路径一律拒绝。
+fn archive_entries_safe(file: &Path) -> bool {
+    let Ok(out) = quiet_cmd("tar").arg("-tf").arg(file).output() else {
+        return false;
+    };
+    if !out.status.success() {
+        return false;
+    }
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let entry = line.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        if entry.starts_with('/') || entry.starts_with('\\') {
+            return false;
+        }
+        if entry.len() >= 2 && entry.as_bytes()[1] == b':' {
+            return false;
+        }
+        if entry.split(['/', '\\']).any(|part| part == "..") {
+            return false;
+        }
+    }
+    true
+}
+
 fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json, String> {
     {
         let state = shared.lock().unwrap();
@@ -1070,6 +1281,9 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
     if !file.exists() {
         return Err("备份文件不存在".into());
     }
+    if !archive_entries_safe(&file) {
+        return Err("备份文件里有不安全的路径，已拒绝恢复".into());
+    }
 
     let world = Path::new(server_dir).join("world");
     let parked = unique_parked(server_dir);
@@ -1077,7 +1291,7 @@ fn backup_restore(shared: &Shared, server_dir: &str, name: &str) -> Result<Json,
         std::fs::rename(&world, &parked).map_err(|e| format!("移走旧存档失败：{e}"))?;
     }
 
-    let status = Command::new("tar")
+    let status = quiet_cmd("tar")
         .args(["-x", "-f"])
         .arg(&file)
         .current_dir(server_dir)
@@ -1230,7 +1444,7 @@ fn export_bundle(shared: &Shared, opts: &Json) -> Result<Json, String> {
     if let Some(parent) = Path::new(&out_file).parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let status = Command::new("tar")
+    let status = quiet_cmd("tar")
         .args(["-a", "-c", "-f"])
         .arg(&out_file)
         .args(["README.md", "context.md", "knowledge.md", "config.sanitized.json", "logs"])
@@ -1645,7 +1859,7 @@ fn modrinth_install(opts: &Json) -> Result<Json, String> {
 
 /// 用 bsdtar 读 jar 里的 fabric.mod.json（zip + deflate 都交给它）
 fn read_fabric_meta(jar: &Path) -> Option<Json> {
-    let out = Command::new("tar").arg("-xOf").arg(jar).arg("fabric.mod.json").output().ok()?;
+    let out = quiet_cmd("tar").arg("-xOf").arg(jar).arg("fabric.mod.json").output().ok()?;
     if !out.status.success() {
         return None;
     }
@@ -1794,7 +2008,7 @@ fn open_path(target: &str) -> Result<Json, String> {
         return Err("缺少路径".into());
     }
     // 不用 cmd /c start：路径里的 & 会被当命令分隔符。explorer 直接收参数。
-    Command::new("explorer")
+    quiet_cmd("explorer")
         .arg(target)
         .spawn()
         .map_err(|e| format!("打开失败：{e}"))?;
@@ -1807,13 +2021,10 @@ fn open_external(target: &str) -> Result<Json, String> {
     if !(lower.starts_with("http://") || lower.starts_with("https://")) {
         return Err("只打开 http/https 链接".into());
     }
-    Command::new("cmd")
-        .arg("/c")
-        .arg("start")
-        .arg("")
-        .arg(format!("\"{}\"", target))
-        .spawn()
-        .map_err(|e| format!("打开失败：{e}"))?;
+    if target.contains('"') || target.contains('\n') || target.contains('\r') {
+        return Err("链接里有非法字符".into());
+    }
+    open_url(target)?;
     Ok(Json::obj(vec![("ok", Json::Bool(true))]))
 }
 
@@ -1964,7 +2175,7 @@ fn parse_java_major(text: &str) -> Option<i64> {
 }
 
 fn probe_java(path: &str) -> Option<Json> {
-    let out = Command::new(path)
+    let out = quiet_cmd(path)
         .arg("-version")
         .output()
         .ok()?;
@@ -2038,7 +2249,7 @@ fn detect_java() -> Result<Json, String> {
     }
 
     // PATH 里的 java
-    if let Ok(out) = Command::new("where").arg("java").output() {
+    if let Ok(out) = quiet_cmd("where").arg("java").output() {
         if out.status.success() {
             for line in String::from_utf8_lossy(&out.stdout).lines() {
                 let line = line.trim();
@@ -2073,7 +2284,7 @@ fn detect_java() -> Result<Json, String> {
 
 /// 用 PowerShell 的系统对话框顶替 Electron 的 dialog —— 网页版也要能选目录
 fn ps_run(script: &str) -> Result<String, String> {
-    let out = Command::new("powershell")
+    let out = quiet_cmd("powershell")
         .args(["-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", script])
         .output()
         .map_err(|e| format!("调用 PowerShell 失败：{e}"))?;
@@ -2239,7 +2450,7 @@ fn check_datapacks(dir: &Path) -> Option<Json> {
 
 /// 物理内存与磁盘：标准库没有，借 PowerShell 拿数值（结果缓存，别每次预检都跑）
 fn ps_number(script: &str) -> Option<f64> {
-    let out = Command::new("powershell")
+    let out = quiet_cmd("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .output()
         .ok()?;
@@ -3155,7 +3366,7 @@ fn ensure_frpc(shared: &Shared) -> Result<PathBuf, String> {
     let extract = dir.join("unpack");
     let _ = std::fs::remove_dir_all(&extract);
     std::fs::create_dir_all(&extract).map_err(|e| format!("创建解压目录失败：{e}"))?;
-    let status = Command::new("tar")
+    let status = quiet_cmd("tar")
         .args(["-xf"])
         .arg(&zip)
         .arg("-C")
@@ -3252,7 +3463,7 @@ fn frp_start(shared: &Shared, profile: &Json) -> Result<Json, String> {
                     return;
                 }
 
-                let spawned = Command::new(&exe)
+                let spawned = quiet_cmd(&exe)
                     .arg("-c")
                     .arg(&cfg)
                     .current_dir(&dir)
@@ -3830,6 +4041,20 @@ fn backup_restore_snapshot(shared: &Shared, server_dir: &str, name: &str) -> Res
 
 /* ------------------------------- 文件 ------------------------------- */
 
+fn fs_drives() -> Json {
+    let mut out = Vec::new();
+    for letter in b'C'..=b'Z' {
+        let root = format!("{}:\\", letter as char);
+        if Path::new(&root).is_dir() {
+            out.push(Json::obj(vec![
+                ("path", Json::s(&root)),
+                ("name", Json::s(&format!("{}:", letter as char))),
+            ]));
+        }
+    }
+    Json::Arr(out)
+}
+
 fn fs_list(dir: &str) -> Result<Json, String> {
     let mut entries = Vec::new();
     // 和桌面版对齐：目录不存在时返回空数组，而不是报错
@@ -3859,6 +4084,20 @@ fn fs_list(dir: &str) -> Result<Json, String> {
 
 /* ------------------------------- 路由 ------------------------------- */
 
+fn documents_dir(profile: &str) -> PathBuf {
+    let base = PathBuf::from(profile);
+    let candidates = [
+        base.join("Documents"),
+        base.join("OneDrive").join("Documents"),
+        base.join("OneDrive").join("文档"),
+        base.join("文档"),
+    ];
+    candidates
+        .into_iter()
+        .find(|p| p.is_dir())
+        .unwrap_or_else(|| base.join("Documents"))
+}
+
 fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String> {
     let arg0 = args.first().and_then(|v| v.str()).unwrap_or("");
     match channel {
@@ -3870,13 +4109,18 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
                 ("isPackaged", Json::Bool(true)),
                 ("appData", Json::s(&appdata)),
                 ("minecraftDir", Json::s(&Path::new(&appdata).join(".minecraft").to_string_lossy())),
-                ("documents", Json::s(&Path::new(&profile).join("Documents").to_string_lossy())),
+                ("documents", Json::s(&documents_dir(&profile).to_string_lossy())),
                 ("totalMemGb", Json::Null),
                 ("userName", Json::s(&std::env::var("USERNAME").unwrap_or_default())),
                 ("platform", Json::s("agent")),
                 ("electron", Json::s("")),
                 ("node", Json::s("")),
             ]))
+        }
+        "app:autostart" => Ok(autostart_status()),
+        "app:autostart-set" => {
+            let enabled = args.first().and_then(|v| v.bool()).unwrap_or(false);
+            set_autostart(enabled)
         }
         "dialog:open-directory" => dialog_open_directory("选择文件夹"),
         "dialog:open-file" => {
@@ -3986,6 +4230,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
         }
         "fs:exists" => Ok(Json::Bool(Path::new(arg0).exists())),
         "fs:list" => fs_list(arg0),
+        "fs:drives" => Ok(fs_drives()),
         "fs:mkdir" => std::fs::create_dir_all(arg0)
             .map(|_| Json::Null)
             .map_err(|e| format!("创建目录失败：{e}")),
@@ -3999,7 +4244,7 @@ fn invoke(shared: &Shared, channel: &str, args: &[Json]) -> Result<Json, String>
             if command.is_empty() {
                 return Err("没有可执行的启动命令".into());
             }
-            let mut cmd = Command::new(&command[0]);
+            let mut cmd = quiet_cmd(&command[0]);
             cmd.args(&command[1..]);
             if let Some(cwd) = opts.get("cwd").and_then(|v| v.str()) {
                 if !cwd.is_empty() {
@@ -4177,8 +4422,13 @@ fn merge(base: &Json, patch: &Json) -> Json {
 /// 非浏览器（空 Origin）不受影响；这层是为了在 token 意外泄露时再多一道门。
 fn origin_allowed(origin: &str) -> bool {
     let o = origin.trim().to_ascii_lowercase();
-    if o.is_empty() || o == "null" {
+    // 非浏览器请求没有 Origin；本地脚本本来就能读 token 文件，不靠这一层拦。
+    // 注意不能放行字符串 "null"：沙箱 iframe / data: 页面会带这个值，等于给任意网页开门。
+    if o.is_empty() {
         return true;
+    }
+    if o == "null" {
+        return false;
     }
     let rest = o
         .strip_prefix("http://")
@@ -4195,7 +4445,9 @@ fn origin_allowed(origin: &str) -> bool {
             return true;
         }
     }
-    if o == "https://wulons.github.io" {
+    // 只放行产品自己的页面。Origin 只到主机名，所以这里列的是部署站点，不是某个子路径。
+    // 不再放行 wulons.github.io：那个站点不属于当前仓库，留着等于给别人的页面开后门。
+    if o == "https://incoruptus.github.io" {
         return true;
     }
     if let Ok(extra) = std::env::var("MCSS_ALLOWED_ORIGINS") {
@@ -4222,12 +4474,32 @@ fn handle(shared: &Shared, mut stream: TcpStream) {
     }
 
     if req.path == "/api/health" {
-        http::respond_json(&mut stream, 200, r#"{"ok":true}"#);
+        let body = Json::obj(vec![
+            ("ok", Json::Bool(true)),
+            ("product", Json::s("wulons-mcss-agent")),
+            ("version", Json::s(PRODUCT_VERSION)),
+        ])
+        .to_string();
+        http::respond_json(&mut stream, 200, &body);
         return;
     }
 
     if !origin_allowed(&req.origin) {
         http::respond_json(&mut stream, 403, r#"{"error":"这个网页来源不被允许访问本机助手"}"#);
+        return;
+    }
+
+    // 浏览器第一次访问时用来源白名单换配对令牌。
+    // 令牌仍然保留：万一白名单被放宽，它还是最后一道门。
+    if req.path == "/api/pair" && req.method == "POST" {
+        let token = { shared.lock().unwrap().token.clone() };
+        let body = Json::obj(vec![
+            ("token", Json::s(&token)),
+            ("version", Json::s(PRODUCT_VERSION)),
+        ])
+        .to_string();
+        log_line("INFO", &format!("网页配对成功（来源 {}）", if req.origin.is_empty() { "本机" } else { &req.origin }));
+        http::respond_json(&mut stream, 200, &body);
         return;
     }
 
@@ -4289,6 +4561,39 @@ fn handle(shared: &Shared, mut stream: TcpStream) {
     http::respond_json(&mut stream, 404, r#"{"error":"没有这个接口"}"#);
 }
 
+fn agent_alive(port: u16) -> bool {
+    let Ok(mut stream) = TcpStream::connect(("127.0.0.1", port)) else {
+        return false;
+    };
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(800)));
+    if stream
+        .write_all(b"GET /api/health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+        .is_err()
+    {
+        return false;
+    }
+    let mut buf = [0u8; 128];
+    match stream.read(&mut buf) {
+        Ok(n) => String::from_utf8_lossy(&buf[..n]).starts_with("HTTP/1.1 200"),
+        Err(_) => false,
+    }
+}
+
+/// 快捷方式/深链被点到时，助手可能还没起来：顺手拉一个后台实例并等它可用。
+fn ensure_running(port: u16) {
+    if agent_alive(port) {
+        return;
+    }
+    let Ok(exe) = std::env::current_exe() else { return };
+    let _ = quiet_cmd(exe).arg("--silent").spawn();
+    for _ in 0..20 {
+        if agent_alive(port) {
+            break;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+}
+
 fn main() {
     let port: u16 = std::env::var("MCSS_PORT")
         .ok()
@@ -4297,19 +4602,43 @@ fn main() {
     let token = load_or_create_token();
     let path = config_path();
     let config = load_config(&path);
+    let argv: Vec<String> = std::env::args().collect();
 
-    println!("mcss-agent {} 已启动", PRODUCT_VERSION);
-    println!("  配置: {}", path.display());
-    println!("  监听地址：http://127.0.0.1:{port}");
+    // 安装包/卸载器用：只改启动项，不启动服务
+    if argv.iter().any(|a| a == "--install-autostart") {
+        let _ = set_autostart(true);
+        return;
+    }
+    if argv.iter().any(|a| a == "--uninstall-autostart") {
+        let _ = set_autostart(false);
+        return;
+    }
+
+    // 安装完成后由安装包调用：打开已经配对好的页面，进程本身不常驻
+    if argv.iter().any(|a| a == "--open") {
+        ensure_running(port);
+        open_web(&token);
+        return;
+    }
 
     // 被 mcss:// 深链唤起：转成网页地址并打开，然后退出
-    let argv: Vec<String> = std::env::args().collect();
     if let Some(pos) = argv.iter().position(|a| a == "--join") {
         if let Some(link) = argv.get(pos + 1) {
+            ensure_running(port);
             handle_join(link, &token);
             return;
         }
     }
+
+    log_line(
+        "INFO",
+        &format!(
+            "mcss-agent {} 启动：端口 {port}，配置 {}，日志 {}",
+            PRODUCT_VERSION,
+            path.display(),
+            log_path().display()
+        ),
+    );
 
     ensure_protocol();
 
@@ -4331,7 +4660,12 @@ fn main() {
     let listener = match TcpListener::bind(("127.0.0.1", port)) {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("端口 {port} 绑定失败：{e}");
+            // 自启动和手动双击可能同时发生；只要已经有一个实例在跑，就不算失败
+            if agent_alive(port) {
+                log_line("INFO", "已有助手实例在运行，本次启动退出");
+                std::process::exit(0);
+            }
+            log_line("ERROR", &format!("端口 {port} 绑定失败：{e}"));
             std::process::exit(1);
         }
     };

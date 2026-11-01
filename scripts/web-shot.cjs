@@ -12,9 +12,11 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const OUT = process.argv[2] || path.join(ROOT, "_shot-web.png");
 const ROOM_CODE = process.argv[3] || "";
-const AGENT_PORT = 28476;
-const WEB_PORT = 5187;
+const AGENT_PORT = Number(process.env.WEB_AGENT_PORT || 28476);
+const WEB_PORT = Number(process.env.WEB_PORT || 5187);
 const TOKEN = "web-shot-token";
+const NO_AGENT = process.env.WEB_NO_AGENT === "1";
+const AGENT_CONFIG = process.env.MCSS_CONFIG || path.join(ROOT, "config.json");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -62,14 +64,17 @@ async function waitHealth(timeoutMs = 8000) {
     process.exit(1);
   }
 
-  const agent = spawn(path.join(ROOT, "agent", "target", "release", process.platform === "win32" ? "mcss-agent.exe" : "mcss-agent"), [], {
-    env: { ...process.env, MCSS_CONFIG: path.join(ROOT, "config.json"), MCSS_PORT: String(AGENT_PORT), MCSS_TOKEN: TOKEN, MCSS_NO_OPEN: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  agent.stdout.on("data", (d) => process.stdout.write("[agent] " + d));
+  let agent = null;
+  if (!NO_AGENT) {
+    agent = spawn(path.join(ROOT, "agent", "target", "release", process.platform === "win32" ? "mcss-agent.exe" : "mcss-agent"), [], {
+      env: { ...process.env, MCSS_CONFIG: AGENT_CONFIG, MCSS_PORT: String(AGENT_PORT), MCSS_TOKEN: TOKEN, MCSS_NO_OPEN: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    agent.stdout.on("data", (d) => process.stdout.write("[agent] " + d));
+  }
 
   const server = await serveStatic(path.join(ROOT, "dist-web"));
-  const ok = await waitHealth();
+  const ok = NO_AGENT ? true : await waitHealth();
   if (!ok) {
     console.error("agent 没起来");
     agent.kill();
@@ -78,7 +83,9 @@ async function waitHealth(timeoutMs = 8000) {
   }
 
   const hash = !ROOM_CODE ? "/join" : ROOM_CODE.startsWith("/") ? ROOM_CODE : `/join/${ROOM_CODE}`;
-  const url = `http://127.0.0.1:${WEB_PORT}/?agent=http://127.0.0.1:${AGENT_PORT}&t=${TOKEN}#${hash}`;
+  // WEB_NO_TOKEN=1 用来验证「页面自己向 /api/pair 换令牌」这条首次访问链路
+  const tokenPart = process.env.WEB_NO_TOKEN === "1" ? "" : `&t=${TOKEN}`;
+  const url = `http://127.0.0.1:${WEB_PORT}/?agent=http://127.0.0.1:${AGENT_PORT}${tokenPart}#${hash}`;
 
   const exe = path.join(ROOT, "node_modules", ".pnpm", "electron@33.4.11", "node_modules", "electron", "dist", "electron.exe");
   const env = {
@@ -90,6 +97,10 @@ async function waitHealth(timeoutMs = 8000) {
     // 同时抓页面文本：只截图看不出"页面是空的只是背景黑"
     MCSS_DUMP: "1",
   };
+  if (process.env.MCSS_ACT) {
+    env.MCSS_ACT = process.env.MCSS_ACT;
+    env.MCSS_ACT_DELAY = process.env.MCSS_ACT_DELAY || "1800";
+  }
   delete env.ELECTRON_RUN_AS_NODE;
 
   const child = spawn(exe, ["."], { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"] });
@@ -103,7 +114,7 @@ async function waitHealth(timeoutMs = 8000) {
   });
 
   child.on("exit", () => {
-    agent.kill();
+    agent?.kill();
     server.close();
     const exists = fs.existsSync(OUT);
     console.log(exists ? `OK -> ${OUT}` : "截图失败");
@@ -113,7 +124,7 @@ async function waitHealth(timeoutMs = 8000) {
   setTimeout(() => {
     console.error("超时");
     child.kill();
-    agent.kill();
+    agent?.kill();
     server.close();
     process.exit(1);
   }, 45000);

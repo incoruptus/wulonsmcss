@@ -66,7 +66,7 @@ MCSS 的位置不是再做一个面板，而是 **本机、单人、开服即玩
 | C | ✅ 已做：`client:launch` 复用已装版本 + `--server` 直启（离线身份；真机进程存活验证） |
 | D | ⬜ 尚未做：内置启动器（离线优先） |
 
-双轨交付已成立：Electron 全量包 + 静态 Web（`pnpm build:web`）+ 0.3MB Rust agent（`agent/`），
+双轨交付已成立：Electron 全量包 + 静态 Web（`pnpm build:web`）+ 0.55MB Rust agent（`agent/`），
 两者共用同一套 React UI 与同一份 channel 契约；网页版已真机验证（agent 经 HTTP 提供实例列表与控制台）。
 
 ## 工程约定

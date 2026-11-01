@@ -9,6 +9,7 @@ import { Badge, Card, CardTitle, EmptyState } from "@/components/ui/misc";
 import { useConfig } from "@/stores/config";
 import type { DirEntry } from "@/lib/types";
 import { CreateServerFromClientDialog } from "@/components/instance/CreateServerFromClientDialog";
+import { pickPath } from "@/lib/path-picker";
 
 /**
  * 我的客户端（玩家模式）
@@ -110,7 +111,7 @@ export default function Client() {
           <Button
             variant="secondary"
             onClick={async () => {
-              const picked = await window.mcss.dialog.openDirectory();
+              const picked = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
               if (picked) setDir(picked);
             }}
           >
@@ -140,7 +141,7 @@ export default function Client() {
                 <Button
                   variant="secondary"
                   onClick={async () => {
-                    const picked = await window.mcss.dialog.openDirectory();
+                    const picked = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
                     if (picked) setDir(picked);
                   }}
                 >

@@ -7,6 +7,7 @@ import { Picker } from "@/components/ui/picker";
 import { Card, SegmentedControl, Badge } from "@/components/ui/misc";
 import { detectShell } from "@/lib/shell";
 import { SyncCard } from "@/components/app/SyncCard";
+import { AgentConnection } from "@/components/app/AgentConnection";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { useConfig } from "@/stores/config";
 import { PALETTES, type PaletteMeta } from "@/lib/themes";
@@ -92,6 +93,7 @@ export default function Settings() {
               <SectionHead icon={<Globe />} title="网页版能力" desc="启动本机助手后，网页界面可以完成实际文件和服务器操作。" />
               <Badge variant="gray" size="sm">网页版</Badge>
             </div>
+            <AgentConnection />
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <div>
                 <div className="t-label-13 mb-2 font-medium text-gray-1000">可以做什么</div>
@@ -116,6 +118,13 @@ export default function Settings() {
 
         <Card>
           <SectionHead icon={<Info />} title="关于开服茶" desc="Wulon's MCSS · 乌龙开服茶" />
+          <div className="mt-4 flex items-center gap-3">
+            <img src="./icon-192.png" alt="开服茶" width={48} height={48} className="size-12 rounded-xl shadow-geist-border" />
+            <div className="min-w-0">
+              <div className="t-label-14 font-medium text-gray-1000">开服茶</div>
+              <div className="t-label-12 text-gray-700">把开 Minecraft 服务器这件事，做得简单一点。</div>
+            </div>
+          </div>
           <dl className="mt-5 divide-y divide-gray-300">
             <InfoRow label="版本" value={info?.version ? `v${info.version}` : "—"} />
             <InfoRow label="Electron" value={info?.electron ?? "—"} />

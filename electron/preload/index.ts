@@ -45,7 +45,8 @@ contextBridge.exposeInMainWorld("mcss", {
     exists: (path: string) => invoke("fs:exists", path),
     mkdir: (path: string) => invoke("fs:mkdir", path),
     remove: (path: string) => invoke("fs:remove", path),
-    copy: (src: string, dest: string) => invoke("fs:copy", src, dest)
+    copy: (src: string, dest: string) => invoke("fs:copy", src, dest),
+    drives: () => invoke("fs:drives")
   },
   server: {
     preflight: (instanceId: string) => invoke("server:preflight", instanceId),
@@ -131,7 +132,9 @@ contextBridge.exposeInMainWorld("mcss", {
     detectJava: () => invoke("app:detect-java"),
     detectLaunchers: () => invoke("app:detect-launchers"),
     aiDocs: () => invoke("app:ai-docs"),
-    lanAddress: () => invoke("app:lan-address")
+    lanAddress: () => invoke("app:lan-address"),
+    autostart: () => invoke("app:autostart"),
+    setAutostart: (enabled: boolean) => invoke("app:autostart-set", enabled)
   },
   proc: {
     /** 跑一个子进程并等它结束（结果只带尾部输出） */

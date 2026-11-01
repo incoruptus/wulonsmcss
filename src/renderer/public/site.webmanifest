@@ -1,0 +1,13 @@
+{
+  "name": "Wulon's MCSS · 开服茶",
+  "short_name": "开服茶",
+  "description": "零基础玩家也能和朋友一起玩 Minecraft 的开服工具。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0c100d",
+  "theme_color": "#0c100d",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

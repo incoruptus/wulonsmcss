@@ -161,5 +161,7 @@ export function applyAppearance(cfg: Pick<AppConfig, "theme" | "palette">) {
   try {
     localStorage.setItem("mcss.dark", dark ? "1" : "0");
     localStorage.setItem("mcss.palette", palette);
-  } catch (e) {}
+  } catch {
+    /* 隐私模式 / 存储被禁用：本次外观仍然生效，只是下次启动要重新算 */
+  }
 }
