@@ -32,7 +32,7 @@
 - 211 vitest + 72 node:test + 20 Rust 全过
 - parity 100%
 - `release:check --package` 42/42
-- 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 273.4 MB）
+- 包：`wulons-mcss-b28.0.0/WulonsMCSS-win32-x64/WulonsMCSS.exe`（约 273.7 MB）
 - 桌面版 zip：`release/WulonsMCSS-28.0.0-win64.zip`
   - SHA256 `81bd0591b07896f255e3bd917af7fa1ec7d7c0a8577e5515b88f252b941c3d58`
 - 助手安装包：`release/mcss-agent-28.0.0-setup.exe` + 稳定名 `mcss-agent-setup.exe`
