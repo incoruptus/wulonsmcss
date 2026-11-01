@@ -54,7 +54,8 @@ Name: "{autodesktop}\开服茶"; Filename: "{app}\{#AppExeName}"; Parameters: "-
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "WulonsMCSSAgent"; ValueData: """{app}\{#AppExeName}"" --silent"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "启动助手（后台运行，不弹窗口）"; Flags: nowait postinstall skipifsilent
+; 不放在 postinstall 里：静默安装也要把助手拉起来，否则装完网页仍然显示「未启动」
+Filename: "{app}\{#AppExeName}"; Flags: nowait runhidden; StatusMsg: "启动本机助手…"
 Filename: "{app}\{#AppExeName}"; Parameters: "--open"; Description: "打开开服茶网页"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

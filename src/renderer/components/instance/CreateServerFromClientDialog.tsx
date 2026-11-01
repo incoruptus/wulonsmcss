@@ -14,6 +14,7 @@ import { safeName } from "@/lib/utils";
 import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
 import { syncClientMods } from "@/lib/client-mods";
 import { serverTypeLabel } from "@/lib/config-model";
+import { pickPath } from "@/lib/path-picker";
 
 const CORE_LABEL: Record<string, string> = {
   fabric: "Fabric",
@@ -266,7 +267,7 @@ export function CreateServerFromClientDialog({
             <Button
               variant="secondary"
               onClick={async () => {
-                const picked = await window.mcss.dialog.openDirectory();
+                const picked = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
                 if (picked) setDir(picked);
                 else void window.mcss.client.scan(dir).catch(() => {});
               }}

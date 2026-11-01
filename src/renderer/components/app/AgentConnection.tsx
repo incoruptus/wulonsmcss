@@ -124,6 +124,12 @@ export function AgentConnection() {
         <p className="mt-2 t-label-12 leading-5 text-amber-900">{agent.message}</p>
       ) : null}
 
+      {agent.status === "offline" ? (
+        <p className="mt-2 t-label-12 leading-5 text-amber-900">
+          如果任务管理器里已经有 mcss-agent.exe，点「重新检测」；Edge 询问是否允许访问本地网络时请点允许。
+        </p>
+      ) : null}
+
       {agent.status === "online" ? (
         <div className="mt-3 space-y-1.5 border-t border-gray-300 pt-3">
           <SwitchRow

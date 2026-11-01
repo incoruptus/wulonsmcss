@@ -143,11 +143,19 @@ export function PathPickerDialog() {
       if (cancelled) return;
       setPlaces(checked.filter((p): p is Place => Boolean(p)));
 
-      const fallback = pending.defaultPath
+      const requested = pending.defaultPath
         ? pending.mode === "save" || pending.mode === "file"
           ? dirNameOf(pending.defaultPath)
           : pending.defaultPath
-        : info?.documents || info?.appData || ds[0]?.path || "C:\\";
+        : "";
+      let fallback = requested || info?.documents || info?.appData || ds[0]?.path || "C:\\";
+      // 调用方给的是「将要创建的新目录」时，从它最近的存在父目录开始
+      for (let i = 0; i < 12; i += 1) {
+        if (await window.mcss.fs.exists(fallback).catch(() => false)) break;
+        const parent = parentOf(fallback);
+        if (!parent || parent === fallback) break;
+        fallback = parent;
+      }
       await load(fallback);
     })();
 

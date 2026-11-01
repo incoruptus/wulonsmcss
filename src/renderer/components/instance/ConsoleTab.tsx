@@ -28,6 +28,7 @@ import { buildAiPrompt } from "@/lib/ai-handoff";
 import { describeLag } from "@/lib/lag";
 import * as worldsApi from "@/lib/worlds";
 import { copyText, cx } from "@/lib/utils";
+import { pickPath } from "@/lib/path-picker";
 import type { Instance } from "@/lib/types";
 import type { LogEntry } from "@/lib/api";
 
@@ -146,7 +147,9 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   }
 
   async function exportLogs() {
-    const target = await window.mcss.dialog.saveFile({
+    const target = await pickPath({
+      mode: "save",
+      title: "导出日志",
       defaultPath: `${instance.name}-console-${new Date().toISOString().slice(0, 10)}.log`,
       filters: [{ name: "日志", extensions: ["log", "txt"] }],
     });

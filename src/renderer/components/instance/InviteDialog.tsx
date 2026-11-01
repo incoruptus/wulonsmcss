@@ -13,6 +13,7 @@ import { hostSummary, hostTone, hostVerdict, parseAddr, primaryAddress, roomAddr
 import { publicWebOrigin } from "@/lib/links";
 import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 import { copyText } from "@/lib/utils";
+import { pickPath } from "@/lib/path-picker";
 import { useConfig } from "@/stores/config";
 
 export function InviteDialog({
@@ -273,7 +274,9 @@ export function InviteDialog({
                 size="sm"
                 variant="secondary"
                 onClick={async () => {
-                  const target = await window.mcss.dialog.saveFile({
+                  const target = await pickPath({
+                    mode: "save",
+                    title: "导出进服包",
                     defaultPath: `${room.name || "mcss-room"}.mrpack`,
                     filters: [{ name: "Modrinth 整合包", extensions: ["mrpack"] }],
                   });

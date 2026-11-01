@@ -12,6 +12,7 @@ import { BindModDialog } from "@/components/instance/BindModDialog";
 import { ClientSyncPanel } from "@/components/instance/ClientSyncPanel";
 import { syncClientMods } from "@/lib/client-mods";
 import { planFromDiff } from "@/lib/server-sync";
+import { pickPath } from "@/lib/path-picker";
 
 interface DiffRow {
   key: string;
@@ -65,7 +66,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
   }, [mods, query]);
 
   async function pickClient() {
-    const dir = await window.mcss.dialog.openDirectory();
+    const dir = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
     if (dir) setClientDir(dir);
     setDiff(null);
     setSelected(new Set());

@@ -48,7 +48,11 @@ export function WebAgentBanner() {
         {blocked
           ? "本机助手在运行，但这个页面连不上它。先刷新页面；仍然不行就重启助手。"
           : "还差一步：这台电脑上的「开服茶助手」没有启动。装好并启动后，才能读取存档、开服和准备客户端。"}
-        {blocked && isEdge ? " Edge 询问是否允许访问本地网络时，请点允许。" : ""}
+        {blocked
+          ? isEdge
+            ? " Edge 询问是否允许访问本地网络时，请点允许。"
+            : ""
+          : " 如果任务管理器里已经有 mcss-agent.exe，点「重新连接」；Edge 询问本地网络时请点允许。"}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
         <Button size="xs" variant="ghost" className="text-amber-900" onClick={() => window.location.reload()} title="清掉旧页面缓存，重新加载最新版本">

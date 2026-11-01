@@ -29,6 +29,28 @@ check(
 );
 
 /** 2. 网页产物 */
+const rendererSrc = path.join(ROOT, "src", "renderer");
+function walk(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walk(full));
+    else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+const directDialogs = fs.existsSync(rendererSrc)
+  ? walk(rendererSrc).filter((file) => {
+      if (file.endsWith(path.join("lib", "path-picker.ts"))) return false;
+      return fs.readFileSync(file, "utf8").includes("mcss.dialog.");
+    })
+  : [];
+check(
+  "网页版目录/文件选择统一走 pickPath",
+  directDialogs.length === 0,
+  directDialogs.map((f) => path.relative(ROOT, f)).join(", "),
+);
+
 const distWeb = path.join(ROOT, "dist-web");
 const indexHtml = path.join(distWeb, "index.html");
 check("dist-web/index.html 存在", fs.existsSync(indexHtml), distWeb);

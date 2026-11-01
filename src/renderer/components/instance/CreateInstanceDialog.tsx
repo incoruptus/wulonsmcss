@@ -14,6 +14,7 @@ import { contentKindOf, serverTypeLabel } from "@/lib/config-model";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
 import { CORES as GUIDE_CORES, coreMeta } from "@/lib/server-guide";
 import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
+import { pickPath } from "@/lib/path-picker";
 
 interface Props {
   open: boolean;
@@ -117,7 +118,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   }, [mcVersion, javas]);
 
   async function browseDir() {
-    const picked = await window.mcss.dialog.openDirectory();
+    const picked = await pickPath({ mode: "dir", title: "选择服务器安装位置", defaultPath: finalDir });
     if (picked) setDir(picked);
   }
 

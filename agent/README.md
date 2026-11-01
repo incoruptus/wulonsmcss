@@ -3,7 +3,7 @@
 把 Electron 主进程的核心能力用最小体积重写，让**静态网页**也能开服。
 
 - 零第三方依赖（只用标准库：TCP、进程、线程）
-- 单文件二进制约 **0.55 MB**（`opt-level=z` + LTO + strip）
+- 单文件二进制约 **1.0 MB**（`opt-level=z` + LTO + strip）
 - 后台进程：按 Windows GUI 子系统编译，没有控制台、没有托盘、没有窗口
 - 契约与 Electron preload 完全一致：`POST /api/invoke {channel, args}`，事件走 SSE
 

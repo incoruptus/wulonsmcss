@@ -85,6 +85,19 @@ fn log_line(level: &str, message: &str) {
     }
 }
 
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        // 不用 log_line：panic 可能发生在持有 LOG_LOCK 的时候
+        let path = log_path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(file, "[{}] [PANIC] {}", now_stamp(), info);
+        }
+    }));
+}
+
 /// 拉起控制台程序时不要给它分配新窗口：agent 是后台进程，弹一个黑框就算 bug。
 fn quiet_cmd(program: impl AsRef<std::ffi::OsStr>) -> Command {
     let mut command = Command::new(program);
@@ -4599,6 +4612,7 @@ fn ensure_running(port: u16) {
 }
 
 fn main() {
+    install_panic_hook();
     let port: u16 = std::env::var("MCSS_PORT")
         .ok()
         .and_then(|v| v.parse().ok())
