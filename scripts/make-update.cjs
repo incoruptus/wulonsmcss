@@ -76,6 +76,11 @@ function main() {
   fs.writeFileSync(GZ, gz);
 
   const sha256 = crypto.createHash("sha256").update(gz).digest("hex");
+
+  // Release 资产用固定名：客户端只认 releases/latest/download/mcss-app.asar.gz，
+  // 换版本不用改客户端；带版本号的那份留作归档
+  const FIXED = path.join(OUT_DIR, "mcss-app.asar.gz");
+  fs.copyFileSync(GZ, FIXED);
   const notesFile = path.join(ROOT, "docs", `RELEASE-NOTES-v${pkg.version.split(".")[0]}.md`);
   const notes = fs.existsSync(notesFile)
     ? fs.readFileSync(notesFile, "utf8").split("\n").slice(0, 12).join("\n")
@@ -87,14 +92,18 @@ function main() {
     releasedAt: new Date().toISOString(),
     notes,
     asar: {
-      // 相对 update.json 的地址，换镜像时不用改客户端
-      url: `./${path.basename(GZ)}`,
+      // 包放 GitHub Release，清单放 Pages：清单小、改一次就生效，包版本化且不占站点体积
+      url: `https://github.com/incoruptus/wulonsmcss/releases/latest/download/mcss-app.asar.gz`,
+      mirror: `./${path.basename(GZ)}`,
       sha256,
       size: gz.length,
       packed: asar.length,
     },
   };
   fs.writeFileSync(path.join(OUT_DIR, "update.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  // public/ 会被原样拷进网页版产物，Pages 因此能直接提供清单
+  fs.writeFileSync(path.join(ROOT, "src", "renderer", "public", "update.json"), `${JSON.stringify(manifest, null, 2)}
+`);
 
   fs.rmSync(TMP, { recursive: true, force: true });
 

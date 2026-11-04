@@ -1,0 +1,13 @@
+{
+  "version": "30.0.0",
+  "runtime": "33.4.11",
+  "releasedAt": "2026-11-04T03:06:49.624Z",
+  "notes": "# v30.0.0 发布说明\n\n这次的重点不在\"多了几个按钮\"，而是三件以前没有的地基：界面规范、双态联机、多语种，外加一条不用重下完整包的更新通道。\n\n## 界面规范\n\n组件层整体对齐 WulonSpec：\n\n- 字体换成 Sora VF / MiSans VF / Geist Mono VF 三件可变字体，中文不再靠系统黑体兜底\n- MiSans 做 GB2312 子集，从 11.9MB 压到 2.6MB，桌面版与网页版共用同一份\n- 动效抽成 token（曲线、时长、按压比例），按钮、输入框、开关、对话框统一走同一套\n- 分段控件补上滑动指示块，按真实宽度测量，选项长短不一时也对得齐",
+  "asar": {
+    "url": "https://github.com/incoruptus/wulonsmcss/releases/latest/download/mcss-app.asar.gz",
+    "mirror": "./mcss-app-30.0.0.asar.gz",
+    "sha256": "8b13b68eac2c0002b814c24c5ad1807232da3378409c4527a421fcf73dff2abe",
+    "size": 4633774,
+    "packed": 7477078
+  }
+}

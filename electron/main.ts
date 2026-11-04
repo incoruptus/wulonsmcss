@@ -308,7 +308,7 @@ ipcMain.handle("app:info", () => ({
  * 换失败就用 .bak 还原，不会留下一个打不开的安装。
  */
 const UPDATE_URL =
-  process.env.MCSS_UPDATE_URL || "https://wulons.github.io/wulons-mcss/update.json";
+  process.env.MCSS_UPDATE_URL || "https://incoruptus.github.io/wulonsmcss/update.json";
 const updateFile = () => path.join(app.getPath("userData"), "update.asar.gz");
 
 function compareVersion(a, b) {
