@@ -17,7 +17,7 @@ import {
 import { PageBody, PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { Badge, Card } from "@/components/ui/misc";
+import { Badge, Card, Progress } from "@/components/ui/misc";
 import { decodeRoom, extractCode, type RoomDescriptorV1 } from "@/lib/room";
 import { chooseBest, kindLabel, parseAddr } from "@/lib/reach";
 import { useRoomReach } from "@/hooks/useReach";
@@ -28,6 +28,7 @@ import { copyText, cx, safeName } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
 import { serverTypeLabel } from "@/lib/config-model";
 import { pickPath } from "@/lib/path-picker";
+import { useI18n } from "@/i18n";
 
 interface Exported {
   file: string;
@@ -38,6 +39,7 @@ interface Exported {
 export default function Join() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [input, setInput] = useState("");
   const [room, setRoom] = useState<RoomDescriptorV1 | null>(null);
@@ -46,7 +48,7 @@ export default function Join() {
 
   const [launchers, setLaunchers] = useState<{ name: string; path: string }[]>([]);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<{ stage: string; percent: number; detail?: string } | null>(null);
+  const [progress, setProgress] = useState<{ stage: string; stageKey?: string; stageVars?: Record<string, string>; percent: number; detail?: string } | null>(null);
   const [exported, setExported] = useState<Exported | null>(null);
   const [preparedDir, setPreparedDir] = useState<string | null>(null);
   const [clientDir, setClientDir] = useState<string>("");
@@ -115,7 +117,7 @@ export default function Join() {
   }, [room, clientDir]);
 
   async function pickClientDir() {
-    const picked = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
+    const picked = await pickPath({ mode: "dir", title: t("pages.common.pickMinecraftDir", "选择 .minecraft 目录") });
     if (picked) {
       setCheckup(null);
       setClientDir(picked);
@@ -160,10 +162,10 @@ export default function Join() {
   async function launchNow() {
     if (!plan?.command.length) return;
     const res = await window.mcss.client.launch({ command: plan.command, cwd: clientDir });
-    if (res.ok) toast.success("游戏已启动，正在连接服务器…");
+    if (res.ok) toast.success(t("join.launched", "游戏已启动，正在连接服务器…"));
     else
-      toast.error("启动失败", {
-        description: `${res.error || "未知错误"}。若服务器要求正版登录，请使用下方的进服包从启动器进入。`,
+      toast.error(t("join.launchFailed", "启动失败"), {
+        description: t("join.launchFailedDesc", "{error}。若服务器要求正版登录，请使用下方的进服包从启动器进入。", { error: res.error || t("join.unknownError", "未知错误") }),
       });
   }
 
@@ -181,7 +183,7 @@ export default function Join() {
     autoRun.current = true;
     if (checkup.verdict === "ready") {
       if (launchers[0]) void window.mcss.app.openPath(launchers[0].path);
-      toast.success("客户端已就绪，启动器已打开", { description: `选 ${checkup.match ?? room.mc} 这个客户端版本就能进` });
+      toast.success(t("join.autoReady", "客户端已就绪，启动器已打开"), { description: t("join.autoReadyDesc", "选 {version} 这个客户端版本就能进", { version: checkup.match ?? room.mc }) });
       return;
     }
     void prepareAndPlay();
@@ -222,23 +224,23 @@ export default function Join() {
   async function prepareAndPlay() {
     if (!room) return;
     if (!room.mods.length) {
-      (await copyText(effectiveAddr)) ? toast.success("地址已复制") : toast.error("复制失败");
+      (await copyText(effectiveAddr)) ? toast.success(t("pages.common.addressCopied", "地址已复制")) : toast.error(t("pages.common.copyFailed", "复制失败"));
       if (launchers[0]) window.mcss.app.openPath(launchers[0].path);
       return;
     }
     setBusy(true);
-    setProgress({ stage: "打包进服包", percent: 0 });
+    setProgress({ stage: t("join.stagePacking", "打包进服包"), percent: 0 });
     const off = window.mcss.client.onProgress(setProgress);
     try {
       const info = await window.mcss.app.info();
       const dir = `${info.documents}\\MCSS\\进服包`;
       const file = `${dir}\\${safeName(room.name)}.mrpack`;
       const res = await window.mcss.client.exportMrpack({ outFile: file, room: { ...room, addr: effectiveAddr } });
-      if (!res.ok) throw new Error(res.error || "导出失败");
+      if (!res.ok) throw new Error(res.error || t("join.exportFailed", "导出失败"));
       setExported({ file: res.file ?? file, size: res.size ?? 0, mods: res.mods ?? 0 });
       void window.mcss.app.openPath(dir);
       if (launchers[0]) window.mcss.app.openPath(launchers[0].path);
-      toast.success("进服包已生成", { description: "在启动器中导入后即可直接进入服务器" });
+      toast.success(t("join.exportedToast", "进服包已生成"), { description: t("join.exportedToastDesc", "在启动器中导入后即可直接进入服务器") });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -254,9 +256,9 @@ export default function Join() {
     try {
       const code = await encodeDiagnostic(buildDiagnostic({ room, reach, checkup, launchers }));
       if (await copyText(code)) {
-        toast.success("诊断已复制", { description: "发送给服主，粘贴后即可看到你的连接情况" });
+        toast.success(t("join.diagCopied", "诊断已复制"), { description: t("join.diagCopiedDesc", "发送给服主，粘贴后即可看到你的连接情况") });
       } else {
-        toast.error("复制失败，请手动选中");
+        toast.error(t("join.diagCopyFailed", "复制失败，请手动选中"));
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -266,21 +268,21 @@ export default function Join() {
   /** 旁路：把 Mod 直接装进现有客户端，并把服务器写进多人列表 */
   async function installIntoClient() {
     if (!room) return;
-    const dir = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
+    const dir = await pickPath({ mode: "dir", title: t("pages.common.pickMinecraftDir", "选择 .minecraft 目录") });
     if (!dir) return;
     setBusy(true);
-    setProgress({ stage: "准备中", percent: 0 });
+    setProgress({ stage: t("join.stagePreparing", "准备中"), percent: 0 });
     const off = window.mcss.client.onProgress(setProgress);
     try {
       if (room.mods.length) {
         const res = await window.mcss.client.prepare({ dir, mods: room.mods });
-        if (!res.ok) throw new Error(res.error || res.results?.find((r) => !r.ok)?.error || "准备失败");
+        if (!res.ok) throw new Error(res.error || res.results?.find((r) => !r.ok)?.error || t("join.prepareFailed", "准备失败"));
         setPreparedDir(res.modsDir ?? dir);
       }
       const added = await window.mcss.client.addServer({ mcDir: dir, name: room.name, ip: effectiveAddr });
-      if (!added.ok) throw new Error(added.error || "写入服务器列表失败");
-      toast.success("客户端已备好", {
-        description: room.mods.length ? `${room.mods.length} 个模组与服务器列表` : "服务器列表已写入",
+      if (!added.ok) throw new Error(added.error || t("join.addServerFailed", "写入服务器列表失败"));
+      toast.success(t("join.clientReady", "客户端已备好"), {
+        description: room.mods.length ? t("join.clientReadyDescMods", "{n} 个模组与服务器列表", { n: room.mods.length }) : t("join.clientReadyDesc", "服务器列表已写入"),
       });
     } catch (e) {
       toast.error((e as Error).message);
@@ -295,9 +297,9 @@ export default function Join() {
     <>
       <PageHeader
         className="max-w-4xl"
-        title="加入游戏"
-        desc="粘贴朋友发来的邀请，开服茶会先检查版本、模组与连接方式。"
-        actions={room ? <Button variant="secondary" onClick={() => { setRoom(null); setInput(""); setError(null); navigate("/"); }}>换个房间</Button> : undefined}
+        title={t("join.title", "加入游戏")}
+        desc={t("join.desc", "粘贴朋友发来的邀请，开服茶会先检查版本、模组与连接方式。")}
+        actions={room ? <Button variant="secondary" onClick={() => { setRoom(null); setInput(""); setError(null); navigate("/"); }}>{t("join.switchRoom", "换个房间")}</Button> : undefined}
       />
       <PageBody className="max-w-4xl space-y-5">
         {!room ? (
@@ -305,19 +307,19 @@ export default function Join() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <span className="brand-mark grid size-11 place-items-center rounded-xl"><Users className="size-5" /></span>
-                <div><h2 className="t-h-20 text-gray-1000">加入朋友的世界，一条邀请即可</h2><p className="t-copy-13 mt-1 text-gray-800">支持完整的邀请链接与房间码。</p></div>
+                <div><h2 className="t-h-20 text-gray-1000">{t("join.empty.title", "加入朋友的世界，一条邀请即可")}</h2><p className="t-copy-13 mt-1 text-gray-800">{t("join.empty.desc", "支持完整的邀请链接与房间码。")}</p></div>
               </div>
               <div className="flex gap-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && load(input)}
-                  placeholder="https://…/join/w1z… 或 w1z.a1b2c3.…"
-                  aria-label="邀请链接或房间码"
+                  placeholder={t("join.input.placeholder", "https://…/join/w1z… 或 w1z.a1b2c3.…")}
+                  aria-label={t("join.input.aria", "邀请链接或房间码")}
                   className="h-11 font-mono text-[12.5px]"
                 />
                 <Button variant="accent" size="lg" onClick={() => load(input)} loading={loading} disabled={!input.trim()}>
-                  打开邀请
+                  {t("join.open", "打开邀请")}
                 </Button>
               </div>
               {error ? (
@@ -327,14 +329,14 @@ export default function Join() {
                 </div>
               ) : null}
               <p className="t-copy-13 text-gray-700">
-                邀请中仅包含服务器地址、游戏版本与所需模组，不需要注册账号；链接损坏或过期时会说明原因。
+                {t("join.inviteNote", "邀请中仅包含服务器地址、游戏版本与所需模组，不需要注册账号；链接损坏或过期时会说明原因。")}
               </p>
               <details className="rounded-lg bg-background-200 p-3">
-                <summary className="cursor-pointer t-label-12 text-gray-700">第一次玩 Minecraft？</summary>
+                <summary className="cursor-pointer t-label-12 text-gray-700">{t("join.firstTime.title", "第一次玩 Minecraft？")}</summary>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 t-label-12 text-gray-800">
-                  <li>先安装 Minecraft Java 版，并登录微软账号。</li>
-                  <li>让朋友把邀请链接或房间码发给你。</li>
-                  <li>回到这里粘贴，开服茶会检查版本和模组，再带你进入。</li>
+                  <li>{t("join.firstTime.step1", "先安装 Minecraft Java 版，并登录微软账号。")}</li>
+                  <li>{t("join.firstTime.step2", "让朋友把邀请链接或房间码发给你。")}</li>
+                  <li>{t("join.firstTime.step3", "回到这里粘贴，开服茶会检查版本和模组，再带你进入。")}</li>
                 </ol>
               </details>
             </div>
@@ -345,55 +347,55 @@ export default function Join() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <Badge variant="green" size="sm">邀请有效</Badge>
+                  <Badge variant="green" size="sm">{t("join.room.valid", "邀请有效")}</Badge>
                   <span className="t-label-12 text-gray-700">
                     {room.mc} · {serverTypeLabel((room.loader || "vanilla") as never)}
                   </span>
                 </div>
                 <h2 className="t-h-24 mt-1.5 text-gray-1000">{room.name}</h2>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                  <span className="t-mono-12 text-gray-700">{effectiveAddr || "还没有地址"}</span>
+                  <span className="t-mono-12 text-gray-700">{effectiveAddr || t("join.room.noAddr", "还没有地址")}</span>
                   {effectiveAddr ? (
                     <Button
                       size="xs"
                       variant="ghost"
                       onClick={async () => {
                         const ok = await copyText(effectiveAddr);
-                        if (ok) toast.success("地址已复制，发给朋友即可在 Minecraft 里连接");
-                        else toast.error("复制失败，请手动选中地址");
+                        if (ok) toast.success(t("join.room.addrCopied", "地址已复制，发给朋友即可在 Minecraft 里连接"));
+                        else toast.error(t("pages.common.copyFailedManual", "复制失败，请手动选中地址"));
                       }}
                     >
                       <Copy className="size-3" />
-                      复制地址
+                      {t("pages.common.copyAddress", "复制地址")}
                     </Button>
                   ) : null}
                   {best ? (
                     <span className="rounded bg-green-800/12 px-1.5 py-0.5 t-label-12 text-green-900">
-                      {usingLan ? "同一网络直连" : best.target.kind === "tunnel" ? "走中转" : "直连"} · {best.ms ?? 0}ms
+                      {usingLan ? t("join.reach.lan", "同一网络直连") : best.target.kind === "tunnel" ? t("join.reach.tunnel", "走中转") : t("join.reach.direct", "直连")} · {best.ms ?? 0}ms
                     </span>
                   ) : room.lan && !reaching ? (
-                    <span className="t-label-12 text-gray-700">（内网地址不可用，已改用公网）</span>
+                    <span className="t-label-12 text-gray-700">{t("join.reach.lanUnavailable", "（内网地址不可用，已改用公网）")}</span>
                   ) : null}
                 </div>
 
                 {/* 多条候选地址都探一遍，走通哪条就说哪条 */}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {reaching ? (
-                    <span className="t-label-12 text-gray-700">正在探测地址…</span>
+                    <span className="t-label-12 text-gray-700">{t("join.reach.probing", "正在探测地址…")}</span>
                   ) : best ? (
                     <span className="inline-flex items-center gap-1 rounded-md bg-green-800/12 px-2 py-0.5 t-label-12 text-green-900">
                       <span className="size-1.5 rounded-full bg-green-900" />
-                      在线 {best.players?.online ?? 0}/{best.players?.max ?? 0} 人
+                      {t("join.reach.players", "在线 {online}/{max} 人", { online: best.players?.online ?? 0, max: best.players?.max ?? 0 })}
                       <span className="text-green-900/70">· {kindLabel(best.target.kind)}</span>
                     </span>
                   ) : reach?.probes.length ? (
                     <span className="inline-flex items-center gap-1 rounded-md bg-gray-300/40 px-2 py-0.5 t-label-12 text-gray-700">
                       <span className="size-1.5 rounded-full bg-gray-700" />
-                      当前未连接成功，服务器可能未启动，或双方不在同一网络
+                      {t("join.reach.offline", "当前未连接成功，服务器可能未启动，或双方不在同一网络")}
                     </span>
                   ) : null}
                   <Button size="xs" variant="ghost" onClick={() => void refreshReach()}>
-                    刷新
+                    {t("pages.common.refresh", "刷新")}
                   </Button>
                 </div>
                 {best?.motd ? (
@@ -403,26 +405,26 @@ export default function Join() {
               <Button
                 variant="secondary"
                 onClick={async () => {
-                  (await copyText(effectiveAddr)) ? toast.success("地址已复制") : toast.error("复制失败");
+                  (await copyText(effectiveAddr)) ? toast.success(t("pages.common.addressCopied", "地址已复制")) : toast.error(t("pages.common.copyFailed", "复制失败"));
                 }}
               >
                 <Copy className="size-4" />
-                复制地址
+                {t("pages.common.copyAddress", "复制地址")}
               </Button>
             </div>
 
             {/* 三个事实 */}
             <div className="grid gap-3 sm:grid-cols-3">
-              <Info icon={<Server className="size-3.5" />} label="版本" value={`${room.mc} · ${room.loader}`} />
+              <Info icon={<Server className="size-3.5" />} label={t("join.info.version", "版本")} value={`${room.mc} · ${room.loader}`} />
               <Info
                 icon={<Package className="size-3.5" />}
-                label="需要的 Mod"
-                value={room.mods.length ? `${room.mods.length} 个` : "无需额外 Mod"}
+                label={t("join.info.mods", "需要的 Mod")}
+                value={room.mods.length ? t("join.info.modsCount", "{n} 个", { n: room.mods.length }) : t("join.info.noMods", "无需额外 Mod")}
               />
               <Info
                 icon={<Gamepad2 className="size-3.5" />}
-                label="本机启动器"
-                value={launchers.length ? launchers[0].name : "未检测到"}
+                label={t("join.info.launcher", "本机启动器")}
+                value={launchers.length ? launchers[0].name : t("join.info.noLauncher", "未检测到")}
               />
             </div>
 
@@ -442,30 +444,35 @@ export default function Join() {
                   )}
                   <span className={cx("t-label-13 font-medium", checkup.verdict === "ready" ? "text-green-900" : "text-gray-1000")}>
                     {checkup.verdict === "ready"
-                      ? "客户端版本与模组均已齐全"
+                      ? t("join.check.ready", "客户端版本与模组均已齐全")
                       : checkup.verdict === "need-mods"
-                        ? `游戏版本匹配，但本地缺少 ${checkup.mods.missing.length} 个模组`
+                        ? t("join.check.needMods", "游戏版本匹配，但本地缺少 {n} 个模组", { n: checkup.mods.missing.length })
                         : checkup.verdict === "need-version"
-                          ? `没有 ${room.mc} · ${room.loader} 的客户端版本`
+                          ? t("join.check.needVersion", "没有 {mc} · {loader} 的客户端版本", { mc: room.mc, loader: room.loader })
                           : checkup.verdict === "no-version"
-                            ? "该 .minecraft 目录中尚未安装游戏"
-                            : "没找到 .minecraft"}
+                            ? t("join.check.noVersion", "该 .minecraft 目录中尚未安装游戏")
+                            : t("join.check.noClient", "没找到 .minecraft")}
                   </span>
                   <Button size="xs" variant="ghost" className="ml-auto" onClick={pickClientDir}>
-                    换个目录
+                    {t("join.check.changeDir", "换个目录")}
                   </Button>
                 </div>
 
                 <p className="t-label-12 mt-1 text-gray-800">
                   {checkup.verdict === "ready"
-                    ? `已找到 ${checkup.match}，房间所需的模组齐备（${checkup.mods.present}/${checkup.mods.total}），可直接启动，也可在启动器中选择该服务器。`
+                    ? t("join.check.readyDesc", "已找到 {match}，房间所需的模组齐备（{present}/{total}），可直接启动，也可在启动器中选择该服务器。", { match: checkup.match ?? "", present: checkup.mods.present, total: checkup.mods.total })
                     : checkup.verdict === "need-mods"
-                      ? `缺少：${checkup.mods.missing.map((m) => m.n).slice(0, 6).join("、")}${checkup.mods.missing.length > 6 ? " 等" : ""}。使用下方的进服包更省事，不会影响现有客户端。`
+                      ? t("join.check.needModsDesc", "缺少：{mods}{more}。使用下方的进服包更省事，不会影响现有客户端。", {
+                        mods: checkup.mods.missing.map((m) => m.n).slice(0, 6).join(t("join.listSeparator", "、")),
+                        more: checkup.mods.missing.length > 6 ? t("join.missingMore", " 等") : "",
+                      })
                       : checkup.verdict === "need-version"
-                        ? `现有：${checkup.candidates.map((c) => c.id).slice(0, 5).join("、") || "（无）"}。使用进服包会在启动器中新建一个对应的服务器实例。`
+                        ? t("join.check.needVersionDesc", "现有：{versions}。使用进服包会在启动器中新建一个对应的服务器实例。", {
+                          versions: checkup.candidates.map((c) => c.id).slice(0, 5).join(t("join.listSeparator", "、")) || t("join.check.none", "（无）"),
+                        })
                         : checkup.verdict === "no-version"
-                          ? "当前环境尚未通过启动器安装游戏。使用进服包更省事，导入后即可得到现成的服务器实例。"
-                          : "请选择你的 .minecraft 目录，以便检查版本与模组是否齐全。"}
+                          ? t("join.check.noVersionDesc", "当前环境尚未通过启动器安装游戏。使用进服包更省事，导入后即可得到现成的服务器实例。")
+                          : t("join.check.noClientDesc", "请选择你的 .minecraft 目录，以便检查版本与模组是否齐全。")}
                 </p>
               </div>
             ) : null}
@@ -475,11 +482,11 @@ export default function Join() {
               <div className="flex flex-wrap items-start gap-2 rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1">
-                  服务器当前无响应，可能尚未启动，或双方不在同一网络。可先准备好进服包，待服主开服后再进入。
+                  {t("join.offline.note", "服务器当前无响应，可能尚未启动，或双方不在同一网络。可先准备好进服包，待服主开服后再进入。")}
                 </span>
                 <Button size="xs" variant="secondary" className="shrink-0" onClick={copyDiagnostic}>
                   <ClipboardCopy className="size-3" />
-                  复制诊断
+                  {t("join.copyDiagnostic", "复制诊断")}
                 </Button>
               </div>
             ) : null}
@@ -490,37 +497,37 @@ export default function Join() {
                 {canLaunch ? (
                   <Button size="lg" variant="accent" onClick={launchNow}>
                     <Play className="size-4" />
-                    直接进游戏（离线）
+                    {t("join.launchDirect", "直接进游戏（离线）")}
                     <ArrowRight className="size-4" />
                   </Button>
                 ) : (
                   <Button size="lg" variant="accent" onClick={prepareAndPlay} loading={busy} disabled={busy}>
                     {room.mods.length ? <Package className="size-4" /> : <Play className="size-4" />}
-                    {room.mods.length ? "准备进游戏" : "复制地址并打开启动器"}
+                    {room.mods.length ? t("join.prepare", "准备进游戏") : t("join.copyAndOpen", "复制地址并打开启动器")}
                     <ArrowRight className="size-4" />
                   </Button>
                 )}
                 <span className="t-label-12 text-gray-700">
                   {canLaunch
-                    ? `使用已安装的 ${plan?.versionId} 启动，直接连接 ${effectiveAddr}`
+                    ? t("join.hint.launch", "使用已安装的 {version} 启动，直接连接 {addr}", { version: plan?.versionId ?? "", addr: effectiveAddr })
                     : room.mods.length
-                      ? "生成进服包并打开启动器，导入后服务器已添加到列表"
-                      : "该房间无需额外模组，进入游戏后添加地址即可"}
+                      ? t("join.hint.prepare", "生成进服包并打开启动器，导入后服务器已添加到列表")
+                      : t("join.hint.noMods", "该房间无需额外模组，进入游戏后添加地址即可")}
                 </span>
               </div>
 
               {canLaunch ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-background-200 px-3 py-2">
-                  <span className="t-label-12 shrink-0 text-gray-700">游戏内名字</span>
+                  <span className="t-label-12 shrink-0 text-gray-700">{t("join.username.label", "游戏内名字")}</span>
                   <Input
                     value={username}
                     onChange={(e) => setUsername(e.target.value.replace(/[^0-9A-Za-z_]/g, "").slice(0, 16))}
                     onBlur={() => !username.trim() && setUsername("Steve")}
                     className="h-7 w-[150px] font-mono text-[12px]"
-                    aria-label="离线用户名"
+                    aria-label={t("join.username.aria", "离线用户名")}
                   />
                   <span className="t-label-12 text-gray-700">
-                    离线启动仅适用于已关闭正版验证的服务器；若无法进入，请使用下方的进服包从启动器登录。
+                    {t("join.username.hint", "离线启动仅适用于已关闭正版验证的服务器；若无法进入，请使用下方的进服包从启动器登录。")}
                   </span>
                 </div>
               ) : null}
@@ -528,12 +535,13 @@ export default function Join() {
               {progress ? (
                 <div className="mt-3">
                   <div className="mb-1.5 flex items-center justify-between t-label-12 text-gray-800">
-                    <span>{progress.stage}</span>
+                    <span>{progress.stageKey ? t(progress.stageKey, progress.stage, progress.stageVars) : progress.stage}</span>
                     <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-300" role="progressbar" aria-label={progress.stage} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
-                    <div className="h-full rounded-full bg-brand-600 transition-[width] duration-200" style={{ width: `${Math.max(2, progress.percent)}%` }} />
-                  </div>
+                  <Progress
+                    value={Math.max(2, progress.percent)}
+                    label={progress.stageKey ? t(progress.stageKey, progress.stage, progress.stageVars) : progress.stage}
+                  />
                 </div>
               ) : null}
 
@@ -541,20 +549,20 @@ export default function Join() {
                 <div className="mt-3 rounded-lg bg-green-800/10 p-3">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="size-4 shrink-0 text-green-900" />
-                    <span className="t-label-13 font-medium text-green-900">进服包已就绪</span>
+                    <span className="t-label-13 font-medium text-green-900">{t("join.exported.title", "进服包已就绪")}</span>
                     <span className="t-mono-12 truncate text-gray-700">{exported.file}</span>
                   </div>
                   <ol className="mt-1 space-y-0.5 t-label-12 text-gray-800">
-                    <li>1. 在启动器中点击「导入整合包」，选择刚生成的文件</li>
-                    <li>2. 启动游戏，服务器已出现在多人游戏列表中：<span className="t-mono-12">{effectiveAddr}</span></li>
+                    <li>{t("join.exported.step1", "1. 在启动器中点击「导入整合包」，选择刚生成的文件")}</li>
+                    <li>{t("join.exported.step2", "2. 启动游戏，服务器已出现在多人游戏列表中：")}<span className="t-mono-12">{effectiveAddr}</span></li>
                   </ol>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(exported.file.replace(/[\\/][^\\/]+$/, ""))}>
-                      打开所在文件夹
+                      {t("join.exported.openFolder", "打开所在文件夹")}
                     </Button>
                     {launchers[0] ? (
                       <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(launchers[0].path)}>
-                        打开 {launchers[0].name}
+                        {t("join.exported.openLauncher", "打开 {name}", { name: launchers[0].name })}
                       </Button>
                     ) : null}
                   </div>
@@ -566,17 +574,17 @@ export default function Join() {
             {room.mods.length ? (
               <div className="rounded-lg bg-background-100 p-3 shadow-geist-border">
                 <div className="flex items-center justify-between">
-                  <div className="t-label-13 font-medium text-gray-1000">这个房间需要这些 Mod（{room.mods.length}）</div>
+                  <div className="t-label-13 font-medium text-gray-1000">{t("join.mods.title", "这个房间需要这些 Mod（{n}）", { n: room.mods.length })}</div>
                   <Button
                     size="xs"
                     variant="ghost"
                     onClick={async () => {
                       const text = room.mods.map((m) => m.n ?? m.p).join("\n");
-                      (await copyText(text)) ? toast.success("Mod 清单已复制") : toast.error("复制失败");
+                      (await copyText(text)) ? toast.success(t("join.mods.copied", "Mod 清单已复制")) : toast.error(t("pages.common.copyFailed", "复制失败"));
                     }}
                   >
                     <Copy className="size-3" />
-                    复制清单
+                    {t("join.mods.copy", "复制清单")}
                   </Button>
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -591,47 +599,47 @@ export default function Join() {
             <div className="flex flex-wrap items-center gap-2 border-t border-gray-300 pt-3">
               <Button size="sm" variant="secondary" onClick={installIntoClient} disabled={busy}>
                 <Download className="size-3.5" />
-                装进现有客户端
+                {t("join.install", "装进现有客户端")}
               </Button>
               <span className="t-label-12 text-gray-700">
-                不想新建实例？选择你的 <span className="t-mono-12">.minecraft</span>，模组与服务器列表会一并写入
+                {t("join.installHintPrefix", "不想新建实例？选择你的 ")}<span className="t-mono-12">.minecraft</span>{t("join.installHintSuffix", "，模组与服务器列表会一并写入")}
               </span>
               <Button size="sm" variant="ghost" onClick={copyDiagnostic}>
                 <ClipboardCopy className="size-3.5" />
-                进不去？复制诊断
+                {t("join.copyDiagnostic2", "进不去？复制诊断")}
               </Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => { setRoom(null); setInput(""); }}>
-                换一个房间码
+                {t("join.changeCode", "换一个房间码")}
               </Button>
             </div>
 
             {preparedDir ? (
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-green-800/10 p-3">
                 <CheckCircle2 className="size-4 text-green-900" />
-                <span className="t-label-12 text-green-900">已写入</span>
+                <span className="t-label-12 text-green-900">{t("join.prepared", "已写入")}</span>
                 <span className="t-mono-12 truncate text-gray-900">{preparedDir}</span>
                 <Button size="xs" variant="secondary" onClick={() => window.mcss.app.openPath(preparedDir)}>
-                  打开目录
+                  {t("join.openDir", "打开目录")}
                 </Button>
               </div>
             ) : null}
 
             <p className="t-label-12 text-gray-700">
-              版本不对会连不上：本机客户端需要 {room.mc} + {serverTypeLabel((room.loader || "vanilla") as never)}。
+              {t("join.versionWarning", "版本不对会连不上：本机客户端需要 {mc} + {loader}。", { mc: room.mc, loader: serverTypeLabel((room.loader || "vanilla") as never) })}
             </p>
           </Card>
         )}
 
         {room?.note ? (
           <Card>
-            <div className="t-label-12 text-gray-700">服主留言</div>
+            <div className="t-label-12 text-gray-700">{t("join.note", "服主留言")}</div>
             <div className="t-label-13 mt-1 whitespace-pre-wrap text-gray-1000">{room.note}</div>
           </Card>
         ) : null}
 
         {!room && !error ? (
           <div className="grid gap-3 text-center sm:grid-cols-3">
-            {["粘贴朋友发来的邀请", "检查版本与所需模组", "准备客户端并进入游戏"].map((text, index) => (
+            {[t("join.step1", "粘贴朋友发来的邀请"), t("join.step2", "检查版本与所需模组"), t("join.step3", "准备客户端并进入游戏")].map((text, index) => (
               <div key={text} className="rounded-lg bg-background-100 px-3 py-3 text-[12px] text-gray-800 shadow-geist-border"><span className="mr-2 font-medium text-brand-600">0{index + 1}</span>{text}</div>
             ))}
           </div>

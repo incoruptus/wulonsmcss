@@ -5,6 +5,7 @@
  */
 
 import { buildLaunchPlan, mergeVersions, type LaunchPlan, type VersionJson } from "./launch-plan";
+import { tGlobal } from "../i18n/core";
 
 const join = (base: string, ...parts: string[]) => [base, ...parts].join("\\").replace(/\\+/g, "\\");
 
@@ -101,7 +102,12 @@ export async function planFromDisk(opts: DiskLaunchOptions): Promise<DiskPlan> {
     return {
       command: [],
       missing: [],
-      warnings: [`未找到 ${opts.room.mc} · ${opts.room.loader} 的客户端版本`],
+      warnings: [
+        tGlobal("launch.warnNoClientVersion", "未找到 {mc} · {loader} 的客户端版本", {
+          mc: opts.room.mc,
+          loader: opts.room.loader,
+        }),
+      ],
       versionId: null,
     };
   }

@@ -2,9 +2,10 @@ import { forwardRef } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
 import { cx } from "@/lib/utils";
+import { Tip } from "@/components/ui/overlay";
 
 export const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg t-button transition-[transform,background-color,border-color,color,box-shadow] duration-150 ease-swift active:scale-[0.98] disabled:pointer-events-none disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-none",
+  "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg t-button press disabled:pointer-events-none disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-none",
   {
     variants: {
       variant: {
@@ -60,21 +61,22 @@ export interface IconButtonProps extends ButtonProps {
   label: string;
 }
 
-/** 图标按钮：必须提供可访问名称。 */
+/** 图标按钮：必须提供可访问名称。提示气泡用统一 Tooltip，不再靠原生 title。 */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
   { label, className, size = "md", variant = "tertiary", ...props },
   ref,
 ) {
   return (
-    <Button
-      ref={ref}
-      aria-label={label}
-      title={label}
-      size={size}
-      variant={variant}
-      shape="square"
-      className={cx("shrink-0", className)}
-      {...props}
-    />
+    <Tip tip={label}>
+      <Button
+        ref={ref}
+        aria-label={label}
+        size={size}
+        variant={variant}
+        shape="square"
+        className={cx("shrink-0", className)}
+        {...props}
+      />
+    </Tip>
   );
 });

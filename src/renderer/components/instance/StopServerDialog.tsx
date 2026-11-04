@@ -1,6 +1,7 @@
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 /**
  * 统一的停服确认。
@@ -16,24 +17,25 @@ export function StopServerDialog({
   onOpenChange: (v: boolean) => void;
   players: number;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-md">
       <DialogHeader
-        title="停止服务器？"
-        desc={players > 0 ? `当前有 ${players} 名玩家在线，关闭后将立即断开连接。` : "服务器会先保存世界再退出。"}
+        title={t("stop.title", "停止服务器？")}
+        desc={players > 0 ? t("stop.descPlayers", "当前有 {n} 名玩家在线，关闭后将立即断开连接。", { n: players }) : t("stop.descIdle", "服务器会先保存世界再退出。")}
       />
       <DialogBody className="space-y-2">
         <div className="flex items-start gap-2 rounded-lg bg-amber-700/10 p-3">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-900" />
           <p className="t-label-13 leading-6 text-amber-900">
-            停服会先保存世界，但玩家正在进行的动作不会保留。
-            {players > 0 ? "建议先在控制台发布公告，给玩家留出下线时间。" : ""}
+            {t("stop.body", "停服会先保存世界，但玩家正在进行的动作不会保留。")}
+            {players > 0 ? t("stop.bodyAdvice", "建议先在控制台发布公告，给玩家留出下线时间。") : ""}
           </p>
         </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => onOpenChange(false)}>
-          取消
+          {t("stop.cancel", "取消")}
         </Button>
         <Button
           variant="error"
@@ -42,7 +44,7 @@ export function StopServerDialog({
             await window.mcss.server.stop();
           }}
         >
-          停止服务器
+          {t("stop.confirm", "停止服务器")}
         </Button>
       </DialogFooter>
     </Dialog>

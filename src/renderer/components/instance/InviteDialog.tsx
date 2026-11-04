@@ -15,6 +15,7 @@ import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 import { copyText } from "@/lib/utils";
 import { pickPath } from "@/lib/path-picker";
 import { useConfig } from "@/stores/config";
+import { useI18n } from "@/i18n";
 
 export function InviteDialog({
   open,
@@ -25,6 +26,7 @@ export function InviteDialog({
   onOpenChange: (v: boolean) => void;
   instance: Instance;
 }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [manual, setManual] = useState("");
   const [roomName, setRoomName] = useState(instance.name);
@@ -114,7 +116,7 @@ export function InviteDialog({
 
   async function generate() {
     if (!parseAddr(addr)) {
-      toast.error("暂无可用地址，请先开一条中转线路，或让朋友连接同一 Wi-Fi");
+      toast.error(t("invite.errNoAddr", "暂无可用地址，请先开一条中转线路，或让朋友连接同一 Wi-Fi"));
       return;
     }
     setBusy(true);
@@ -149,44 +151,44 @@ export function InviteDialog({
 
   async function copy(text: string, label: string) {
     const ok = await copyText(text);
-    ok ? toast.success(`${label}已复制`) : toast.error("复制失败，请手动选中");
+    ok ? toast.success(t("invite.copied", "{label}已复制", { label })) : toast.error(t("invite.copyFailed", "复制失败，请手动选中"));
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-2xl">
       <DialogHeader
-        title="邀请朋友"
-        desc="生成一条邀请发给朋友。朋友打开后能看到连哪个地址、需要什么版本；不需要注册账号。"
+        title={t("invite.title", "邀请朋友")}
+        desc={t("invite.desc", "生成一条邀请发给朋友。朋友打开后能看到连哪个地址、需要什么版本；不需要注册账号。")}
       />
       <DialogBody className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="房间名">
+          <Field label={t("invite.roomName", "房间名")}>
             <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} />
           </Field>
-          <Field label="版本">
+          <Field label={t("invite.version", "版本")}>
             <div className="flex h-9 items-center gap-2">
               <Badge variant="gray">{instance.mcVersion}</Badge>
               <Badge variant="gray">{serverTypeLabel(serverTypeOf(instance))}</Badge>
               <span className="t-label-12 text-gray-700">
-                {resolving ? "正在匹配 Modrinth…" : modRefs.length ? `${modRefs.length} 个 Mod 会写进邀请` : "没有可自动分发的 Mod"}
+                {resolving ? t("invite.resolving", "正在匹配 Modrinth…") : modRefs.length ? t("invite.modsIncluded", "{n} 个 Mod 会写进邀请", { n: modRefs.length }) : t("invite.noAutoMods", "没有可自动分发的 Mod")}
               </span>
             </div>
           </Field>
         </div>
 
-        <Field label="朋友怎么连进来" hint="开服茶会自动选一条能用的地址；朋友在同一个网络时优先走内网">
+        <Field label={t("invite.howToJoin", "朋友怎么连进来")} hint={t("invite.howToJoinHint", "开服茶会自动选一条能用的地址；朋友在同一个网络时优先走内网")}>
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-100 p-3 shadow-geist-border">
-            <Badge variant={tone}>{checking ? "正在检测…" : summary.title}</Badge>
-            <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{addr || "还没有可用地址"}</span>
+            <Badge variant={tone}>{checking ? t("invite.checking", "正在检测…") : summary.title}</Badge>
+            <span className="t-mono-12 min-w-0 flex-1 truncate text-gray-1000">{addr || t("invite.noAddr", "还没有可用地址")}</span>
             {addr ? (
-              <Button size="xs" variant="secondary" onClick={() => void copy(addr, "地址")}>
+              <Button size="xs" variant="secondary" onClick={() => void copy(addr, t("invite.label.addr", "地址"))}>
                 <Copy className="size-3" />
-                复制地址
+                {t("invite.copyAddr", "复制地址")}
               </Button>
             ) : null}
             <Button size="xs" variant="ghost" onClick={() => void refresh({ fresh: true })} disabled={checking}>
               <RefreshCw className={checking ? "size-3 animate-spin" : "size-3"} />
-              重测
+              {t("invite.retest", "重测")}
             </Button>
           </div>
         </Field>
@@ -197,8 +199,8 @@ export function InviteDialog({
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-3 t-label-12 text-amber-900">
             <AlertTriangle className="size-3.5 shrink-0" />
             {verdict === "local-only"
-              ? "服务器只接受本机连接，朋友进不来。检查服务器是否绑定了 127.0.0.1，或者开一条中转线路。"
-              : "现在还没有朋友能用的地址。先确认服务器已经启动，或者开一条中转线路。"}
+              ? t("invite.localOnlyHint", "服务器只接受本机连接，朋友进不来。检查服务器是否绑定了 127.0.0.1，或者开一条中转线路。")
+              : t("invite.noAddrHint", "现在还没有朋友能用的地址。先确认服务器已经启动，或者开一条中转线路。")}
             <Button
               size="xs"
               variant="secondary"
@@ -209,22 +211,22 @@ export function InviteDialog({
               }}
             >
               <Link2 className="size-3" />
-              去开中转线路
+              {t("invite.openTunnel", "去开中转线路")}
             </Button>
           </div>
         ) : null}
 
         <details className="rounded-lg bg-background-200 p-3">
-          <summary className="cursor-pointer t-label-12 text-gray-700">手动指定地址（高级）</summary>
+          <summary className="cursor-pointer t-label-12 text-gray-700">{t("invite.manualSummary", "手动指定地址（高级）")}</summary>
           <div className="mt-2 space-y-2">
             <Input
               value={manual}
               onChange={(e) => setManual(e.target.value.trim())}
-              placeholder="frp.example.com:25565；留空就自动选"
+              placeholder={t("invite.manualPlaceholder", "frp.example.com:25565；留空就自动选")}
               className="font-mono text-[12.5px]"
             />
             <p className="t-label-12 text-gray-700">
-              邀请里会带上验证过的内网地址（{lanAddr || "暂无"}），方便同 WiFi 直连；不想带就在这里指定一条公网地址。
+              {t("invite.manualHint", "邀请里会带上验证过的内网地址（{lan}），方便同 WiFi 直连；不想带就在这里指定一条公网地址。", { lan: lanAddr || t("invite.none", "暂无") })}
             </p>
           </div>
         </details>
@@ -232,9 +234,9 @@ export function InviteDialog({
         {stale && code ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-700/10 p-2.5 t-label-12 text-amber-900">
             <AlertTriangle className="size-3.5 shrink-0" />
-            服务器模组清单已变更，旧链接中的模组可能不全，建议重新生成后再发送。
+            {t("invite.staleHint", "服务器模组清单已变更，旧链接中的模组可能不全，建议重新生成后再发送。")}
             <Button size="xs" variant="secondary" className="ml-auto" onClick={generate} loading={busy}>
-              重新生成
+              {t("invite.regenerate", "重新生成")}
             </Button>
           </div>
         ) : null}
@@ -242,33 +244,33 @@ export function InviteDialog({
         {code ? (
           <>
             {webOrigin ? (
-              <Field label="一键进服链接">
+              <Field label={t("invite.webLinkLabel", "一键进服链接")}>
                 <div className="flex gap-2">
                   <Input value={roomWebLink(code, webOrigin)} readOnly className="font-mono text-[11.5px]" />
-                  <Button variant="secondary" onClick={() => copy(roomWebLink(code, webOrigin), "链接")}>
+                  <Button variant="secondary" onClick={() => copy(roomWebLink(code, webOrigin), t("invite.label.link", "链接"))}>
                     <Copy className="size-4" />
                   </Button>
                 </div>
               </Field>
             ) : (
               <div className="rounded-lg bg-background-200 p-2.5 t-label-12 text-gray-800">
-                发送下方的「房间码」或「进服包」即可：朋友可在 MCSS 中粘贴房间码，或在启动器里导入进服包，无需打开网页。
+                {t("invite.noWebDesc", "发送下方的「房间码」或「进服包」即可：朋友可在 MCSS 中粘贴房间码，或在启动器里导入进服包，无需打开网页。")}
               </div>
             )}
 
-            <Field label="房间码（复制粘贴使用，包含模组时会较长）">
+            <Field label={t("invite.roomCodeLabel", "房间码（复制粘贴使用，包含模组时会较长）")}>
               <div className="flex gap-2">
                 <Input value={code} readOnly className="font-mono text-[11.5px]" />
-                <Button variant="secondary" onClick={() => copy(code, "房间码")}>
+                <Button variant="secondary" onClick={() => copy(code, t("invite.label.roomCode", "房间码"))}>
                   <Copy className="size-4" />
                 </Button>
               </div>
             </Field>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={() => copy(roomShareText(room, code, webOrigin ?? undefined), "邀请文案")}>
+              <Button size="sm" onClick={() => copy(roomShareText(room, code, webOrigin ?? undefined), t("invite.label.shareText", "邀请文案"))}>
                 <Send className="size-3.5" />
-                复制发给朋友的邀请
+                {t("invite.copyShare", "复制发给朋友的邀请")}
               </Button>
               <Button
                 size="sm"
@@ -276,17 +278,17 @@ export function InviteDialog({
                 onClick={async () => {
                   const target = await pickPath({
                     mode: "save",
-                    title: "导出进服包",
+                    title: t("invite.exportPackTitle", "导出进服包"),
                     defaultPath: `${room.name || "mcss-room"}.mrpack`,
-                    filters: [{ name: "Modrinth 整合包", extensions: ["mrpack"] }],
+                    filters: [{ name: t("invite.exportPackFilter", "Modrinth 整合包"), extensions: ["mrpack"] }],
                   });
                   if (!target) return;
                   setBusy(true);
                   try {
                     const res = await window.mcss.client.exportMrpack({ outFile: target, room });
-                    if (!res.ok) throw new Error(res.error || "导出失败");
-                    toast.success("进服包已导出", {
-                      description: `${res.mods ?? 0} 个模组 · 可直接发到群里，朋友在启动器导入即可`,
+                    if (!res.ok) throw new Error(res.error || t("diagnosis.exportFailed", "导出失败"));
+                    toast.success(t("invite.packExported", "进服包已导出"), {
+                      description: t("invite.packExportedDesc", "{n} 个模组 · 可直接发到群里，朋友在启动器导入即可", { n: res.mods ?? 0 }),
                     });
                   } catch (e) {
                     toast.error((e as Error).message);
@@ -296,27 +298,27 @@ export function InviteDialog({
                 }}
               >
                 <Package className="size-3.5" />
-                导出进服包
+                {t("invite.exportPack", "导出进服包")}
               </Button>
               <Button size="sm" variant="ghost" onClick={generate} loading={busy}>
                 <RefreshCw className="size-3.5" />
-                重新生成
+                {t("invite.regenerate", "重新生成")}
               </Button>
               <span className="ml-auto t-label-12 text-gray-700">
-                {webOrigin ? "链接中包含地址、版本与模组信息" : "先发房间码或进服包"}
+                {webOrigin ? t("invite.linkContains", "链接中包含地址、版本与模组信息") : t("invite.sendFirst", "先发房间码或进服包")}
               </span>
             </div>
 
             <details className="rounded-lg bg-background-200 p-3">
-              <summary className="cursor-pointer t-label-12 text-gray-700">其他方式</summary>
+              <summary className="cursor-pointer t-label-12 text-gray-700">{t("invite.otherWays", "其他方式")}</summary>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button size="xs" variant="secondary" onClick={() => copy(roomDeepLink(code), "深链")}>
+                <Button size="xs" variant="secondary" onClick={() => copy(roomDeepLink(code), t("invite.label.deepLink", "深链"))}>
                   <Link2 className="size-3" />
-                  复制 mcss:// 深链
+                  {t("invite.copyDeepLink", "复制 mcss:// 深链")}
                 </Button>
-                <Button size="xs" variant="secondary" onClick={() => copy(roomInstallLink(code), "一键准备好链接")}>
+                <Button size="xs" variant="secondary" onClick={() => copy(roomInstallLink(code), t("invite.label.installLink", "一键准备好链接"))}>
                   <Package className="size-3" />
-                  复制一键准备好链接
+                  {t("invite.copyInstallLink", "复制一键准备好链接")}
                 </Button>
               </div>
             </details>
@@ -324,7 +326,7 @@ export function InviteDialog({
             <div className="rounded-lg bg-background-200 p-3">
               <div className="mb-1 flex items-center gap-1.5 t-label-12 text-gray-700">
                 <Check className="size-3.5 text-green-900" />
-                发给朋友的样子
+                {t("invite.preview", "发给朋友的样子")}
               </div>
               <pre className="whitespace-pre-wrap break-all font-mono text-[11.5px] leading-5 text-gray-900">
                 {roomShareText(room, code)}
@@ -333,13 +335,13 @@ export function InviteDialog({
           </>
         ) : (
           <div className="t-label-13 text-gray-700">
-            {busy ? "正在生成…" : "检测到可用地址后会自动生成邀请；没有地址就先启动服务器，或者开一条中转线路。"}
+            {busy ? t("invite.generating", "正在生成…") : t("invite.noAddrAuto", "检测到可用地址后会自动生成邀请；没有地址就先启动服务器，或者开一条中转线路。")}
           </div>
         )}
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => onOpenChange(false)}>
-          关闭
+          {t("invite.close", "关闭")}
         </Button>
       </DialogFooter>
     </Dialog>

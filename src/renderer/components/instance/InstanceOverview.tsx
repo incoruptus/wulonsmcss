@@ -18,8 +18,10 @@ import type { Instance, InstanceSchedule } from "@/lib/types";
 import { formatDuration, timeAgo } from "@/lib/utils";
 import { contentKindOf, serverTypeOf } from "@/lib/config-model";
 import { isDesktopVisual } from "@/lib/shell";
+import { useI18n } from "@/i18n";
 
 export function InstanceOverview({ instance, onEdit }: { instance: Instance; onEdit: () => void }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const status = useServer((s) => s.status);
   const startedAt = useServer((s) => s.startedAt);
@@ -68,85 +70,85 @@ export function InstanceOverview({ instance, onEdit }: { instance: Instance; onE
   }, [instance.dir]);
 
   const uptime = running && startedAt ? Math.floor((now - startedAt) / 1000) : 0;
-  const contentLabel = contentKindOf(serverTypeOf(instance)) === "plugin" ? "插件" : "模组";
+  const contentLabel = contentKindOf(serverTypeOf(instance)) === "plugin" ? t("overview.content.plugin", "插件") : t("overview.content.mod", "模组");
 
   return (
     <>
       <div className="space-y-5">
         <Card className="grid grid-cols-2 overflow-hidden p-0 lg:grid-cols-4">
-          <Metric icon={<Clock />} label="运行时长" value={running ? formatDuration(uptime) : "未运行"} />
-          <Metric icon={<Users />} label="在线玩家" value={running ? `${players.length} 人` : "—"} />
-          <Metric icon={<Cpu />} label="内存" value={running && memoryUsed ? `${(memoryUsed / 1024 ** 3).toFixed(1)} / ${instance.memoryMax} GB` : `上限 ${instance.memoryMax} GB`} />
-          <Metric icon={<HardDrive />} label="内容与世界" value={`${counts.mods} 个${contentLabel} · ${counts.worlds} 个世界`} />
+          <Metric icon={<Clock />} label={t("overview.metric.uptime", "运行时长")} value={running ? formatDuration(uptime) : t("overview.metric.notRunning", "未运行")} />
+          <Metric icon={<Users />} label={t("overview.metric.players", "在线玩家")} value={running ? t("overview.metric.playerCount", "{n} 人", { n: players.length }) : "—"} />
+          <Metric icon={<Cpu />} label={t("overview.metric.memory", "内存")} value={running && memoryUsed ? `${(memoryUsed / 1024 ** 3).toFixed(1)} / ${instance.memoryMax} GB` : t("overview.metric.memoryCap", "上限 {gb} GB", { gb: instance.memoryMax })} />
+          <Metric icon={<HardDrive />} label={t("overview.metric.content", "内容与世界")} value={contentKindOf(serverTypeOf(instance)) === "plugin" ? t("overview.contentValue.plugin", "{mods} 个插件 · {worlds} 个世界", { mods: counts.mods, worlds: counts.worlds }) : t("overview.contentValue.mod", "{mods} 个模组 · {worlds} 个世界", { mods: counts.mods, worlds: counts.worlds })} />
         </Card>
 
         <div className="grid items-start gap-5 xl:grid-cols-12">
           <Card className="xl:col-span-7">
-            <SectionHead icon={<Send />} title="邀请朋友来玩" desc="先确认哪条线路能用，再把地址发给朋友。" />
+            <SectionHead icon={<Send />} title={t("overview.invite.title", "邀请朋友来玩")} desc={t("overview.invite.desc", "先确认哪条线路能用，再把地址发给朋友。")} />
             <div className="mt-5"><ReachabilityPanel port={instance.port} onInvite={() => setInviting(true)} /></div>
           </Card>
 
           <Card className="xl:col-span-5">
-            <SectionHead icon={<Info />} title="服务器信息" desc="当前服务器的基本配置。" />
+            <SectionHead icon={<Info />} title={t("overview.info.title", "服务器信息")} desc={t("overview.info.desc", "当前服务器的基本配置。")} />
             <dl className="mt-4 divide-y divide-gray-300">
-              <Row label="版本" value={`${instance.mcVersion} · ${instance.loader}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ""}`} />
-              <Row label="内存" value={`${instance.memoryMin}–${instance.memoryMax} GB`} />
-              <Row label="端口" value={String(instance.port)} />
-              <Row label="上次启动" value={instance.lastStartedAt ? timeAgo(instance.lastStartedAt) : "从未启动"} />
-              <Row label="目录" value={<span className="t-mono-12 break-all" title={instance.dir}>{instance.dir}</span>} />
-              <Row label="Java" value={<span className="t-mono-12 break-all" title={instance.javaPath || "未指定"}>{instance.javaPath || "自动选择"}</span>} />
+              <Row label={t("overview.info.version", "版本")} value={`${instance.mcVersion} · ${instance.loader}${instance.loaderVersion ? ` ${instance.loaderVersion}` : ""}`} />
+              <Row label={t("overview.info.memory", "内存")} value={`${instance.memoryMin}–${instance.memoryMax} GB`} />
+              <Row label={t("overview.info.port", "端口")} value={String(instance.port)} />
+              <Row label={t("overview.info.lastStart", "上次启动")} value={instance.lastStartedAt ? timeAgo(instance.lastStartedAt) : t("overview.info.neverStarted", "从未启动")} />
+              <Row label={t("overview.info.dir", "目录")} value={<span className="t-mono-12 break-all" title={instance.dir}>{instance.dir}</span>} />
+              <Row label={t("overview.info.java", "Java")} value={<span className="t-mono-12 break-all" title={instance.javaPath || t("overview.info.javaUnset", "未指定")}>{instance.javaPath || t("overview.info.javaAuto", "自动选择")}</span>} />
             </dl>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openPath(instance.dir)}><FolderOpen className="size-3.5" />打开目录</Button>
-              <Button variant="secondary" size="sm" onClick={onEdit}>编辑设置</Button>
+              <Button variant="secondary" size="sm" onClick={() => window.mcss.app.openPath(instance.dir)}><FolderOpen className="size-3.5" />{t("overview.openDir", "打开目录")}</Button>
+              <Button variant="secondary" size="sm" onClick={onEdit}>{t("overview.edit", "编辑设置")}</Button>
               <Button variant="ghost" size="sm" onClick={async () => {
                 const path = `${instance.dir}\\server.properties`;
                 const exists = await window.mcss.fs.exists(path).catch(() => false);
-                if (!exists) return toast.error("还没有配置文件", { description: "先启动一次服务器，再打开 server.properties。" });
+                if (!exists) return toast.error(t("overview.noConfig", "还没有配置文件"), { description: t("overview.noConfigDesc", "先启动一次服务器，再打开 server.properties。") });
                 await window.mcss.app.openPath(path);
-              }}><FileText className="size-3.5" />打开配置文件</Button>
+              }}><FileText className="size-3.5" />{t("overview.openConfig", "打开配置文件")}</Button>
             </div>
           </Card>
         </div>
 
         <Card>
-          <SectionHead icon={<Puzzle />} title="接下来可以做" desc="无需一次配置完成，可按实际需要逐步设置。" />
+          <SectionHead icon={<Puzzle />} title={t("overview.next.title", "接下来可以做")} desc={t("overview.next.desc", "无需一次配置完成，可按实际需要逐步设置。")} />
           <div className="mt-4 grid gap-2 lg:grid-cols-3">
             <NextStep
-              title={`装点${contentLabel}`}
-              desc={contentKindOf(serverTypeOf(instance)) === "plugin" ? "领地、传送、经济类插件安装后需重启生效。" : "按游戏版本筛选，安装后需重启生效。"}
+              title={t("overview.next.install", "装点{label}", { label: contentLabel })}
+              desc={contentKindOf(serverTypeOf(instance)) === "plugin" ? t("overview.next.installPluginDesc", "领地、传送、经济类插件安装后需重启生效。") : t("overview.next.installModDesc", "按游戏版本筛选，安装后需重启生效。")}
               onClick={() => navigate(`/instances/${instance.id}/content?view=browse`)}
             />
-            <NextStep title="管理玩家" desc="设置管理员（OP）、白名单与封禁名单。" onClick={() => navigate(`/instances/${instance.id}/players`)} />
-            <NextStep title="照顾世界" desc="创建新维度，或留一份备份。" onClick={() => navigate(`/instances/${instance.id}/worlds`)} />
+            <NextStep title={t("overview.next.players", "管理玩家")} desc={t("overview.next.playersDesc", "设置管理员（OP）、白名单与封禁名单。")} onClick={() => navigate(`/instances/${instance.id}/players`)} />
+            <NextStep title={t("overview.next.worlds", "照顾世界")} desc={t("overview.next.worldsDesc", "创建新维度，或留一份备份。")} onClick={() => navigate(`/instances/${instance.id}/worlds`)} />
           </div>
         </Card>
 
         <Card>
-          <SectionHead icon={<Timer />} title="自动化" desc="按设定周期自动执行任务，仅在服务器运行期间生效。" />
+          <SectionHead icon={<Timer />} title={t("overview.auto.title", "自动化")} desc={t("overview.auto.desc", "按设定周期自动执行任务，仅在服务器运行期间生效。")} />
           {!isDesktopVisual() ? (
             <div className="mt-5 rounded-lg bg-amber-700/10 p-3.5 t-copy-13 text-amber-900">
-              定时任务需要桌面版常驻运行，网页版可查看设置，但不会自动触发。
+              {t("overview.auto.webDesc", "定时任务需要桌面版常驻运行，网页版可查看设置，但不会自动触发。")}
             </div>
           ) : (
             <div className="mt-5 grid gap-5 lg:grid-cols-3">
-              <Field label="每日重启" hint={schedule.restartAt ? `每天 ${schedule.restartAt} 自动重启` : "不设置时间就不会自动重启"} htmlFor="schedule-restart">
+              <Field label={t("overview.auto.restart", "每日重启")} hint={schedule.restartAt ? t("overview.auto.restartHint", "每天 {time} 自动重启", { time: schedule.restartAt }) : t("overview.auto.restartOff", "不设置时间就不会自动重启")} htmlFor="schedule-restart">
                 <div className="flex gap-2">
                   <Input id="schedule-restart" type="time" value={schedule.restartAt ?? ""} onChange={(event) => saveSchedule({ ...schedule, restartAt: event.target.value })} />
-                  {schedule.restartAt ? <Button size="sm" variant="ghost" onClick={() => saveSchedule({ ...schedule, restartAt: "" })}>清除</Button> : null}
+                  {schedule.restartAt ? <Button size="sm" variant="ghost" onClick={() => saveSchedule({ ...schedule, restartAt: "" })}>{t("overview.auto.clear", "清除")}</Button> : null}
                 </div>
               </Field>
-              <Field label="定时公告" hint={schedule.broadcastEvery ? `每 ${schedule.broadcastEvery} 分钟发送一次` : "当前已关闭"}>
+              <Field label={t("overview.auto.broadcast", "定时公告")} hint={schedule.broadcastEvery ? t("overview.auto.broadcastHint", "每 {n} 分钟发送一次", { n: schedule.broadcastEvery }) : t("overview.auto.off", "当前已关闭")}>
                 <div className="space-y-2">
                   <Picker value={String(schedule.broadcastEvery ?? 0)} onValueChange={(value) => saveSchedule({ ...schedule, broadcastEvery: Number(value) })} options={[
-                    { value: "0", label: "关闭" }, { value: "30", label: "每 30 分钟" }, { value: "60", label: "每 1 小时" }, { value: "120", label: "每 2 小时" },
+                    { value: "0", label: t("overview.auto.close", "关闭") }, { value: "30", label: t("overview.auto.every30", "每 30 分钟") }, { value: "60", label: t("overview.auto.every1h", "每 1 小时") }, { value: "120", label: t("overview.auto.every2h", "每 2 小时") },
                   ]} />
-                  {schedule.broadcastEvery ? <Input value={schedule.broadcastText ?? ""} onChange={(event) => saveSchedule({ ...schedule, broadcastText: event.target.value })} placeholder="例如：欢迎回来，记得看群公告" /> : null}
+                  {schedule.broadcastEvery ? <Input value={schedule.broadcastText ?? ""} onChange={(event) => saveSchedule({ ...schedule, broadcastText: event.target.value })} placeholder={t("overview.auto.broadcastPlaceholder", "例如：欢迎回来，记得看群公告")} /> : null}
                 </div>
               </Field>
-              <Field label="定时备份" hint={schedule.backupEvery ? `每 ${schedule.backupEvery} 分钟备份一次` : "当前已关闭"}>
+              <Field label={t("overview.auto.backup", "定时备份")} hint={schedule.backupEvery ? t("overview.auto.backupHint", "每 {n} 分钟备份一次", { n: schedule.backupEvery }) : t("overview.auto.off", "当前已关闭")}>
                 <Picker value={String(schedule.backupEvery ?? 0)} onValueChange={(value) => saveSchedule({ ...schedule, backupEvery: Number(value) })} options={[
-                  { value: "0", label: "关闭" }, { value: "30", label: "每 30 分钟" }, { value: "60", label: "每 1 小时" }, { value: "180", label: "每 3 小时" },
+                  { value: "0", label: t("overview.auto.close", "关闭") }, { value: "30", label: t("overview.auto.every30", "每 30 分钟") }, { value: "60", label: t("overview.auto.every1h", "每 1 小时") }, { value: "180", label: t("overview.auto.every3h", "每 3 小时") },
                 ]} />
               </Field>
             </div>

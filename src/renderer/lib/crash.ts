@@ -5,6 +5,8 @@
  * 只做高置信度的模式匹配，宁可少报也不要瞎报；匹配不到就老实说不知道。
  */
 
+import { tGlobal } from "../i18n/core";
+
 export interface Diagnosis {
   /** 稳定 id，便于埋点与测试 */
   id: string;
@@ -32,9 +34,11 @@ const RULES: Rule[] = [
       return {
         id: "java-version",
         severity: "error",
-        title: "Java 版本太旧",
-        detail: ver ? `该服务端需要更高版本的 Java（提示版本 ${ver}），当前 Java 版本过低。` : "服务端使用了当前 Java 版本不支持的 class 版本。",
-        actions: [{ label: "换一个 Java", kind: "change-java" }],
+        title: tGlobal("crash.java.title", "Java 版本太旧"),
+        detail: ver
+          ? tGlobal("crash.java.detailVer", "该服务端需要更高版本的 Java（提示版本 {ver}），当前 Java 版本过低。", { ver })
+          : tGlobal("crash.java.detail", "服务端使用了当前 Java 版本不支持的 class 版本。"),
+        actions: [{ label: tGlobal("crash.java.action", "换一个 Java"), kind: "change-java" }],
       };
     },
   },
@@ -44,9 +48,9 @@ const RULES: Rule[] = [
     build: () => ({
       id: "port-busy",
       severity: "error",
-      title: "端口被占用",
-      detail: "25565 端口已被其它程序占用，可能还有另一个服务器实例在运行。",
-      actions: [{ label: "换端口", kind: "free-port" }],
+      title: tGlobal("crash.port.title", "端口被占用"),
+      detail: tGlobal("crash.port.detail", "25565 端口已被其它程序占用，可能还有另一个服务器实例在运行。"),
+      actions: [{ label: tGlobal("crash.port.action", "换端口"), kind: "free-port" }],
     }),
   },
   {
@@ -55,9 +59,9 @@ const RULES: Rule[] = [
     build: () => ({
       id: "oom",
       severity: "error",
-      title: "内存不够",
-      detail: "JVM 堆内存溢出。安装大型模组的服务器建议调高最大内存，并确认物理内存充足。",
-      actions: [{ label: "调大内存", kind: "raise-memory" }],
+      title: tGlobal("crash.oom.title", "内存不够"),
+      detail: tGlobal("crash.oom.detail", "JVM 堆内存溢出。安装大型模组的服务器建议调高最大内存，并确认物理内存充足。"),
+      actions: [{ label: tGlobal("crash.oom.action", "调大内存"), kind: "raise-memory" }],
     }),
   },
   {
@@ -66,9 +70,9 @@ const RULES: Rule[] = [
     build: (text) => ({
       id: "registry",
       severity: "error",
-      title: "数据包格式不对",
-      detail: "自定义维度或数据包解析失败，服务器在加载注册表阶段退出，该版本数据包格式已变更。",
-      actions: [{ label: "修复数据包", kind: "repair-datapacks" }],
+      title: tGlobal("crash.registry.title", "数据包格式不对"),
+      detail: tGlobal("crash.registry.detail", "自定义维度或数据包解析失败，服务器在加载注册表阶段退出，该版本数据包格式已变更。"),
+      actions: [{ label: tGlobal("crash.registry.action", "修复数据包"), kind: "repair-datapacks" }],
     }),
   },
   {
@@ -79,9 +83,13 @@ const RULES: Rule[] = [
       return {
         id: "missing-dep",
         severity: "error",
-        title: "Mod 依赖不满足",
-        detail: mods.length ? `以下模组缺少前置依赖或版本不匹配：${mods.join("、")}` : "某个模组缺少前置依赖，或两个模组要求的版本相互冲突。",
-        actions: mods.length ? [{ label: `禁用 ${mods[0]} 试试`, kind: "disable-mod", arg: mods[0] }] : [],
+        title: tGlobal("crash.dep.title", "Mod 依赖不满足"),
+        detail: mods.length
+          ? tGlobal("crash.dep.detailMods", "以下模组缺少前置依赖或版本不匹配：{mods}", { mods: mods.join("、") })
+          : tGlobal("crash.dep.detail", "某个模组缺少前置依赖，或两个模组要求的版本相互冲突。"),
+        actions: mods.length
+          ? [{ label: tGlobal("crash.dep.actionTry", "禁用 {mod} 试试", { mod: mods[0] }), kind: "disable-mod", arg: mods[0] }]
+          : [],
         mods,
       };
     },
@@ -94,11 +102,15 @@ const RULES: Rule[] = [
       return {
         id: "mod-crash",
         severity: "error",
-        title: mods.length ? `疑似 ${mods[0]} 导致崩溃` : "有 Mod 抛异常",
+        title: mods.length
+          ? tGlobal("crash.modCrash.titleMod", "疑似 {mod} 导致崩溃", { mod: mods[0] })
+          : tGlobal("crash.modCrash.title", "有 Mod 抛异常"),
         detail: mods.length
-          ? `堆栈中出现 ${mods.join("、")}，可先禁用这些模组再启动，逐个排查。`
-          : "异常堆栈指向某个模组，但无法确定具体是哪一个。",
-        actions: mods.length ? [{ label: `禁用 ${mods[0]}`, kind: "disable-mod", arg: mods[0] }] : [],
+          ? tGlobal("crash.modCrash.detailMods", "堆栈中出现 {mods}，可先禁用这些模组再启动，逐个排查。", { mods: mods.join("、") })
+          : tGlobal("crash.modCrash.detail", "异常堆栈指向某个模组，但无法确定具体是哪一个。"),
+        actions: mods.length
+          ? [{ label: tGlobal("crash.modCrash.actionDisable", "禁用 {mod}", { mod: mods[0] }), kind: "disable-mod", arg: mods[0] }]
+          : [],
         mods,
       };
     },
@@ -109,9 +121,9 @@ const RULES: Rule[] = [
     build: () => ({
       id: "session-lock",
       severity: "error",
-      title: "存档被占用",
-      detail: "world 目录被其它进程占用，通常是因为同一个服务器启动了两份。",
-      actions: [{ label: "检查进程", kind: "none" }],
+      title: tGlobal("crash.session.title", "存档被占用"),
+      detail: tGlobal("crash.session.detail", "world 目录被其它进程占用，通常是因为同一个服务器启动了两份。"),
+      actions: [{ label: tGlobal("crash.session.action", "检查进程"), kind: "none" }],
     }),
   },
 ];
@@ -140,9 +152,9 @@ export function diagnose(lines: string[]): Diagnosis | null {
     return {
       id: "unknown",
       severity: "warn",
-      title: "启动失败，未能识别具体原因",
-      detail: "日志中存在异常记录，可先查看控制台最后 30 行，或导出日志后搜索第一个 Exception。",
-      actions: [{ label: "打开控制台", kind: "none" }],
+      title: tGlobal("crash.unknown.title", "启动失败，未能识别具体原因"),
+      detail: tGlobal("crash.unknown.detail", "日志中存在异常记录，可先查看控制台最后 30 行，或导出日志后搜索第一个 Exception。"),
+      actions: [{ label: tGlobal("crash.unknown.action", "打开控制台"), kind: "none" }],
     };
   }
   return null;

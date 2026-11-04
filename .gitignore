@@ -43,3 +43,7 @@ docs/copy-apply-report.json
 
 # Local dev app config (contains machine paths; never commit)
 config.json
+
+# MiSans 完整 VF 是字体子集的源文件（11.9MB）。子集由 scripts/subset-misans.py 从
+# WulonSpec/fonts 的同名文件生成；源文件不进仓库，避免把大二进制塞进历史。
+src/renderer/assets/fonts/misans-vf.woff2

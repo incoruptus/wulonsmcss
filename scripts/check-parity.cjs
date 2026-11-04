@@ -17,6 +17,10 @@ const WEB_IRRELEVANT = new Set([
   "window:minimize",
   "window:maximize",
   "window:close",
+  // 网页版刷新即最新，没有可替换的应用层；更新入口在网页上只做说明
+  "app:update-check",
+  "app:update-download",
+  "app:update-apply",
 ]);
 
 function desktopChannels() {

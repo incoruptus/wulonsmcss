@@ -6,6 +6,8 @@
  * - Gist 的 secret 不等于私密（知道链接就能读）→ 上传的一律密文
  */
 
+import { tGlobal } from "@/i18n/core";
+
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 去掉 I / O / 0 / 1 易混字符
 export const PAIR_CODE_GROUPS = 5;
 export const PAIR_CODE_GROUP_LEN = 4;
@@ -74,7 +76,7 @@ async function gzip(data: Uint8Array): Promise<Uint8Array | null> {
 }
 
 async function gunzip(data: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") throw new Error("当前环境不支持解压此同步内容");
+  if (typeof DecompressionStream === "undefined") throw new Error(tGlobal("sync.error.noDecompress", "当前环境不支持解压此同步内容"));
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
@@ -85,7 +87,7 @@ const KDF_SALT = "wulons-mcss-sync-v1";
 
 async function deriveKey(pairCode: string, iterations: number): Promise<CryptoKey> {
   if (!globalThis.crypto?.subtle) {
-    throw new Error("当前环境不支持加密");
+    throw new Error(tGlobal("sync.error.noCrypto", "当前环境不支持加密"));
   }
   const material = await crypto.subtle.importKey(
     "raw",
@@ -138,7 +140,7 @@ export async function decryptPayload(
       ),
     );
   } catch {
-    throw new Error("配对码不正确，或同步内容已损坏");
+    throw new Error(tGlobal("sync.error.badPair", "配对码不正确，或同步内容已损坏"));
   }
   const raw = meta.gz ? await gunzip(plain) : plain;
   return new TextDecoder().decode(raw);

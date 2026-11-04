@@ -6,6 +6,7 @@ import { agentDownloadReady, agentDownloadUrl } from "@/lib/links";
 import { useAgentStatus } from "@/hooks/useAgentStatus";
 import { useConfig } from "@/stores/config";
 import type { AppConfig } from "@/lib/types";
+import { useI18n } from "@/i18n";
 
 /**
  * Web 形态下的「助手连不上」提示条。
@@ -16,6 +17,7 @@ export function WebAgentBanner() {
   const shell = detectShell();
   const agent = useAgentStatus(shell === "web");
   const loadConfig = useConfig((s) => s.load);
+  const { t } = useI18n();
 
   // 页面先打开、助手后装上时，启动那一刻的 config.read 是失败的：
   // 一旦连上就重新读一次，否则后面新建实例会把本机已有实例覆盖掉。
@@ -46,36 +48,36 @@ export function WebAgentBanner() {
       <AlertTriangle className="size-3.5 shrink-0 text-amber-900" />
       <span className="t-label-12 text-amber-900">
         {blocked
-          ? "本机助手在运行，但这个页面连不上它。先刷新页面；仍然不行就重启助手。"
-          : "还差一步：这台电脑上的「开服茶助手」没有启动。装好并启动后，才能读取存档、开服和准备客户端。"}
+          ? t("webAgent.blocked", "本机助手在运行，但这个页面连不上它。先刷新页面；仍然不行就重启助手。")
+          : t("webAgent.missing", "还差一步：这台电脑上的「开服茶助手」没有启动。装好并启动后，才能读取存档、开服和准备客户端。")}
         {blocked
           ? isEdge
-            ? " Edge 询问是否允许访问本地网络时，请点允许。"
+            ? t("webAgent.edge", " Edge 询问是否允许访问本地网络时，请点允许。")
             : ""
-          : " 如果任务管理器里已经有 mcss-agent.exe，点「重新连接」；Edge 询问本地网络时请点允许。"}
+          : t("webAgent.hint", " 如果任务管理器里已经有 mcss-agent.exe，点「重新连接」；Edge 询问本地网络时请点允许。")}
       </span>
       <div className="ml-auto flex items-center gap-1.5">
-        <Button size="xs" variant="ghost" className="text-amber-900" onClick={() => window.location.reload()} title="清掉旧页面缓存，重新加载最新版本">
+        <Button size="xs" variant="ghost" className="text-amber-900" onClick={() => window.location.reload()} title={t("webAgent.refreshTip", "清掉旧页面缓存，重新加载最新版本")}>
           <RotateCw className="size-3" />
-          刷新页面
+          {t("webAgent.refresh", "刷新页面")}
         </Button>
         <Button size="xs" variant="secondary" onClick={() => void agent.refresh()} loading={agent.refreshing}>
           <RefreshCw className="size-3" />
-          重新连接
+          {t("webAgent.reconnect", "重新连接")}
         </Button>
         {agentDownloadReady() ? (
           <Button
             size="xs"
             variant="ghost"
             className="text-amber-900"
-            title="下载后双击安装；助手在后台运行，没有窗口"
+            title={t("webAgent.downloadTip", "下载后双击安装；助手在后台运行，没有窗口")}
             onClick={() => window.open(agentDownloadUrl(), "_blank", "noopener,noreferrer")}
           >
             <Download className="size-3" />
-            下载安装包
+            {t("webAgent.download", "下载安装包")}
           </Button>
         ) : (
-          <span className="t-label-12 text-amber-900/80">安装包请向发你链接的人要</span>
+          <span className="t-label-12 text-amber-900/80">{t("webAgent.askSender", "安装包请向发你链接的人要")}</span>
         )}
       </div>
     </div>

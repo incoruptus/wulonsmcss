@@ -76,7 +76,7 @@ async function prepare({ dir, mods = [], onProgress }) {
   for (const mod of mods) {
     index += 1;
     const label = mod.n || mod.p;
-    onProgress?.({ stage: `准备 ${label}`, percent: Math.round(((index - 1) / Math.max(mods.length, 1)) * 100), detail: `${index}/${mods.length}` });
+    onProgress?.({ stage: `准备 ${label}`, stageKey: "join.stage.preparing", stageVars: { label }, percent: Math.round(((index - 1) / Math.max(mods.length, 1)) * 100), detail: `${index}/${mods.length}` });
     try {
       const file = await resolveFile(mod.v);
       const safeName = safeFileName(file.filename);
@@ -97,7 +97,7 @@ async function prepare({ dir, mods = [], onProgress }) {
     }
   }
 
-  onProgress?.({ stage: "完成", percent: 100, detail: `${results.filter((r) => r.ok).length}/${mods.length}` });
+  onProgress?.({ stage: "完成", stageKey: "join.stage.done", percent: 100, detail: `${results.filter((r) => r.ok).length}/${mods.length}` });
   return { ok: results.every((r) => r.ok), dir, modsDir, results };
 }
 

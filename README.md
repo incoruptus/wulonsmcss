@@ -6,6 +6,8 @@
 
 开服 + 开玩一体化的 Minecraft 工具。单实例灵便管理为骨架，玩家侧做到「收到一条链接就能进服」。
 
+界面支持简体中文与 English；服务端与玩家侧共用同一套设计规范（WulonSpec），桌面版日常更新只下载应用层，不必重下完整包。
+
 两种交付形态共用同一套 React UI 与同一份通道契约：
 
 | 形态 | 需要什么 | 适合 |
@@ -21,7 +23,7 @@
 pnpm install
 pnpm dev            # 桌面版
 pnpm build:web      # 静态网页 → dist-web/
-pnpm test           # 211 vitest + 72 node:test + 能力一致性检查
+pnpm test           # 214 vitest + 72 node:test + 能力一致性 + 词典一致性检查
 ```
 
 编译本地助手（Rust，零第三方依赖）：

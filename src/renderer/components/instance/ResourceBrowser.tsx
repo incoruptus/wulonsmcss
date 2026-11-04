@@ -25,15 +25,16 @@ import { serverTypeLabel, serverTypeOf } from "@/lib/config-model";
 import { zhNameOf, zhSearchSlugs, isCjk } from "@/lib/zh-names";
 import {
   CATEGORY_ORDER,
-  ENVIRONMENT_LABEL,
   ENVIRONMENT_OPTIONS,
   SORT_OPTIONS,
   LOADER_ZH,
   categoryLabel,
+  environmentLabel,
   environmentOf,
   loaderLabel,
 } from "@/lib/modrinth-taxonomy";
 import { copyText, formatBytes, formatCount } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import type { AppConfig, Instance } from "@/lib/types";
 
 interface Hit {
@@ -105,6 +106,7 @@ const EMPTY_MODRINTH_INDEX: NonNullable<AppConfig["modrinthIndex"]> = {};
  * 中文名来自 MC 百科（见 lib/zh-names.ts），没有就老实显示英文。
  */
 export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: Kind }) {
+  const { t } = useI18n();
   const modrinthIndex = useConfig((s) => s.cfg.modrinthIndex) ?? EMPTY_MODRINTH_INDEX;
   const patch = useConfig((s) => s.patch);
 
@@ -245,7 +247,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
       setTotal(page.total);
       setZhMatched(page.zh);
     } catch (e) {
-      if (id === reqId.current) toast.error(`搜索失败：${(e as Error).message}`);
+      if (id === reqId.current) toast.error(t("resource.errSearch", "搜索失败：{msg}", { msg: (e as Error).message }));
     } finally {
       if (id === reqId.current) {
         setLoading(false);
@@ -301,16 +303,16 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
     if (source === "row") setInstalling(hit.id);
     else setInstallingVersion(version?.id ?? "latest");
     try {
-      if (!version) throw new Error("该项目没有适配当前服务器的版本");
+      if (!version) throw new Error(t("resource.errNoVersion", "该项目没有适配当前服务器的版本"));
       const file = version.files.find((f) => f.primary) ?? version.files[0];
-      if (!file) throw new Error("这个版本没有可下载文件");
+      if (!file) throw new Error(t("resource.errNoFile", "这个版本没有可下载文件"));
       const res = await window.mcss.modrinth.install({
         dir: instance.dir,
         fileUrl: file.url,
         fileName: file.filename,
         kind,
       });
-      if (!res.ok) throw new Error(res.error || "安装失败");
+      if (!res.ok) throw new Error(res.error || t("resource.errInstall", "安装失败"));
       await patch({
         modrinthIndex: {
           ...(useConfig.getState().cfg.modrinthIndex ?? {}),
@@ -318,11 +320,11 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
         },
       });
       await refreshInstalled();
-      toast.success(kind === "plugin" ? "插件已安装" : "Mod 已安装", {
+      toast.success(kind === "plugin" ? t("resource.pluginInstalled", "插件已安装") : t("resource.modInstalled", "Mod 已安装"), {
         description: `${zhNameOf(hit.slug) ?? hit.title} ${version.versionNumber} · ${formatBytes(file.size)} → ${kind === "plugin" ? "plugins/" : "mods/"}`,
       });
     } catch (e) {
-      toast.error(`安装失败：${(e as Error).message}`);
+      toast.error(t("resource.errInstallDetail", "安装失败：{msg}", { msg: (e as Error).message }));
     } finally {
       setInstalling(null);
       setInstallingVersion(null);
@@ -333,13 +335,13 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
     setInstalling(hit.id);
     try {
       if (hit.compatible === false) {
-        throw new Error(`没有适配 ${instance.mcVersion} · ${serverTypeLabel(serverType)} 的文件`);
+        throw new Error(t("resource.errIncompatible", "没有适配 {mc} · {type} 的文件", { mc: instance.mcVersion, type: serverTypeLabel(serverType) }));
       }
       const list = await window.mcss.modrinth.versions(hit.id, { mcVersion: instance.mcVersion, loader });
-      if (!list.length) throw new Error("没有适配当前版本的文件");
+      if (!list.length) throw new Error(t("resource.errIncompatibleCurrent", "没有适配当前版本的文件"));
       await installVersion(hit, list[0] as Version, "row");
     } catch (e) {
-      toast.error(`安装失败：${(e as Error).message}`);
+      toast.error(t("resource.errInstallDetail", "安装失败：{msg}", { msg: (e as Error).message }));
     } finally {
       setInstalling(null);
     }
@@ -370,15 +372,15 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
   const selectedDone = selected ? isInstalled(selected) : false;
 
   const rowMenu = (hit: Hit): ContextMenuItem[] => [
-    { label: "查看详情", icon: PackageSearch, onSelect: () => void openDetail(hit) },
+    { label: t("resource.menu.detail", "查看详情"), icon: PackageSearch, onSelect: () => void openDetail(hit) },
     {
-      label: "复制英文名",
+      label: t("resource.menu.copyName", "复制英文名"),
       icon: Tag,
-      onSelect: () => void copyText(hit.title).then((ok) => (ok ? toast.success("已复制") : toast.error("复制失败"))),
+      onSelect: () => void copyText(hit.title).then((ok) => (ok ? toast.success(t("resource.copied", "已复制")) : toast.error(t("resource.copyFailed", "复制失败")))),
     },
     { separator: true, label: "" },
     {
-      label: "在浏览器打开",
+      label: t("resource.menu.openBrowser", "在浏览器打开"),
       icon: ArrowUpRight,
       onSelect: () => window.mcss.app.openExternal(`https://modrinth.com/${kind}/${hit.slug}`),
     },
@@ -396,8 +398,8 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder={
               kind === "plugin"
-                ? "搜索插件，例如 EssentialsX、领地、权限，也可直接输入中文名"
-                : "搜索模组，例如 sodium、优化、小地图，也可直接输入中文名"
+                ? t("resource.search.pluginPlaceholder", "搜索插件，例如 EssentialsX、领地、权限，也可直接输入中文名")
+                : t("resource.search.modPlaceholder", "搜索模组，例如 sodium、优化、小地图，也可直接输入中文名")
             }
             className="h-9 pl-9"
           />
@@ -408,7 +410,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 setDraft("");
                 setQuery("");
               }}
-              aria-label="清空搜索"
+              aria-label={t("resource.search.clear", "清空搜索")}
             >
               <X className="size-3.5" />
             </button>
@@ -418,15 +420,15 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
           className="w-[150px]"
           value={sort}
           onValueChange={setSort}
-          options={SORT_OPTIONS}
-          aria-label="排序"
+          options={SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.key, o.label) }))}
+          aria-label={t("resource.sort", "排序")}
         />
         <Button onClick={submit} loading={loading}>
           <Search className="size-4" />
-          搜索
+          {t("resource.search", "搜索")}
         </Button>
         <IconButton
-          label="重新加载"
+          label={t("resource.reload", "重新加载")}
           onClick={() => {
             void refreshInstalled();
             void load(0, false);
@@ -434,7 +436,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
         >
           <RefreshCw className="size-4" />
         </IconButton>
-        <IconButton label="打开内容目录" onClick={() => window.mcss.app.openPath(contentDir)}>
+        <IconButton label={t("resource.openDir", "打开内容目录")} onClick={() => window.mcss.app.openPath(contentDir)}>
           <FolderOpen className="size-4" />
         </IconButton>
       </div>
@@ -442,7 +444,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
       {/* 筛选 */}
       <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-1">
-          <span className="t-label-12 mr-1 shrink-0 text-gray-700">分类</span>
+          <span className="t-label-12 mr-1 shrink-0 text-gray-700">{t("resource.categories", "分类")}</span>
           {(showAllCats ? CATEGORY_ORDER : CATEGORY_ORDER.slice(0, 9)).map((slug) => (
             <button
               key={slug}
@@ -457,7 +459,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
             </button>
           ))}
           <button className="h-6 px-1.5 t-label-12 text-blue-900 hover:underline" onClick={() => setShowAllCats((v) => !v)}>
-            {showAllCats ? "收起" : "更多"}
+            {showAllCats ? t("resource.collapse", "收起") : t("resource.more", "更多")}
           </button>
           {(cats.length > 0 || env !== "any") ? (
             <button
@@ -467,12 +469,12 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 setEnv("any");
               }}
             >
-              清除
+              {t("resource.clear", "清除")}
             </button>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          <span className="t-label-12 mr-1 shrink-0 text-gray-700">环境</span>
+          <span className="t-label-12 mr-1 shrink-0 text-gray-700">{t("resource.environment", "环境")}</span>
           {ENVIRONMENT_OPTIONS.map((o) => (
             <button
               key={o.value}
@@ -483,12 +485,12 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                   : "h-6 rounded-full bg-gray-100 px-2.5 t-label-12 text-gray-900 hover:bg-gray-200"
               }
             >
-              {o.label}
+              {t(o.key, o.label)}
             </button>
           ))}
           <span className="ml-auto t-label-12 text-gray-700">
-            {zhMatched ? `按中文名匹配 · ${total} 个` : `共 ${total.toLocaleString()} 个结果`}
-            {installedCount ? ` · 已装 ${installedCount}` : ""}
+            {zhMatched ? t("resource.zhMatched", "按中文名匹配 · {n} 个", { n: total }) : t("resource.totalResults", "共 {n} 个结果", { n: total.toLocaleString() })}
+            {installedCount ? t("resource.installedCount", " · 已装 {n}", { n: installedCount }) : ""}
           </span>
         </div>
       </div>
@@ -496,17 +498,17 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
       {/* 列表 */}
       {loading && hits.length === 0 ? (
         <div className="flex items-center justify-center gap-2 py-16 t-label-13 text-gray-800">
-          <Spinner /> 正在查 Modrinth…
+          <Spinner /> {t("resource.searchingModrinth", "正在查 Modrinth…")}
         </div>
       ) : hits.length === 0 ? (
         <Card>
           <EmptyState
             icon={<PackageSearch className="size-5" />}
-            title={isCjk(query) ? "没有找到这个中文名的项目" : "没有结果"}
+            title={isCjk(query) ? t("resource.noZhResultTitle", "没有找到这个中文名的项目") : t("resource.noResultTitle", "没有结果")}
             desc={
               isCjk(query)
-                ? "中文名库仅收录 MC 百科已有的条目，可尝试英文名，或直接使用上方分类筛选。"
-                : `请更换关键词，或确认 ${instance.mcVersion} · ${serverTypeLabel(serverType)} 是否提供对应的${kind === "plugin" ? "插件" : "Mod"}。`
+                ? t("resource.noZhResultDesc", "中文名库仅收录 MC 百科已有的条目，可尝试英文名，或直接使用上方分类筛选。")
+                : t("resource.noResultDesc", "请更换关键词，或确认 {mc} · {type} 是否提供对应的{label}。", { mc: instance.mcVersion, type: serverTypeLabel(serverType), label: kind === "plugin" ? t("resource.kind.plugin", "插件") : t("resource.kind.mod", "Mod") })
             }
             action={
               query ? (
@@ -517,7 +519,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                     setQuery("");
                   }}
                 >
-                  清空搜索，看看全部
+                  {t("resource.clearSeeAll", "清空搜索，看看全部")}
                 </Button>
               ) : undefined
             }
@@ -526,10 +528,10 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
       ) : (
         <div className="overflow-hidden rounded-xl bg-background-100 shadow-geist-border">
           <div className="flex items-center gap-3 border-b border-gray-300 px-3 py-2 t-label-12 text-gray-700">
-            <span>{query ? `“${query}” 的结果` : "全部"}</span>
+            <span>{query ? t("resource.queryResults", "“{q}” 的结果", { q: query }) : t("resource.all", "全部")}</span>
             <span className="text-gray-600">·</span>
             <span>{hits.length} / {zhMatched ? total : total.toLocaleString()}</span>
-            {zhMatched ? <Badge variant="blue" size="sm">中文名</Badge> : null}
+            {zhMatched ? <Badge variant="blue" size="sm">{t("resource.zhBadge", "中文名")}</Badge> : null}
           </div>
           <div className="divide-y divide-gray-300/70">
             {hits.map((hit) => {
@@ -571,12 +573,12 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                           {formatCount(hit.downloads)}
                         </span>
                         {incompatible ? (
-                          <Badge variant="amber" size="sm" title={`没有适配 ${instance.mcVersion}`}>
-                            不适配
+                          <Badge variant="amber" size="sm" title={t("resource.noCompatTitle", "没有适配 {mc}", { mc: instance.mcVersion })}>
+                            {t("resource.notCompatible", "不适配")}
                           </Badge>
                         ) : done ? (
                           <Badge variant="green" size="sm">
-                            <Check className="size-3" /> 已装
+                            <Check className="size-3" /> {t("resource.installed", "已装")}
                           </Badge>
                         ) : null}
                       </div>
@@ -587,7 +589,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                           </span>
                         ))}
                         {tags.length ? <span className="text-gray-600">·</span> : null}
-                        <span className="t-label-12 text-gray-700">{ENVIRONMENT_LABEL[environment]}</span>
+                        <span className="t-label-12 text-gray-700">{environmentLabel(environment)}</span>
                         {hit.author ? <span className="t-label-12 text-gray-700">· {hit.author}</span> : null}
                       </div>
                       <p className="mt-1 line-clamp-2 text-[12px] leading-[18px] text-gray-800">{hit.description}</p>
@@ -598,13 +600,13 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                       className="mt-0.5 shrink-0"
                       loading={installing === hit.id}
                       disabled={incompatible}
-                      title={incompatible ? `没有适配 ${instance.mcVersion} · ${serverTypeLabel(serverType)} 的文件` : undefined}
+                      title={incompatible ? t("resource.noCompatFile", "没有适配 {mc} · {type} 的文件", { mc: instance.mcVersion, type: serverTypeLabel(serverType) }) : undefined}
                       onClick={(e) => {
                         e.stopPropagation();
                         void quickInstall(hit);
                       }}
                     >
-                      {incompatible ? "不可用" : done ? "重装" : "安装"}
+                      {incompatible ? t("resource.unavailable", "不可用") : done ? t("resource.reinstall", "重装") : t("resource.install", "安装")}
                     </Button>
                   </div>
                 </ContextMenu>
@@ -617,7 +619,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
       {hasMore ? (
         <div className="flex justify-center">
           <Button variant="secondary" loading={loadingMore} onClick={() => void load(hits.length, true)}>
-            加载更多
+            {t("resource.loadMore", "加载更多")}
           </Button>
         </div>
       ) : null}
@@ -641,12 +643,12 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 <span className="flex items-center gap-2">
                   {zhName ?? selected.title}
                   {zhName ? <span className="t-label-13 font-normal text-gray-700">{selected.title}</span> : null}
-                  {selectedDone ? <Badge variant="green" size="sm">已装</Badge> : null}
+                  {selectedDone ? <Badge variant="green" size="sm">{t("resource.installed", "已装")}</Badge> : null}
                 </span>
               }
               desc={
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>{selected.author ? `作者 ${selected.author}` : "Modrinth"}</span>
+                  <span>{selected.author ? t("resource.byAuthor", "作者 {author}", { author: selected.author }) : "Modrinth"}</span>
                   <span className="inline-flex items-center gap-1">
                     <Download className="size-3" /> {formatCount(selected.downloads)}
                   </span>
@@ -675,7 +677,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                       </Badge>
                     ))}
                     <Badge variant="gray" size="sm">
-                      {ENVIRONMENT_LABEL[environmentOf(selected)]}
+                      {environmentLabel(environmentOf(selected))}
                     </Badge>
                     {project?.loaders?.slice(0, 4).map((l) => (
                       <Badge key={l} variant="violet" size="sm">
@@ -685,23 +687,23 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-0.5">
                     {project?.sourceUrl ? (
-                      <LinkButton label="源码" url={project.sourceUrl} />
+                      <LinkButton label={t("resource.link.source", "源码")} url={project.sourceUrl} />
                     ) : null}
-                    {project?.issuesUrl ? <LinkButton label="问题反馈" url={project.issuesUrl} /> : null}
+                    {project?.issuesUrl ? <LinkButton label={t("resource.link.issues", "问题反馈")} url={project.issuesUrl} /> : null}
                     {project?.wikiUrl ? <LinkButton label="Wiki" url={project.wikiUrl} /> : null}
-                    <LinkButton label="Modrinth 页面" url={`https://modrinth.com/${kind}/${selected.slug}`} />
+                    <LinkButton label={t("resource.link.modrinth", "Modrinth 页面")} url={`https://modrinth.com/${kind}/${selected.slug}`} />
                   </div>
                 </div>
               </div>
 
               <div className="rounded-lg bg-background-200 p-3">
                 <div className="mb-1 flex items-center gap-1.5 t-label-12 text-gray-700">
-                  <Tag className="size-3" /> 简介
-                  {projectZh ? <span className="text-gray-600">· 中文由 MCIM 机器翻译</span> : null}
+                  <Tag className="size-3" /> {t("resource.summary", "简介")}
+                  {projectZh ? <span className="text-gray-600">{t("resource.zhTranslated", "· 中文由 MCIM 机器翻译")}</span> : null}
                 </div>
                 {detailLoading && !projectZh ? (
                   <div className="flex items-center gap-2 t-label-13 text-gray-800">
-                    <Spinner /> 正在取中文简介…
+                    <Spinner /> {t("resource.loadingZh", "正在取中文简介…")}
                   </div>
                 ) : (
                   <p className="t-label-13 whitespace-pre-wrap leading-6 text-gray-1000">
@@ -710,7 +712,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 )}
                 {projectZh ? (
                   <details className="mt-1">
-                    <summary className="cursor-pointer t-label-12 text-gray-700">看英文原文</summary>
+                    <summary className="cursor-pointer t-label-12 text-gray-700">{t("resource.showEnglish", "看英文原文")}</summary>
                     <p className="mt-1 t-label-12 text-gray-800">{project?.description ?? selected.description}</p>
                   </details>
                 ) : null}
@@ -723,7 +725,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                       key={url}
                       className="shrink-0 overflow-hidden rounded-lg shadow-geist-border"
                       onClick={() => window.mcss.app.openExternal(url)}
-                      title="在浏览器打开大图"
+                      title={t("resource.openImage", "在浏览器打开大图")}
                     >
                       <img
                         src={url}
@@ -742,7 +744,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
               {project?.body ? (
                 <details>
                   <summary className="cursor-pointer t-label-13 text-gray-900">
-                    完整介绍（英文，来自 Modrinth）
+                    {t("resource.fullBody", "完整介绍（英文，来自 Modrinth）")}
                   </summary>
                   <pre className="mt-1.5 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-background-200 p-3 text-[12px] leading-5 text-gray-900 scroll-thin">
                     {project.body}
@@ -752,23 +754,23 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
 
               <div>
                 <div className="mb-1.5 flex items-center gap-2">
-                  <span className="t-label-13 font-medium text-gray-1000">适配 {instance.mcVersion} 的版本</span>
+                  <span className="t-label-13 font-medium text-gray-1000">{t("resource.versionsFor", "适配 {mc} 的版本", { mc: instance.mcVersion })}</span>
                   <span className="t-label-12 text-gray-700">
-                    {loader ? loaderLabel(loader) : "不限加载器"} · {versions.length} 个
+                    {loader ? loaderLabel(loader) : t("resource.anyLoader", "不限加载器")} · {t("resource.versionCount", "{n} 个", { n: versions.length })}
                   </span>
                 </div>
                 {detailLoading ? (
                   <div className="flex items-center gap-2 py-3 t-label-13 text-gray-800">
-                    <Spinner /> 正在查版本…
+                    <Spinner /> {t("resource.loadingVersions", "正在查版本…")}
                   </div>
                 ) : versions.length === 0 ? (
                   <div className="rounded-lg bg-amber-700/10 p-2.5 t-label-13 text-amber-900">
-                    该项目没有适配当前服务器的版本，可能仅支持其它游戏版本或加载器。
+                    {t("resource.noVersionsDesc", "该项目没有适配当前服务器的版本，可能仅支持其它游戏版本或加载器。")}
                     <button
                       className="ml-2 underline underline-offset-2"
                       onClick={() => window.mcss.app.openExternal(`https://modrinth.com/${kind}/${selected.slug}/versions`)}
                     >
-                      去 Modrinth 看全部版本
+                      {t("resource.seeAllVersions", "去 Modrinth 看全部版本")}
                     </button>
                   </div>
                 ) : (
@@ -784,7 +786,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                           <span className="t-mono-12 shrink-0 text-gray-1000">{v.versionNumber}</span>
                           {installedThis ? (
                             <Badge variant="green" size="sm">
-                              已装
+                              {t("resource.installed", "已装")}
                             </Badge>
                           ) : null}
                           <span className="t-label-12 min-w-0 flex-1 truncate text-gray-700">
@@ -802,7 +804,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                             disabled={!file}
                             onClick={() => void installVersion(selected, v, "detail")}
                           >
-                            {installedThis ? "重装" : "安装"}
+                            {installedThis ? t("resource.reinstall", "重装") : t("resource.install", "安装")}
                           </Button>
                         </div>
                       );
@@ -811,12 +813,12 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 )}
               </div>
 
-              {detailError ? <p className="t-label-12 text-red-900">详情没取全：{detailError}</p> : null}
+              {detailError ? <p className="t-label-12 text-red-900">{t("resource.detailPartial", "详情没取全：{msg}", { msg: detailError })}</p> : null}
             </DialogBody>
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => setSelected(null)}>
-                关闭
+                {t("resource.close", "关闭")}
               </Button>
               <Button
                 loading={Boolean(installingVersion)}
@@ -824,7 +826,7 @@ export function ResourceBrowser({ instance, kind }: { instance: Instance; kind: 
                 onClick={() => void installVersion(selected, versions[0], "detail")}
               >
                 <Download className="size-4" />
-                安装最新版
+                {t("resource.installLatest", "安装最新版")}
               </Button>
             </DialogFooter>
           </>

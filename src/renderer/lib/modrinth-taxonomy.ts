@@ -5,6 +5,8 @@
  * 直接显示英文对中文玩家没意义。这里维护一份稳定、可扩展的对照。
  */
 
+import { tGlobal } from "../i18n/core";
+
 export const CATEGORY_ZH: Record<string, string> = {
   adventure: "冒险",
   decoration: "装饰",
@@ -81,12 +83,40 @@ export const LOADER_ZH: Record<string, string> = {
   minecraft: "原版",
 };
 
+/** 英文词典 key：slug → key；只有需要翻译的条目才登记 */
+const CATEGORY_KEY: Record<string, string> = Object.fromEntries(
+  Object.keys(CATEGORY_ZH).map((slug) => [slug, `taxonomy.category.${slug}`]),
+);
+
+const LOADER_KEY: Record<string, string> = {
+  datapack: "taxonomy.loader.datapack",
+  minecraft: "taxonomy.loader.minecraft",
+};
+
+const ENVIRONMENT_KEY: Record<string, string> = {
+  both: "taxonomy.env.both",
+  client: "taxonomy.env.client",
+  server: "taxonomy.env.server",
+  unknown: "taxonomy.env.unknown",
+};
+
+/** 分类名：渲染时取当前语言，缺省回退中文表与 slug */
 export function categoryLabel(slug: string): string {
-  return CATEGORY_ZH[slug] ?? slug;
+  const zh = CATEGORY_ZH[slug];
+  if (!zh) return slug;
+  const key = CATEGORY_KEY[slug];
+  return key ? tGlobal(key, zh) : zh;
 }
 
 export function loaderLabel(slug: string): string {
-  return LOADER_ZH[slug] ?? slug;
+  const key = LOADER_KEY[slug];
+  return key ? tGlobal(key, LOADER_ZH[slug] ?? slug) : (LOADER_ZH[slug] ?? slug);
+}
+
+/** 环境标签（双端 / 客户端 / 服务端 / 未知） */
+export function environmentLabel(env: string): string {
+  const key = ENVIRONMENT_KEY[env];
+  return key ? tGlobal(key, ENVIRONMENT_LABEL[env] ?? env) : env;
 }
 
 /** 环境标签：server_side / client_side 都是 required|optional|unsupported */
@@ -107,16 +137,16 @@ export const ENVIRONMENT_LABEL: Record<string, string> = {
 };
 
 export const SORT_OPTIONS = [
-  { value: "relevance", label: "相关度" },
-  { value: "downloads", label: "下载量" },
-  { value: "follows", label: "关注数" },
-  { value: "newest", label: "最新发布" },
-  { value: "updated", label: "最近更新" },
+  { value: "relevance", label: "相关度", key: "taxonomy.sort.relevance" },
+  { value: "downloads", label: "下载量", key: "taxonomy.sort.downloads" },
+  { value: "follows", label: "关注数", key: "taxonomy.sort.follows" },
+  { value: "newest", label: "最新发布", key: "taxonomy.sort.newest" },
+  { value: "updated", label: "最近更新", key: "taxonomy.sort.updated" },
 ];
 
 export const ENVIRONMENT_OPTIONS = [
-  { value: "any", label: "不限" },
-  { value: "both", label: "双端" },
-  { value: "client", label: "客户端" },
-  { value: "server", label: "服务端" },
+  { value: "any", label: "不限", key: "taxonomy.env.any" },
+  { value: "both", label: "双端", key: "taxonomy.env.both" },
+  { value: "client", label: "客户端", key: "taxonomy.env.client" },
+  { value: "server", label: "服务端", key: "taxonomy.env.server" },
 ] as const;

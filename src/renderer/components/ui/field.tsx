@@ -3,6 +3,7 @@ import * as SwitchPrimitive from "@radix-ui/react-switch";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { Check, Loader2 } from "lucide-react";
+import { useI18n } from "@/i18n";
 import { cx } from "@/lib/utils";
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
@@ -11,7 +12,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
       <input
         ref={ref}
         className={cx(
-          "h-10 w-full rounded-lg bg-background-100 px-3 text-sm text-gray-1000 shadow-geist-border transition-[box-shadow,background-color] duration-150",
+          "h-10 w-full rounded-lg bg-background-100 px-3 text-sm text-gray-1000 shadow-geist-border transition-[box-shadow,background-color] duration-[var(--dur-micro)] ease-[var(--ease-out)]",
           "placeholder:text-gray-700 disabled:bg-gray-100 disabled:text-gray-700",
           "focus-visible:outline-none focus-visible:shadow-[0_0_0_1px_var(--ds-focus-color),0_0_0_4px_color-mix(in_srgb,var(--ds-focus-color)_18%,transparent)]",
           className,
@@ -28,7 +29,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
       <textarea
         ref={ref}
         className={cx(
-          "w-full rounded-lg bg-background-100 px-3 py-2.5 text-sm leading-6 text-gray-1000 shadow-geist-border transition-[box-shadow,background-color] duration-150",
+          "w-full rounded-lg bg-background-100 px-3 py-2.5 text-sm leading-6 text-gray-1000 shadow-geist-border transition-[box-shadow,background-color] duration-[var(--dur-micro)] ease-[var(--ease-out)]",
           "placeholder:text-gray-700 disabled:bg-gray-100 disabled:text-gray-700",
           "focus-visible:outline-none focus-visible:shadow-[0_0_0_1px_var(--ds-focus-color),0_0_0_4px_color-mix(in_srgb,var(--ds-focus-color)_18%,transparent)]",
           className,
@@ -47,13 +48,13 @@ export const Switch = forwardRef<
     <SwitchPrimitive.Root
       ref={ref}
       className={cx(
-        "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full bg-gray-400 transition-colors duration-150",
+        "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full bg-gray-400 transition-colors duration-[var(--dur-micro)] ease-[var(--ease-out)]",
         "data-[state=checked]:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
     >
-      <SwitchPrimitive.Thumb className="pointer-events-none block size-4 translate-x-[2px] rounded-full bg-white shadow-geist-xs transition-transform duration-150 ease-swift data-[state=checked]:translate-x-[18px]" />
+      <SwitchPrimitive.Thumb className="pointer-events-none block size-4 translate-x-[2px] rounded-full bg-white shadow-geist-xs transition-transform duration-[var(--dur-micro)] ease-[var(--ease-out)] data-[state=checked]:translate-x-[18px] data-[state=checked]:bg-[var(--ds-switch-thumb-on)]" />
     </SwitchPrimitive.Root>
   );
 });
@@ -66,7 +67,7 @@ export const Checkbox = forwardRef<
     <CheckboxPrimitive.Root
       ref={ref}
       className={cx(
-        "flex size-[18px] shrink-0 items-center justify-center rounded-[5px] bg-background-100 shadow-geist-border transition-colors",
+        "flex size-[18px] shrink-0 items-center justify-center rounded-[5px] bg-background-100 shadow-geist-border transition-colors duration-[var(--dur-micro)]",
         "data-[state=checked]:bg-brand-600 data-[state=checked]:text-brand-ink",
         className,
       )}
@@ -163,6 +164,7 @@ export function SwitchRow({
   loading?: boolean;
 }) {
   const id = useId();
+  const { t } = useI18n();
   return (
     <div className="flex min-h-10 items-center justify-between gap-4 py-1">
       <div className="min-w-0">
@@ -170,7 +172,7 @@ export function SwitchRow({
         {hint ? <p className="t-copy-13 mt-0.5 text-pretty text-gray-800">{hint}</p> : null}
       </div>
       {loading ? (
-        <span className="grid h-6 w-10 place-items-center" aria-busy="true" aria-label="正在同步到云端">
+        <span className="grid h-6 w-10 place-items-center" aria-busy="true" aria-label={t("settings.syncing", "正在同步到云端")}>
           <Loader2 className="size-4 animate-spin text-gray-800" />
         </span>
       ) : (

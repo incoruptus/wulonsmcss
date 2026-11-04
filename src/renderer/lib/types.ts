@@ -104,6 +104,11 @@ export interface Instance {
   icon?: string;
   /** 从其他设备同步过来、尚未绑定本机目录 */
   importedFrom?: string;
+  /**
+   * 联机形态：临时房间（玩完就关，靠邀请码）或常驻服务器（长期开放，地址固定）。
+   * 只影响首页联机卡片的呈现和建议动作，不改变服务器本身的启动方式。
+   */
+  lifecycle?: "room" | "persistent";
   /** 定时任务 */
   schedule?: InstanceSchedule;
 }

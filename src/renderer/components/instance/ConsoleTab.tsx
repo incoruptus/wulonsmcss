@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/field";
 import { Badge, EmptyState } from "@/components/ui/misc";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/overlay";
 import { ContextMenu, selectedText } from "@/components/ui/context-menu";
+import { useI18n } from "@/i18n";
 import { TranslateDialog } from "@/components/ui/translate-dialog";
 import { PreflightDialog } from "@/components/instance/PreflightDialog";
 import { useServer } from "@/stores/server";
@@ -40,15 +41,16 @@ const LEVEL_STYLE: Record<string, string> = {
   CHAT: "text-blue-900",
 };
 
-const QUICK: { cmd: string; label: string; danger?: boolean }[] = [
-  { cmd: "list", label: "在线玩家" },
-  { cmd: "tps", label: "TPS" },
-  { cmd: "save-all", label: "保存世界" },
-  { cmd: "whitelist list", label: "白名单" },
-  { cmd: "stop", label: "关服", danger: true },
+const QUICK: { cmd: string; label: string; key: string; danger?: boolean }[] = [
+  { cmd: "list", label: "在线玩家", key: "console.quick.players" },
+  { cmd: "tps", label: "TPS", key: "console.quick.tps" },
+  { cmd: "save-all", label: "保存世界", key: "console.quick.save" },
+  { cmd: "whitelist list", label: "白名单", key: "console.quick.whitelist" },
+  { cmd: "stop", label: "关服", key: "console.quick.stop", danger: true },
 ];
 
 export function ConsoleTab({ instance }: { instance: Instance }) {
+  const { t, locale } = useI18n();
   const logs = useServer((s) => s.logs);
   const clear = useServer((s) => s.clear);
   const status = useServer((s) => s.status);
@@ -85,7 +87,8 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
     if (status !== "stopped" || hideDiag) return null;
     const recent = logs.slice(-150).map((l) => `[${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`);
     return diagnose(recent);
-  }, [status, logs, hideDiag]);
+    // locale 参与依赖：崩溃诊断文案来自 tGlobal，切语言后要重新生成
+  }, [status, logs, hideDiag, locale]);
 
   useEffect(() => {
     if (status === "running") setHideDiag(false);
@@ -102,7 +105,8 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
     return logs.filter((l) => levels.has(l.level) && (!q || l.message.toLowerCase().includes(q)));
   }, [logs, query, levels]);
 
-  const suggestions = useMemo(() => (command.trim() ? suggestCommands(command, players) : []), [command, players]);
+  // locale 参与依赖：切语言后补全说明（tGlobal）要重新取词
+  const suggestions = useMemo(() => (command.trim() ? suggestCommands(command, players) : []), [command, players, locale]);
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -125,7 +129,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
     for (const line of lines) {
       ok = (await window.mcss.server.command(line).catch(() => false)) && ok;
     }
-    if (!ok) toast.warning("服务器未运行，指令未发送");
+    if (!ok) toast.warning(t("console.errNotRunning", "服务器未运行，指令未发送"));
     setHistory((h) => [...h.filter((x) => x !== text), text].slice(-50));
     setHistoryIdx(-1);
     setCommand("");
@@ -149,14 +153,14 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
   async function exportLogs() {
     const target = await pickPath({
       mode: "save",
-      title: "导出日志",
+      title: t("console.exportLogs.title", "导出日志"),
       defaultPath: `${instance.name}-console-${new Date().toISOString().slice(0, 10)}.log`,
-      filters: [{ name: "日志", extensions: ["log", "txt"] }],
+      filters: [{ name: t("console.exportLogs.filterLabel", "日志"), extensions: ["log", "txt"] }],
     });
     if (!target) return;
     const text = filtered.map((l) => `[${l.timestamp}] [${l.level}] ${l.message}`).join("\n");
     await window.mcss.fs.write(target, text);
-    toast.success("日志已导出");
+    toast.success(t("console.exportLogs.done", "日志已导出"));
   }
 
   const atBottom = () => {
@@ -174,14 +178,14 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索日志（支持玩家名 / 错误关键字）"
+            placeholder={t("console.search.placeholder", "搜索日志（支持玩家名 / 错误关键字）")}
             className="h-8 pl-8 pr-8 text-[13px]"
           />
           {query ? (
             <button
               className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-700 hover:text-gray-1000"
               onClick={() => setQuery("")}
-              aria-label="清空搜索"
+              aria-label={t("console.search.clear", "清空搜索")}
             >
               <X className="size-3.5" />
             </button>
@@ -198,7 +202,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
                 "h-6 rounded-full px-2 t-label-12 tabular-nums transition-colors",
                 levels.has(lv) ? "bg-gray-200 text-gray-1000" : "text-gray-700 hover:bg-gray-100",
               )}
-              title={`${lv} · ${counts[lv] ?? 0} 行`}
+              title={t("console.levelCount", "{level} · {n} 行", { level: lv, n: counts[lv] ?? 0 })}
             >
               {lv}
               <span className="ml-1 text-gray-600">{counts[lv] ?? 0}</span>
@@ -206,35 +210,35 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
           ))}
         </div>
 
-        <IconButton label="自动滚动" size="sm" aria-pressed={autoScroll} onClick={() => setAutoScroll((v) => !v)} className={autoScroll ? "bg-brand-100 text-brand-700" : ""}>
+        <IconButton label={t("console.autoScroll", "自动滚动")} size="sm" aria-pressed={autoScroll} onClick={() => setAutoScroll((v) => !v)} className={autoScroll ? "bg-brand-100 text-brand-700" : ""}>
           <ArrowDownToLine className="size-3.5" />
         </IconButton>
         <IconButton
-          label="复制可见日志"
+          label={t("console.copyVisible", "复制可见日志")}
           size="sm"
           onClick={async () => {
             const text = filtered.map((l) => `[${l.timestamp}] [${l.level}] ${l.message}`).join("\n");
-            if (!text) return toast.info("没有可复制的日志");
-            (await copyText(text)) ? toast.success(`已复制 ${filtered.length} 行`) : toast.error("复制失败");
+            if (!text) return toast.info(t("console.noLogsToCopy", "没有可复制的日志"));
+            (await copyText(text)) ? toast.success(t("console.copiedLines", "已复制 {n} 行", { n: filtered.length })) : toast.error(t("console.copyFailed", "复制失败"));
           }}
         >
           <Copy className="size-3.5" />
         </IconButton>
-        <IconButton label="导出日志" size="sm" onClick={exportLogs}>
+        <IconButton label={t("console.exportLogs.action", "导出日志")} size="sm" onClick={exportLogs}>
           <Download className="size-3.5" />
         </IconButton>
         {lagEvents.length ? (
           <button
             className="mr-1 flex items-center gap-1 rounded-md bg-amber-700/12 px-2 py-1 t-label-12 text-amber-900 hover:bg-amber-700/20"
             onClick={() => setShowLag(true)}
-            title="服务器 tick 落后时的告警"
+            title={t("console.lag.hint", "服务器 tick 落后时的告警")}
           >
             <Activity className="size-3.5" />
-            卡顿 {lagEvents.length}
-            <span className="text-amber-900/70">· 最严重 {describeLag(Math.max(...lagEvents.map((e) => e.behindMs)))}</span>
+            {t("console.lag.badge", "卡顿 {n}", { n: lagEvents.length })}
+            <span className="text-amber-900/70">· {t("console.lag.worst", "最严重 {value}", { value: describeLag(Math.max(...lagEvents.map((e) => e.behindMs))) })}</span>
           </button>
         ) : null}
-        <IconButton label="清空" size="sm" onClick={clear}>
+        <IconButton label={t("console.lag.clear", "清空")} size="sm" onClick={clear}>
           <Eraser className="size-3.5" />
         </IconButton>
       </div>
@@ -242,12 +246,12 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
       {/* 卡顿记录 */}
       <Dialog open={showLag} onOpenChange={setShowLag} widthClass="max-w-xl">
         <DialogHeader
-          title="卡顿记录"
-          desc="服务器 tick 落后时输出的 WARN 日志。频繁出现通常意味着 CPU 或内存不足，也可能是某次世界生成卡住导致。"
+          title={t("console.lag.title", "卡顿记录")}
+          desc={t("console.lag.desc", "服务器 tick 落后时输出的 WARN 日志。频繁出现通常意味着 CPU 或内存不足，也可能是某次世界生成卡住导致。")}
         />
         <DialogBody>
           {lagEvents.length === 0 ? (
-            <p className="t-label-13 text-gray-700">目前没有卡顿记录。</p>
+            <p className="t-label-13 text-gray-700">{t("console.lag.empty", "目前没有卡顿记录。")}</p>
           ) : (
             <div className="max-h-[380px] divide-y divide-gray-300 overflow-y-auto scroll-thin">
               {lagEvents.map((e, i) => (
@@ -255,7 +259,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
                   <div className="flex items-center gap-2">
                     <span className="t-mono-12 text-gray-800">{new Date(e.at).toLocaleTimeString("zh-CN")}</span>
                     <Badge variant={e.behindMs > 5000 ? "red" : e.behindMs > 2000 ? "amber" : "gray"} size="sm">
-                      落后 {describeLag(e.behindMs)}
+                      {t("console.lag.behind", "落后 {value}", { value: describeLag(e.behindMs) })}
                     </Badge>
                     {e.ticks ? <span className="t-label-12 text-gray-700">{e.ticks} ticks</span> : null}
                   </div>
@@ -267,7 +271,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={() => setShowLag(false)}>
-            知道了
+            {t("console.gotIt", "知道了")}
           </Button>
         </DialogFooter>
       </Dialog>
@@ -290,24 +294,24 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
             else setAutoScroll(true);
           }}
           role="log"
-          aria-label="服务器控制台日志"
+          aria-label={t("console.consoleLogAria", "服务器控制台日志")}
           aria-live="off"
           className="h-full overflow-y-auto rounded-xl bg-background-100 p-4 shadow-geist-border scroll-thin"
         >
           {filtered.length === 0 ? (
             <EmptyState
               icon={<Terminal className="size-5" />}
-              title={logs.length ? "没有匹配的日志" : "还没有输出"}
+              title={logs.length ? t("console.empty.noMatchTitle", "没有匹配的日志") : t("console.empty.noneTitle", "还没有输出")}
               desc={
                 logs.length
-                  ? "可更换关键字，或调整日志级别过滤"
+                  ? t("console.empty.noMatchDesc", "可更换关键字，或调整日志级别过滤")
                   : status === "stopped"
-                    ? "服务器未运行，启动后日志会在此实时滚动"
-                    : "正在输出，请稍候"
+                    ? t("console.empty.stoppedDesc", "服务器未运行，启动后日志会在此实时滚动")
+                    : t("console.empty.startingDesc", "正在输出，请稍候")
               }
               action={
                 logs.length === 0 && status === "stopped" ? (
-                  <Button onClick={() => setPreflightOpen(true)}>启动服务器</Button>
+                  <Button onClick={() => setPreflightOpen(true)}>{t("console.startServer", "启动服务器")}</Button>
                 ) : undefined
               }
               className="py-10"
@@ -328,7 +332,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
             }}
             className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-gray-1000 px-3 py-1 t-label-12 text-background-100 shadow-geist-lg"
           >
-            回到最新
+            {t("console.backToLatest", "回到最新")}
           </button>
         ) : null}
       </div>
@@ -394,13 +398,13 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
                 });
               }
             }}
-            placeholder={status === "running" ? "输入指令，Tab 补全，回车发送" : "服务器未运行"}
+            placeholder={status === "running" ? t("console.cmdPlaceholder.running", "输入指令，Tab 补全，回车发送") : t("console.cmdPlaceholder.stopped", "服务器未运行")}
             disabled={status !== "running"}
             className="h-9 font-mono text-[13px]"
           />
           <Button onClick={() => send()} disabled={status !== "running" || !command.trim()}>
             <Send className="size-4" />
-            发送
+            {t("console.send", "发送")}
           </Button>
         </div>
 
@@ -415,26 +419,26 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
                 q.danger ? "text-red-900 hover:bg-red-700/10" : "text-gray-800 hover:bg-gray-100",
               )}
             >
-              {q.label}
+              {t(q.key, q.label)}
               <span className="ml-1 text-gray-600">/{q.cmd}</span>
             </button>
           ))}
           <span className="ml-auto t-label-12 text-gray-700">
-            {instance.name} · {players.length} 人在线
+            {instance.name} · {t("console.playersOnline", "{n} 人在线", { n: players.length })}
           </span>
         </div>
       </div>
 
       <Dialog open={confirmStop} onOpenChange={setConfirmStop} widthClass="max-w-md">
-        <DialogHeader title="确定关闭服务器？" desc="服务器会先保存世界再退出，在线玩家将被断开连接。" />
+        <DialogHeader title={t("console.stopConfirm.title", "确定关闭服务器？")} desc={t("console.stopConfirm.desc", "服务器会先保存世界再退出，在线玩家将被断开连接。")} />
         <DialogBody>
           <p className="t-label-13 text-gray-800">
-            当前在线 {players.length} 人。建议先用快捷指令发一条公告，再关服。
+            {t("console.stopConfirm.body", "当前在线 {n} 人。建议先用快捷指令发一条公告，再关服。", { n: players.length })}
           </p>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={() => setConfirmStop(false)}>
-            取消
+            {t("console.cancel", "取消")}
           </Button>
           <Button
             variant="error"
@@ -444,7 +448,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
               setCommand("");
             }}
           >
-            关服
+            {t("console.stop", "关服")}
           </Button>
         </DialogFooter>
       </Dialog>
@@ -454,7 +458,7 @@ export function ConsoleTab({ instance }: { instance: Instance }) {
         open={preflightOpen}
         onOpenChange={setPreflightOpen}
         instance={instance}
-        onStarted={() => toast.success("服务器已启动")}
+        onStarted={() => toast.success(t("console.serverStarted", "服务器已启动"))}
       />
     </div>
   );
@@ -473,40 +477,41 @@ function LogRow({
   onTranslate: (text: string) => void;
   onSelectAll: () => void;
 }) {
+  const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
   const hasStack = Boolean(log.stack);
   const line = `[${log.timestamp}] [${log.level}] ${log.message}`;
 
   const menu = [
     {
-      label: "复制这一行",
+      label: t("console.log.copyLine", "复制这一行"),
       icon: Copy,
       onSelect: async () => {
-        (await copyText(line)) ? toast.success("已复制这一行") : toast.error("复制失败");
+        (await copyText(line)) ? toast.success(t("console.log.copiedLine", "已复制这一行")) : toast.error(t("console.copyFailed", "复制失败"));
       },
     },
     {
-      label: "复制选中",
+      label: t("console.log.copySelection", "复制选中"),
       icon: Copy,
       onSelect: async () => {
         const text = selectedText();
-        if (!text) return toast.info("先选中一段文字");
-        (await copyText(text)) ? toast.success("已复制") : toast.error("复制失败");
+        if (!text) return toast.info(t("console.log.selectFirst", "先选中一段文字"));
+        (await copyText(text)) ? toast.success(t("console.log.copied", "已复制")) : toast.error(t("console.copyFailed", "复制失败"));
       },
     },
-    { label: "全选日志", icon: Terminal, onSelect: onSelectAll },
+    { label: t("console.log.selectAll", "全选日志"), icon: Terminal, onSelect: onSelectAll },
     { separator: true, label: "" },
     {
-      label: "翻译这一行",
+      label: t("console.log.translateLine", "翻译这一行"),
       icon: Languages,
       onSelect: () => onTranslate(log.message),
     },
     {
-      label: "翻译选中",
+      label: t("console.log.translateSelection", "翻译选中"),
       icon: Languages,
       onSelect: () => {
         const text = selectedText();
-        if (!text) return toast.info("先选中一段文字");
+        if (!text) return toast.info(t("console.log.selectFirst", "先选中一段文字"));
         onTranslate(text);
       },
     },
@@ -545,7 +550,7 @@ function LogRow({
             className="ml-2 align-baseline text-[11px] text-gray-600 underline underline-offset-2 hover:text-gray-1000"
             onClick={() => setOpen((v) => !v)}
           >
-            {open ? "收起堆栈" : `堆栈 (${log.stack!.split("\n").length})`}
+            {open ? t("console.log.collapseStack", "收起堆栈") : t("console.log.expandStack", "堆栈 ({n})", { n: log.stack!.split("\n").length })}
           </button>
         ) : null}
         {open && hasStack ? (
@@ -558,9 +563,9 @@ function LogRow({
         className="hidden shrink-0 text-gray-600 group-hover:block group-focus-within:block hover:text-gray-1000 focus-visible:block"
         onClick={async () => {
           await copyText(`[${log.timestamp}] [${log.level}] ${log.message}`);
-          toast.success("已复制这一行");
+          toast.success(t("console.log.copiedLine", "已复制这一行"));
         }}
-        aria-label="复制这一行"
+        aria-label={t("console.log.copyLine", "复制这一行")}
       >
         <Copy className="size-3" />
       </button>
@@ -580,6 +585,7 @@ function DiagnosisCard({
   instance: Instance;
   onDismiss: () => void;
 }) {
+  const { t, locale } = useI18n();
   const [busy, setBusy] = useState(false);
   const updateInstance = useConfig((s) => s.updateInstance);
 
@@ -591,26 +597,26 @@ function DiagnosisCard({
         const list = await window.mcss.mods.scan(`${instance.dir}\\mods`);
         const target = list.find((m) => m.id === action.arg) ?? list.find((m) => m.file.includes(action.arg!));
         if (!target) {
-          toast.error(`未找到 ${action.arg} 的 jar，可在模组页面手动关闭`);
+          toast.error(t("diagnosis.modNotFound", "未找到 {name} 的 jar，可在模组页面手动关闭", { name: action.arg }));
           return;
         }
         await window.mcss.mods.disable(target.path);
-        toast.success(`已禁用 ${target.name}，可重新启动验证`);
+        toast.success(t("diagnosis.modDisabled", "已禁用 {name}，可重新启动验证", { name: target.name }));
         onDismiss();
       } else if (action.kind === "repair-datapacks") {
         const res = await worldsApi.repair(instance.dir);
-        if (!res.success) throw new Error(res.error || "修复失败");
-        toast.success(`已修复 ${res.fixed?.length ?? 0} 处，可重新启动验证`);
+        if (!res.success) throw new Error(res.error || t("diagnosis.repairFailed", "修复失败"));
+        toast.success(t("diagnosis.repaired", "已修复 {n} 处，可重新启动验证", { n: res.fixed?.length ?? 0 }));
         onDismiss();
       } else if (action.kind === "change-java") {
         const picked = await window.mcss.app.pickJava();
         if (picked) {
           await updateInstance(instance.id, { javaPath: picked });
-          toast.success("Java 已更换", { description: "现在可以重新启动服务器。" });
+          toast.success(t("diagnosis.javaChanged", "Java 已更换"), { description: t("diagnosis.javaChangedDesc", "现在可以重新启动服务器。") });
           onDismiss();
         }
       } else {
-        toast.info("去「服务器设置」里改一下就好");
+        toast.info(t("diagnosis.tweakSettings", "去「服务器设置」里改一下就好"));
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -624,7 +630,7 @@ function DiagnosisCard({
       <div className="flex items-start gap-2">
         <Stethoscope className="mt-0.5 size-4 shrink-0 text-red-900" />
         <div className="min-w-0 flex-1">
-          <div className="t-label-13 font-medium text-red-900">服务器没能起来：{diagnosis.title}</div>
+          <div className="t-label-13 font-medium text-red-900">{t("diagnosis.failedTitle", "服务器没能起来：{title}", { title: diagnosis.title })}</div>
           <div className="t-label-12 mt-0.5 text-gray-800">{diagnosis.detail}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {diagnosis.actions.map((a) => (
@@ -643,10 +649,10 @@ function DiagnosisCard({
                   logs: useServer.getState().logs.map((l) => `[${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`),
                   docsPath,
                 });
-                (await copyText(prompt)) ? toast.success("已复制故障诊断包，可粘贴给任意 AI 工具") : toast.error("复制失败");
+                (await copyText(prompt)) ? toast.success(t("diagnosis.copiedBundle", "已复制故障诊断包，可粘贴给任意 AI 工具")) : toast.error(t("console.copyFailed", "复制失败"));
               }}
             >
-              让 AI 看看
+              {t("diagnosis.askAi", "让 AI 看看")}
             </Button>
             <Button
               size="xs"
@@ -662,18 +668,18 @@ function DiagnosisCard({
                     logs: useServer.getState().logs.map((l) => `[${l.timestamp}] [${l.level}] ${l.message}${l.stack ? `\n${l.stack}` : ""}`),
                     symptom: { title: diagnosis.title, detail: diagnosis.detail },
                   });
-                  if (!res.ok) throw new Error(res.error || "导出失败");
+                  if (!res.ok) throw new Error(res.error || t("diagnosis.exportFailed", "导出失败"));
                   void window.mcss.app.openPath(dir);
-                  toast.success("现场包已导出", { description: "可将该文件交给任意 AI 工具继续排查" });
+                  toast.success(t("diagnosis.bundleExported", "现场包已导出"), { description: t("diagnosis.bundleExportedDesc", "可将该文件交给任意 AI 工具继续排查") });
                 } catch (e) {
                   toast.error((e as Error).message);
                 }
               }}
             >
-              导出现场包
+              {t("diagnosis.exportBundle", "导出现场包")}
             </Button>
             <Button size="xs" variant="ghost" onClick={onDismiss}>
-              知道了
+              {t("console.gotIt", "知道了")}
             </Button>
           </div>
         </div>

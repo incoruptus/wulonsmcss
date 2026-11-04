@@ -1,4 +1,5 @@
 import type { JavaInfo } from "./types";
+import { tGlobal } from "../i18n/core";
 
 /**
  * Minecraft Java 版对 Java 运行时的最低要求。
@@ -37,5 +38,5 @@ export function pickJavaFor(javas: JavaInfo[], required: number): JavaInfo | nul
 /** 给用户看的说明，避免只显示一个数字 */
 export function javaRequirementText(mcVersion: string): string {
   const need = javaMajorFor(mcVersion);
-  return `Minecraft ${mcVersion} 需要 Java ${need} 或更高版本`;
+  return tGlobal("javaCompat.requirement", "Minecraft {mc} 需要 Java {n} 或更高版本", { mc: mcVersion, n: need });
 }

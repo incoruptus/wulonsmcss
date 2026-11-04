@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Field, Input, Slider } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
+import { Progress } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import type { JavaInfo, McVersion, ServerType } from "@/lib/types";
 import { safeName } from "@/lib/utils";
 import { contentKindOf, serverTypeLabel } from "@/lib/config-model";
 import { normalizeLoaders, pickLoader } from "@/lib/loaders";
-import { CORES as GUIDE_CORES, coreMeta } from "@/lib/server-guide";
+import { CORES as GUIDE_CORES, coreLabel, coreMeta } from "@/lib/server-guide";
 import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
 import { pickPath } from "@/lib/path-picker";
+import { useI18n } from "@/i18n";
 
 interface Props {
   open: boolean;
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export function CreateInstanceDialog({ open, onOpenChange }: Props) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const addInstance = useConfig((s) => s.addInstance);
 
@@ -99,9 +102,9 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         .slice(0, 240)
         .map((v) => ({
           value: v.id,
-          label: `${v.id}${v.type === "release" ? "" : "（快照）"}`,
+          label: `${v.id}${v.type === "release" ? "" : t("create.snapshotSuffix", "（快照）")}`,
         })),
-    [versions],
+    [versions, t],
   );
 
   const kind = contentKindOf(serverType);
@@ -118,22 +121,22 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   }, [mcVersion, javas]);
 
   async function browseDir() {
-    const picked = await pickPath({ mode: "dir", title: "选择服务器安装位置", defaultPath: finalDir });
+    const picked = await pickPath({ mode: "dir", title: t("create.pickDirTitle", "选择服务器安装位置"), defaultPath: finalDir });
     if (picked) setDir(picked);
   }
 
   async function install() {
-    if (!name.trim()) return toast.error("先给服务器起个名字");
-    if (!mcVersion) return toast.error("先选一个 Minecraft 版本");
-    if (!javaPath) return toast.error("未找到 Java，请先手动指定");
+    if (!name.trim()) return toast.error(t("create.noName", "先给服务器起个名字"));
+    if (!mcVersion) return toast.error(t("create.noVersion", "先选一个 Minecraft 版本"));
+    if (!javaPath) return toast.error(t("create.noJava", "未找到 Java，请先手动指定"));
     const need = javaMajorFor(mcVersion);
     const picked = javas.find((j) => j.path === javaPath);
     if (picked && Number(picked.major) < need) {
-      return toast.error(`Minecraft ${mcVersion} 需要 Java ${need}，当前选择的是 Java ${picked.major}`);
+      return toast.error(t("create.javaVersionMismatch", "Minecraft {mc} 需要 Java {need}，当前选择的是 Java {current}", { mc: mcVersion, need, current: picked.major }));
     }
 
     setInstalling(true);
-    setProgress({ stage: "准备中", percent: 0 });
+    setProgress({ stage: t("create.progress.preparing", "准备中"), percent: 0 });
     const off = window.mcss.versions.onProgress(setProgress);
     try {
       const res = await window.mcss.versions.install({
@@ -144,7 +147,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         build: kind === "plugin" || serverType === "forge" || serverType === "neoforge" ? build : undefined,
         javaPath,
       });
-      if (!res.ok) throw new Error(res.error || "安装失败");
+      if (!res.ok) throw new Error(res.error || t("create.installFailed", "安装失败"));
       const inst = makeInstance({
         name: name.trim(),
         dir: finalDir,
@@ -158,14 +161,14 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         port: 25565,
       });
       await addInstance(inst);
-      toast.success("服务器装好了", {
+      toast.success(t("create.installed", "服务器装好了"), {
         description: `${inst.mcVersion} · ${serverTypeLabel(serverType)}${build ? ` ${build}` : ""}`,
       });
       onOpenChange(false);
       reset();
       navigate("/");
     } catch (e) {
-      toast.error(`安装失败：${(e as Error).message}`);
+      toast.error(t("create.errInstallDetail", "安装失败：{msg}", { msg: (e as Error).message }));
     } finally {
       off();
       setInstalling(false);
@@ -194,45 +197,45 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !installing && onOpenChange(v)} widthClass="max-w-2xl">
       <DialogHeader
-        title="新建服务器"
-        desc="先选择游戏版本，再决定玩法方向。玩家用普通 Minecraft 客户端就能进；要加模组时，玩家也要装同样的模组。"
+        title={t("create.title", "新建服务器")}
+        desc={t("create.desc", "先选择游戏版本，再决定玩法方向。玩家用普通 Minecraft 客户端就能进；要加模组时，玩家也要装同样的模组。")}
       />
       <DialogBody className="space-y-4">
         <Callout
           tone="info"
-          title="不知道怎么选？"
+          title={t("create.help.title", "不知道怎么选？")}
           action={
             <Button size="xs" variant="secondary" onClick={useRecommended}>
-              用推荐配置
+              {t("create.help.action", "用推荐配置")}
             </Button>
           }
         >
-          只想和朋友玩原版，或者加领地、传送这类插件，用推荐配置就行。想装模组，再按下面「用哪种服务端」的说明换成 Fabric。
+          {t("create.help.body", "只想和朋友玩原版，或者加领地、传送这类插件，用推荐配置就行。想装模组，再按下面「用哪种服务端」的说明换成 Fabric。")}
         </Callout>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="服务器名称">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：和朋友一起玩" />
+          <Field label={t("create.nameLabel", "服务器名称")}>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("create.namePlaceholder", "例如：和朋友一起玩")} />
           </Field>
-          <Field label="Minecraft 版本">
+          <Field label={t("create.mcVersion", "Minecraft 版本")}>
             <Picker
               value={mcVersion}
               onValueChange={setMcVersion}
-              options={releaseOptions.length ? releaseOptions : [{ value: "", label: "加载中…" }]}
+              options={releaseOptions.length ? releaseOptions : [{ value: "", label: t("create.loading", "加载中…") }]}
             />
           </Field>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
-            label="用哪种服务端"
+            label={t("create.typeLabel", "用哪种服务端")}
             hint={
               coreInfo
                 ? `${coreInfo.client}。${coreInfo.caveat}${
                     kind === "mod" && mcVersion.startsWith("26.")
-                      ? "；26.x 的模组还少，建议 1.21.11 或 1.21.1 + Fabric"
+                      ? t("create.type26Hint", "；26.x 的模组还少，建议 1.21.11 或 1.21.1 + Fabric")
                       : ""
                   }`
-                : "决定能不能装插件或模组"
+                : t("create.typeHint", "决定能不能装插件或模组")
             }
           >
             <Picker
@@ -241,22 +244,22 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
               options={GUIDE_CORES.filter((c) => c.supported !== false).map((c) => ({
                 value: c.type,
                 // 触发框只放短名；细节在下面的 hint 里，避免长标签把相邻字段顶歪
-                label: c.label,
+                label: coreLabel(c.type, t),
               }))}
             />
           </Field>
           <Field
-            label={kind === "plugin" ? "服务端版本" : "Fabric Loader"}
+            label={kind === "plugin" ? t("create.buildLabelPlugin", "服务端版本") : t("create.buildLabelMod", "Fabric Loader")}
             hint={
               kind === "plugin"
                 ? build
-                  ? `默认选最新稳定版，一般不用改`
+                  ? t("create.buildHintDefault", "默认选最新稳定版，一般不用改")
                   : builds.length
-                    ? "选一个版本"
-                    : "这个版本还没有可用构建"
+                    ? t("create.buildHintSelect", "选一个版本")
+                    : t("create.buildHintNone", "这个版本还没有可用构建")
                 : serverType === "vanilla"
-                  ? "原版服务端不需要"
-                  : "默认已选稳定版"
+                  ? t("create.buildHintVanilla", "原版服务端不需要")
+                  : t("create.buildHintStable", "默认已选稳定版")
             }
           >
             <Picker
@@ -268,10 +271,10 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
           </Field>
         </div>
         <p className="t-label-12 text-gray-700">
-          暂不支持新建 NeoForge 服务器；已有 NeoForge 服务器请使用「导入现有服务器」。
+          {t("create.neoforgeNote", "暂不支持新建 NeoForge 服务器；已有 NeoForge 服务器请使用「导入现有服务器」。")}
         </p>
 
-        <Field label="安装目录" hint="默认在应用数据目录下按名称创建，可修改到其它磁盘">
+        <Field label={t("create.dirLabel", "安装目录")} hint={t("create.dirHint", "默认在应用数据目录下按名称创建，可修改到其它磁盘")}>
           <div className="flex gap-2">
             <Input value={finalDir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" />
             <Button variant="secondary" onClick={browseDir}>
@@ -281,9 +284,9 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         </Field>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={`初始内存 ${memoryMin} GB`}>
+          <Field label={t("create.memoryMin", "初始内存 {gb} GB", { gb: memoryMin })}>
             <Slider
-              ariaLabel="初始内存"
+              ariaLabel={t("create.aria.memoryMin", "初始内存")}
               min={1}
               max={32}
               step={1}
@@ -291,9 +294,9 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
               onValueChange={([v]) => setMemoryMin(Math.min(v, memoryMax))}
             />
           </Field>
-          <Field label={`最大内存 ${memoryMax} GB`}>
+          <Field label={t("create.memoryMax", "最大内存 {gb} GB", { gb: memoryMax })}>
             <Slider
-              ariaLabel="最大内存"
+              ariaLabel={t("create.aria.memoryMax", "最大内存")}
               min={1}
               max={32}
               step={1}
@@ -304,13 +307,13 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
         </div>
 
         <Field
-          label="Java 运行时"
+          label={t("create.javaLabel", "Java 运行时")}
           hint={
             activeJava
-              ? `该版本需要 Java ${requiredJava}，当前选择的是 Java ${activeJava.major ?? "?"}${Number(activeJava.major ?? 0) < requiredJava ? "（不够）" : ""}`
+              ? `${t("create.javaHint", "该版本需要 Java {need}，当前选择的是 Java {current}", { need: requiredJava, current: activeJava.major ?? "?" })}${Number(activeJava.major ?? 0) < requiredJava ? t("create.javaNotEnough", "（不够）") : ""}`
               : javas.length
-                ? "自动检测到的 Java 运行时"
-                : "未检测到，请点击右侧手动指定"
+                ? t("create.javaAuto", "自动检测到的 Java 运行时")
+                : t("create.javaMissing", "未检测到，请点击右侧手动指定")
           }
         >
           <div className="flex gap-2">
@@ -324,7 +327,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
                       value: j.path,
                       label: `Java ${j.major ?? "?"} · ${j.path.split(/[\\/]/).pop() || "java"}`,
                     }))
-                  : [{ value: "", label: "未找到 Java" }]
+                  : [{ value: "", label: t("create.javaNotFound", "未找到 Java") }]
               }
             />
             <Button
@@ -334,7 +337,7 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
                 if (p) setJavaPath(p);
               }}
             >
-              指定
+              {t("create.choose", "指定")}
             </Button>
           </div>
         </Field>
@@ -345,18 +348,13 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
               <span>{progress.stage}</span>
               <span className="t-mono-12">{progress.detail || `${progress.percent}%`}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-300">
-              <div
-                className="h-full rounded-full bg-brand-600 transition-[width] duration-200"
-                style={{ width: `${Math.max(2, progress.percent)}%` }}
-              />
-            </div>
+            <Progress value={Math.max(2, progress.percent)} label={progress.stage} />
           </div>
         ) : null}
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={installing}>
-          取消
+          {t("create.cancel", "取消")}
         </Button>
         <Button
           onClick={install}
@@ -364,14 +362,14 @@ export function CreateInstanceDialog({ open, onOpenChange }: Props) {
           disabled={!javaPath || (serverType !== "vanilla" && builds.length === 0)}
           title={
             !javaPath
-              ? "先选一个 Java"
+              ? t("create.javaFirst", "先选一个 Java")
               : serverType !== "vanilla" && builds.length === 0
-                ? "这个核心/版本没有可用构建"
+                ? t("create.noBuilds", "这个核心/版本没有可用构建")
                 : undefined
           }
         >
           {installing ? null : <Download className="size-4" />}
-          下载并创建
+          {t("create.download", "下载并创建")}
         </Button>
       </DialogFooter>
     </Dialog>

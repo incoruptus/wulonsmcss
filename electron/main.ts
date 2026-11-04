@@ -1,6 +1,8 @@
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const crypto = require("crypto");
+const zlib = require("zlib");
 const { spawn } = require("child_process");
 const { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } = require("electron");
 
@@ -294,6 +296,104 @@ ipcMain.handle("app:info", () => ({
   electron: process.versions.electron,
   node: process.versions.node
 }));
+
+/* --------------------------------- 轻量更新 -------------------------------- */
+/*
+ * 完整包 273MB，其中 Electron 运行时占绝大多数；每次迭代真正变的是
+ * out/（主进程 + 渲染层）。所以日常更新只下载 4MB 左右的 app.asar.gz，
+ * 只有 Electron 运行时也变了才提示用户下完整包。
+ *
+ * 替换必须在进程退出后做：Windows 会锁住正在运行的 asar。
+ * 这里 spawn 一个 detached 的 Node 脚本，等主进程退出、校验通过再换文件，
+ * 换失败就用 .bak 还原，不会留下一个打不开的安装。
+ */
+const UPDATE_URL =
+  process.env.MCSS_UPDATE_URL || "https://wulons.github.io/wulons-mcss/update.json";
+const updateFile = () => path.join(app.getPath("userData"), "update.asar.gz");
+
+function compareVersion(a, b) {
+  const pa = String(a).split(".").map((n) => Number(n) || 0);
+  const pb = String(b).split(".").map((n) => Number(n) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+
+async function fetchManifest() {
+  const res = await fetch(`${UPDATE_URL}?ts=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`更新清单不可用（HTTP ${res.status}）`);
+  return res.json();
+}
+
+ipcMain.handle("app:update-check", async () => {
+  const manifest = await fetchManifest();
+  return {
+    current: app.getVersion(),
+    latest: manifest.version,
+    available: compareVersion(manifest.version, app.getVersion()) > 0,
+    notes: manifest.notes || "",
+    size: manifest.asar?.size || 0,
+    // 运行时不一致时必须走完整包：asar 里的主进程代码可能依赖新的 Electron API
+    runtimeOk: !manifest.runtime || manifest.runtime === process.versions.electron,
+  };
+});
+
+ipcMain.handle("app:update-download", async () => {
+  const manifest = await fetchManifest();
+  const url = new URL(manifest.asar.url, new URL(UPDATE_URL)).toString();
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`下载失败（HTTP ${res.status}）`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const sha = crypto.createHash("sha256").update(buf).digest("hex");
+  if (sha !== manifest.asar.sha256) throw new Error("更新包校验不通过，已放弃这次更新");
+  fs.writeFileSync(updateFile(), buf);
+  return { version: manifest.version, size: buf.length };
+});
+
+const APPLY_HELPER = `
+const fs = require("fs");
+const { spawn } = require("child_process");
+const [pid, src, dst, exe] = process.argv.slice(2);
+const alive = (p) => {
+  try { process.kill(Number(p), 0); return true; } catch { return false; }
+};
+const deadline = Date.now() + 60000;
+(function wait() {
+  if (alive(pid) && Date.now() < deadline) return setTimeout(wait, 250);
+  const bak = dst + ".bak";
+  try {
+    if (fs.existsSync(dst)) fs.copyFileSync(dst, bak);
+    fs.renameSync(src, dst);
+    try { fs.rmSync(bak, { force: true }); } catch {}
+  } catch (e) {
+    // 换失败就还原：宁可停在旧版本，也不能留下一个启动不了的文件
+    try { if (fs.existsSync(bak)) fs.copyFileSync(bak, dst); } catch {}
+  }
+  spawn(exe, [], { detached: true, stdio: "ignore" }).unref();
+})();
+`;
+
+ipcMain.handle("app:update-apply", async () => {
+  // 开发模式下 resourcesPath 指向 Electron 自己的目录，替换会毁掉运行时
+  if (!app.isPackaged) throw new Error("开发模式下不应用更新");
+  const src = updateFile();
+  if (!fs.existsSync(src)) throw new Error("还没有下载更新包");
+  const target = path.join(process.resourcesPath, "app.asar");
+  const next = path.join(process.resourcesPath, "app.asar.next");
+  fs.writeFileSync(next, zlib.gunzipSync(fs.readFileSync(src)));
+  const helper = path.join(app.getPath("userData"), "apply-update.cjs");
+  fs.writeFileSync(helper, APPLY_HELPER);
+  spawn(process.execPath, [helper, String(process.pid), next, target, process.execPath], {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    detached: true,
+    stdio: "ignore"
+  }).unref();
+  setTimeout(() => app.quit(), 300);
+  return { ok: true };
+});
 
 /* --------------------------------- 对话框 --------------------------------- */
 

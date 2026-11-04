@@ -7,6 +7,8 @@
  * - 原存档保留，不做移动
  */
 
+import { tGlobal } from "../i18n/core";
+
 export interface SaveFileApi {
   exists(path: string): Promise<boolean>;
   copy(src: string, dest: string): Promise<unknown>;
@@ -26,7 +28,7 @@ export async function importSinglePlayerSave(
 ): Promise<{ worldDir: string }> {
   const worldDir = join(serverDir, "world");
   if (await api.exists(worldDir)) {
-    throw new Error("服务端目录里已经有 world，请先备份或移除它，再重新导入存档");
+    throw new Error(tGlobal("saveImport.worldExists", "服务端目录里已经有 world，请先备份或移除它，再重新导入存档"));
   }
   await api.copy(savePath, worldDir);
   const lock = join(worldDir, "session.lock");

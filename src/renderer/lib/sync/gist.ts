@@ -6,6 +6,7 @@
  * - 读取走 API JSON（raw.githubusercontent.com 国内不通）
  */
 
+import { tGlobal } from "@/i18n/core";
 import { pairIdOf } from "./crypto";
 import { quickHash, stableJson } from "./pack";
 import type { SyncConfig } from "./types";
@@ -54,20 +55,31 @@ function chunkName(i: number): string {
 
 export function joinGistParts(mainText: string, parts: (string | undefined)[]): string {
   const m = JSON.parse(mainText) as { format: string; version: number; parts: number; checksum: string };
-  if (m.format !== "wulons-mcss-sync-chunks" || m.version !== 1) throw new Error("同步分片清单格式异常");
+  if (m.format !== "wulons-mcss-sync-chunks" || m.version !== 1) throw new Error(tGlobal("sync.chunk.badManifest", "同步分片清单格式异常"));
   const missing = [...Array(m.parts).keys()].filter((i) => typeof parts[i] !== "string");
-  if (missing.length) throw new Error(`同步分片不完整，缺少 ${missing.length} 个分片，另一端可能尚未上传完成`);
+  if (missing.length) throw new Error(tGlobal("sync.chunk.incomplete", "同步分片不完整，缺少 {n} 个分片，另一端可能尚未上传完成", { n: missing.length }));
   const text = parts.slice(0, m.parts).join("");
-  if (quickHash(text) !== m.checksum) throw new Error("同步分片校验和不一致，请稍后重新同步");
+  if (quickHash(text) !== m.checksum) throw new Error(tGlobal("sync.chunk.checksum", "同步分片校验和不一致，请稍后重新同步"));
   return text;
 }
 
+/** GitHub API 的 HTTP 错误：带状态码，调用方按状态判断，不依赖错误文案 */
+export class GistHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "GistHttpError";
+  }
+}
+
 function mapStatus(status: number): string {
-  if (status === 401) return "GitHub Token 无效或已过期，请重新生成后粘贴";
-  if (status === 404) return "未找到同步仓库，可能已被删除，请点击「重新创建」";
-  if (status === 403 || status === 429) return "GitHub 接口触发限流，请稍后几分钟重试";
-  if (status === 422) return "GitHub 拒绝了本次写入，内容可能超出限制";
-  return `GitHub 返回了 ${status}`;
+  if (status === 401) return tGlobal("sync.gist.tokenInvalid", "GitHub Token 无效或已过期，请重新生成后粘贴");
+  if (status === 404) return tGlobal("sync.gist.notFound", "未找到同步仓库，可能已被删除，请点击「重新创建」");
+  if (status === 403 || status === 429) return tGlobal("sync.gist.rateLimited", "GitHub 接口触发限流，请稍后几分钟重试");
+  if (status === 422) return tGlobal("sync.gist.rejected", "GitHub 拒绝了本次写入，内容可能超出限制");
+  return tGlobal("sync.gist.status", "GitHub 返回了 {status}", { status });
 }
 
 async function request(cfg: SyncConfig, path: string, init: RequestInit = {}, ms = 25_000): Promise<unknown> {
@@ -86,17 +98,17 @@ async function request(cfg: SyncConfig, path: string, init: RequestInit = {}, ms
     });
   } catch (e) {
     const msg = (e as Error).message ?? "";
-    if (/abort|timeout/i.test(msg)) throw new Error("连接 GitHub 超时，请稍后重试");
-    throw new Error("无法连接 GitHub，请检查网络或代理设置");
+    if (/abort|timeout/i.test(msg)) throw new Error(tGlobal("sync.github.timeout", "连接 GitHub 超时，请稍后重试"));
+    throw new Error(tGlobal("sync.github.unreachable", "无法连接 GitHub，请检查网络或代理设置"));
   } finally {
     done();
   }
-  if (!res.ok) throw new Error(mapStatus(res.status));
+  if (!res.ok) throw new GistHttpError(res.status, mapStatus(res.status));
   if (res.status === 204) return null;
   try {
     return await res.json();
   } catch {
-    throw new Error("GitHub 返回的内容无法解析");
+    throw new Error(tGlobal("sync.github.unparsable", "GitHub 返回的内容无法解析"));
   }
 }
 

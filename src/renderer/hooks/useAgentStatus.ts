@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { agentBaseUrl } from "@/lib/shell";
+import { tGlobal } from "@/i18n/core";
 
 export type AgentStatus = "checking" | "offline" | "online" | "blocked";
 
@@ -40,14 +41,17 @@ export async function checkAgent(): Promise<AgentState> {
     return {
       status: "blocked",
       version,
-      message: "这台电脑上的助手是旧版本，不认新的配对接口。请重新运行最新的 mcss-agent-setup.exe，再刷新页面。",
+      message: tGlobal(
+        "agentStatus.oldHelper",
+        "这台电脑上的助手是旧版本，不认新的配对接口。请重新运行最新的 mcss-agent-setup.exe，再刷新页面。",
+      ),
     };
   }
   try {
     // 助手端口开着但卡死时，不能让首屏永远停在「检查中」
     const info = (await Promise.race([
       window.mcss.app.info(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("助手响应超时")), 3500)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(tGlobal("agentStatus.timeout", "助手响应超时"))), 3500)),
     ])) as { version?: string };
     return { status: "online", version: info?.version || version };
   } catch (e) {

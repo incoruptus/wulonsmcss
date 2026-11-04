@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { DEFAULT_LOCALE, isLocale, translate, type Locale, type MessageVars } from "./core";
+import { DEFAULT_LOCALE, isLocale, setActiveLocale, translate, type Locale, type MessageVars } from "./core";
+// 副作用导入：把已翻译的条目注册进 catalogs
+import "./messages";
 
 const STORAGE_KEY = "mcss.locale";
 
@@ -23,8 +25,11 @@ function readStoredLocale(): Locale {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(readStoredLocale);
+  // 渲染期同步给非组件代码用的全局语言，保证同一次渲染里 t 与 tGlobal 一致
+  setActiveLocale(locale);
 
   const setLocale = useCallback((next: Locale) => {
+    setActiveLocale(next);
     setLocaleState(next);
     try {
       localStorage.setItem(STORAGE_KEY, next);

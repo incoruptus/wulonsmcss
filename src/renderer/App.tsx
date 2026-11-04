@@ -61,6 +61,7 @@ export default function App() {
     document.documentElement.classList.toggle("no-anim", animationsEnabled === false);
   }, [animationsEnabled]);
 
+
   // 跟随系统主题
   useEffect(() => {
     if (theme !== "system") return;

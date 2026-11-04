@@ -1,5 +1,9 @@
 import type { McVersion, ServerType } from "./types";
 import { serverTypeLabel } from "./config-model";
+import type { MessageVars } from "../i18n/core";
+
+/** 由 useI18n().t 注入的取词函数；只在渲染时传入，避免模块加载时把语言固定下来 */
+export type GuideTranslate = (key: string, fallback: string, vars?: MessageVars) => string;
 
 /**
  * 开服向导的「人话层」
@@ -37,6 +41,16 @@ export const INTENTS: IntentOption[] = [
     points: ["玩家客户端也需安装相同的模组", "推荐使用 Fabric（NeoForge 暂仅支持导入现有服务器）", "建议优先选择模组生态成熟的游戏版本"],
   },
 ];
+
+/** 意图卡文案；渲染时调用，切换语言后会重新求值 */
+export function intentsFor(t: GuideTranslate): IntentOption[] {
+  return INTENTS.map((it) => ({
+    ...it,
+    title: t(`wizard.intent.${it.id}.title`, it.title),
+    subtitle: t(`wizard.intent.${it.id}.subtitle`, it.subtitle),
+    points: it.points.map((point, index) => t(`wizard.intent.${it.id}.point.${index}`, point)),
+  }));
+}
 
 export interface CoreMeta {
   type: ServerType;
@@ -105,8 +119,26 @@ export const CORES: CoreMeta[] = [
   },
 ];
 
-export function coreMeta(type: string): CoreMeta | undefined {
-  return CORES.find((c) => c.type === type);
+/** 核心「客户端需要什么」的词典 key：原版系共用，模组系按加载器区分 */
+function coreClientKey(type: ServerType): string {
+  return type === "fabric" || type === "forge" || type === "neoforge"
+    ? `wizard.core.client.${type}`
+    : "wizard.core.client.none";
+}
+
+/**
+ * 取核心文案；渲染时传入 t 就得到当前语言版本。
+ * 不传 t 时保持原有中文常量，旧的调用方与测试可以继续直接用。
+ */
+export function coreMeta(type: string, t?: GuideTranslate): CoreMeta | undefined {
+  const meta = CORES.find((c) => c.type === type);
+  if (!meta || !t) return meta;
+  return {
+    ...meta,
+    tagline: t(`wizard.core.${meta.type}.tagline`, meta.tagline),
+    client: t(coreClientKey(meta.type), meta.client),
+    caveat: t(`wizard.core.${meta.type}.caveat`, meta.caveat),
+  };
 }
 
 export interface VersionPreset {
@@ -114,6 +146,11 @@ export interface VersionPreset {
   tag: string;
   why: string;
   intents: ServerIntent[];
+  /** 文本的词典 key；渲染时取当前语言用，缺省时回退 tag/why 原文 */
+  tagKey?: string;
+  whyKey?: string;
+  /** 是否为「最新版」；推荐逻辑看这个标记，不依赖译文 */
+  latest?: boolean;
 }
 
 const PRESET_DEFS: Omit<VersionPreset, "java">[] = [
@@ -122,24 +159,33 @@ const PRESET_DEFS: Omit<VersionPreset, "java">[] = [
     tag: "最新",
     why: "2026 年 9 月发布的最新正式版，包含最新游戏特性，部分模组与插件仍在适配中",
     intents: ["vanilla", "plugins"],
+    tagKey: "wizard.preset.tag.latest",
+    whyKey: "wizard.preset.why.26.3",
+    latest: true,
   },
   {
     id: "26.1.2",
     tag: "当前高版本中生态最稳定的选择",
     why: "26.1 系列稳定修复版，目前已适配的模组与插件数量多于 26.3",
     intents: ["plugins"],
+    tagKey: "wizard.preset.tag.stable",
+    whyKey: "wizard.preset.why.26.1.2",
   },
   {
     id: "1.21.11",
     tag: "生态成熟，模组与插件兼容性最佳",
     why: "旧版本号体系的最后一个大版本，模组与插件生态丰富，使用 Java 21 即可运行",
     intents: ["vanilla", "mods"],
+    tagKey: "wizard.preset.tag.mature",
+    whyKey: "wizard.preset.why.1.21.11",
   },
   {
     id: "1.21.1",
     tag: "兼容经典模组最多",
     why: "目前主流大型整合包集中于该版本，需使用 Java 21 运行",
     intents: ["mods"],
+    tagKey: "wizard.preset.tag.modFriendly",
+    whyKey: "wizard.preset.why.1.21.1",
   },
 ];
 
@@ -148,9 +194,25 @@ export function buildVersionPresets(releases: McVersion[]): VersionPreset[] {
   const latest = releases.find((r) => r.type === "release")?.id;
   const defs = [...PRESET_DEFS];
   if (latest && !defs.some((d) => d.id === latest)) {
-    defs.unshift({ id: latest, tag: "最新", why: "当前最新发布的正式版本", intents: ["vanilla", "plugins"] });
+    defs.unshift({
+      id: latest,
+      tag: "最新",
+      why: "当前最新发布的正式版本",
+      intents: ["vanilla", "plugins"],
+      tagKey: "wizard.preset.tag.latest",
+      whyKey: "wizard.preset.why.latest",
+      latest: true,
+    });
   }
   return defs.filter((d) => ids.has(d.id));
+}
+
+/** 版本预设的标签与推荐语；渲染时调用，切换语言后会重新求值 */
+export function presetText(preset: VersionPreset, t: GuideTranslate): { tag: string; why: string } {
+  return {
+    tag: t(preset.tagKey ?? `wizard.preset.${preset.id}.tag`, preset.tag),
+    why: t(preset.whyKey ?? `wizard.preset.${preset.id}.why`, preset.why),
+  };
 }
 
 /** 推荐哪个版本：原版/插件选最新，模组选 1.21.11 */
@@ -159,7 +221,7 @@ export function recommendedVersion(intent: ServerIntent, presets: VersionPreset[
   if (intent === "mods") {
     return presets.find((p) => p.id === "1.21.11")?.id ?? presets.find((p) => p.id === "1.21.1")?.id ?? presets[0].id;
   }
-  return presets.find((p) => p.tag === "最新")?.id ?? presets[0].id;
+  return presets.find((p) => p.latest)?.id ?? presets.find((p) => p.tag === "最新")?.id ?? presets[0].id;
 }
 
 /** 意图 + 版本 → 默认核心 */
@@ -168,15 +230,18 @@ export function recommendedCore(intent: ServerIntent, mcVersion: string): Server
   return "paper";
 }
 
-export function clientRequirementText(type: ServerType): string {
+export function clientRequirementText(type: ServerType, t?: GuideTranslate): string {
   if (type === "paper" || type === "purpur" || type === "vanilla") {
-    return "玩家使用原版客户端即可进入，无需安装额外内容";
+    const text = "玩家使用原版客户端即可进入，无需安装额外内容";
+    return t ? t("wizard.clientRequirement.none", text) : text;
   }
-  return "玩家客户端需安装相同的加载器与模组";
+  const text = "玩家客户端需安装相同的加载器与模组";
+  return t ? t("wizard.clientRequirement.mods", text) : text;
 }
 
-export function serverLabel(type: ServerType): string {
-  return type === "vanilla" ? "原版" : serverTypeLabel(type);
+export function serverLabel(type: ServerType, t?: GuideTranslate): string {
+  if (type !== "vanilla") return serverTypeLabel(type);
+  return t ? t("wizard.serverType.vanilla", "原版") : "原版";
 }
 
 /**
@@ -217,3 +282,22 @@ export const TERMS = {
     detail: "原版内置的扩展机制，存放于 world/datapacks 目录；无需客户端安装，适合轻量玩法扩展。",
   },
 } as const;
+
+/** 核心短名；传入 t 时才翻译（Vanilla（纯原版）这类带中文的标签） */
+export function coreLabel(type: ServerType, t?: GuideTranslate): string {
+  const label = CORES.find((c) => c.type === type)?.label ?? type;
+  if (type !== "vanilla") return label;
+  return t ? t("guide.core.vanilla.label", "Vanilla（纯原版）") : label;
+}
+
+/** 术语解释；渲染时调用，切换语言后会重新求值 */
+export function termsFor(t: GuideTranslate): Record<string, { label: string; detail: string }> {
+  const out: Record<string, { label: string; detail: string }> = {};
+  for (const [id, term] of Object.entries(TERMS)) {
+    out[id] = {
+      label: t(`guide.term.${id}.label`, term.label),
+      detail: t(`guide.term.${id}.detail`, term.detail),
+    };
+  }
+  return out;
+}

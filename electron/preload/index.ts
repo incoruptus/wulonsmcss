@@ -134,7 +134,10 @@ contextBridge.exposeInMainWorld("mcss", {
     aiDocs: () => invoke("app:ai-docs"),
     lanAddress: () => invoke("app:lan-address"),
     autostart: () => invoke("app:autostart"),
-    setAutostart: (enabled: boolean) => invoke("app:autostart-set", enabled)
+    setAutostart: (enabled: boolean) => invoke("app:autostart-set", enabled),
+    updateCheck: () => invoke("app:update-check"),
+    updateDownload: () => invoke("app:update-download"),
+    updateApply: () => invoke("app:update-apply")
   },
   proc: {
     /** 跑一个子进程并等它结束（结果只带尾部输出） */

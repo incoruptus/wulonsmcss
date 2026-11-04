@@ -1,0 +1,9 @@
+// 各页面组注册自己的英文词条；新增分组时在这里加一行
+import "./en";
+import "./pages";
+import "./app";
+import "./instance";
+import "./ui";
+import "./sync";
+import "./settings";
+import "./lib";

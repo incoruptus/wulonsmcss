@@ -8,6 +8,8 @@
  * 形如：w1z.a1b2c3.<payload>
  */
 
+import { tGlobal } from "../i18n/core";
+
 export const ROOM_VERSION = 1;
 export const ROOM_SCHEME = "mcss";
 
@@ -106,7 +108,7 @@ export async function deflate(bytes: Uint8Array): Promise<Uint8Array | null> {
 }
 
 export async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") throw new Error("当前环境不支持解压");
+  if (typeof DecompressionStream === "undefined") throw new Error(tGlobal("room.err.inflate", "当前环境不支持解压"));
   const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
@@ -124,7 +126,7 @@ export async function encodeRoom(room: RoomDescriptorV1): Promise<string> {
 export async function decodeRoom(input: string): Promise<RoomDescriptorV1> {
   const code = extractCode(input);
   const m = code.match(/^w1([zp])\.([0-9a-z]{6})\.([A-Za-z0-9\-_]+)$/);
-  if (!m) throw new Error("这不是一个有效的房间码");
+  if (!m) throw new Error(tGlobal("room.err.invalid", "这不是一个有效的房间码"));
   const [, mode, check, body] = m;
 
   let bytes = fromB64Url(body);
@@ -133,29 +135,29 @@ export async function decodeRoom(input: string): Promise<RoomDescriptorV1> {
   try {
     json = new TextDecoder().decode(bytes);
   } catch {
-    throw new Error("房间码内容损坏");
+    throw new Error(tGlobal("room.err.corrupt", "房间码内容损坏"));
   }
-  if (hash6(json) !== check) throw new Error("房间码校验未通过，可能复制时遗漏了部分字符");
+  if (hash6(json) !== check) throw new Error(tGlobal("room.err.checksum", "房间码校验未通过，可能复制时遗漏了部分字符"));
 
   let parsed: RoomDescriptorV1;
   try {
     parsed = JSON.parse(json);
   } catch {
-    throw new Error("房间码内容无法解析");
+    throw new Error(tGlobal("room.err.parse", "房间码内容无法解析"));
   }
-  if (parsed.v !== ROOM_VERSION) throw new Error("房间码来自更高版本，请升级后再试");
-  if (parsed.exp && Date.now() > parsed.exp) throw new Error("该房间已过期，请让服主重新发送");
-  if (!parsed.addr || !parsed.mc) throw new Error("房间信息不完整");
+  if (parsed.v !== ROOM_VERSION) throw new Error(tGlobal("room.err.newer", "房间码来自更高版本，请升级后再试"));
+  if (parsed.exp && Date.now() > parsed.exp) throw new Error(tGlobal("room.err.expired", "该房间已过期，请让服主重新发送"));
+  if (!parsed.addr || !parsed.mc) throw new Error(tGlobal("room.err.incomplete", "房间信息不完整"));
   return parsed;
 }
 
 /** 支持粘贴：完整链接、mcss:// 深链、或光秃秃的房间码 */
 export function extractCode(input: string): string {
   const text = String(input || "").trim();
-  if (!text) throw new Error("房间码是空的");
+  if (!text) throw new Error(tGlobal("room.err.empty", "房间码是空的"));
   const m = text.match(/(?:w1[zp]\.[0-9a-z]{6}\.[A-Za-z0-9\-_]+)/);
   if (m) return m[0];
-  throw new Error("无法识别房间码，请检查是否遗漏了开头几位");
+  throw new Error(tGlobal("room.err.unrecognized", "无法识别房间码，请检查是否遗漏了开头几位"));
 }
 
 /** 邀请链接（给网页用）；origin 由调用方按当前部署地址传入 */
@@ -176,7 +178,7 @@ export function roomInstallLink(code: string): string {
 }
 
 const LOADER_NAME: Record<string, string> = {
-  vanilla: "原版",
+  vanilla: "Vanilla",
   paper: "Paper",
   purpur: "Purpur",
   fabric: "Fabric",
@@ -186,23 +188,29 @@ const LOADER_NAME: Record<string, string> = {
 
 /** 人话版说明，方便直接发给朋友 */
 export function roomShareText(room: RoomDescriptorV1, code: string, origin?: string): string {
-  const loader = LOADER_NAME[room.loader] ?? room.loader;
+  const loader =
+    room.loader === "vanilla" ? tGlobal("room.loader.vanilla", "原版") : (LOADER_NAME[room.loader] ?? room.loader);
   const lines = [
-    `来一起玩「${room.name}」吧！`,
-    `外网：${room.addr}`,
+    tGlobal("room.share.intro", "来一起玩「{name}」吧！", { name: room.name }),
+    tGlobal("room.share.addr", "外网：{addr}", { addr: room.addr }),
   ];
-  if (room.lan && room.lan !== room.addr) lines.push(`同一 Wi-Fi：${room.lan}（同一网络下优先使用，速度更快）`);
-  if (room.addrs?.length) lines.push(`共 ${room.addrs.length} 条地址，进服时会自动选择最快的一条`);
-  lines.push(`版本：Minecraft ${room.mc}${loader ? ` · ${loader}` : ""}`);
-  if (room.mods.length) lines.push(`玩家需准备 ${room.mods.length} 个模组，打开链接后会自动准备`);
+  if (room.lan && room.lan !== room.addr) {
+    lines.push(tGlobal("room.share.lan", "同一 Wi-Fi：{addr}（同一网络下优先使用，速度更快）", { addr: room.lan }));
+  }
+  if (room.addrs?.length) {
+    lines.push(tGlobal("room.share.addrs", "共 {n} 条地址，进服时会自动选择最快的一条", { n: room.addrs.length }));
+  }
+  lines.push(tGlobal("room.share.version", "版本：Minecraft {mc}{loader}", { mc: room.mc, loader: loader ? ` · ${loader}` : "" }));
+  if (room.mods.length) {
+    lines.push(tGlobal("room.share.mods", "玩家需准备 {n} 个模组，打开链接后会自动准备", { n: room.mods.length }));
+  }
   lines.push("");
   if (origin) {
-    lines.push(`一键进服：${roomWebLink(code, origin)}`);
-    lines.push(`房间码：${code}`);
+    lines.push(tGlobal("room.share.webLink", "一键进服：{url}", { url: roomWebLink(code, origin) }));
+    lines.push(tGlobal("room.share.code", "房间码：{code}", { code }));
   } else {
-    // 没有部署网页时不要伪造 404 链接：直接给码 + 粘贴位置
-    lines.push(`房间码：${code}`);
-    lines.push("（在 MCSS 的「加入游戏」里粘贴这个码）");
+    lines.push(tGlobal("room.share.code", "房间码：{code}", { code }));
+    lines.push(tGlobal("room.share.codeHint", "（在 MCSS 的「加入游戏」里粘贴这个码）"));
   }
   return lines.join("\n");
 }

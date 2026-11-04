@@ -7,6 +7,7 @@
 
 import { buildWorldPack, normalizeDimension, templateFor, type WorldConfig } from "./mwm";
 import { dimensionSupport, dimensionSupportMessage } from "./mc-version";
+import { tGlobal } from "../i18n/core";
 
 export interface WorldSummary {
   id: string;
@@ -92,11 +93,11 @@ export async function create(
   }
   const name = String(config.name ?? "");
   if (!/^[a-z0-9_-]{1,48}$/i.test(name)) {
-    return { success: false, error: "世界名只能包含字母、数字、下划线和连字符" };
+    return { success: false, error: tGlobal("worldsLib.err.name", "世界名只能包含字母、数字、下划线和连字符") };
   }
   const namespace = config.namespace || "wulons";
   if (!/^[a-z0-9_.-]{1,48}$/i.test(namespace)) {
-    return { success: false, error: "命名空间不合法" };
+    return { success: false, error: tGlobal("worldsLib.err.namespace", "命名空间不合法") };
   }
 
   let pack;
@@ -119,7 +120,7 @@ export async function create(
 }
 
 export async function remove(serverDir: string, packName: string): Promise<{ success: boolean; error?: string }> {
-  if (!/^mwm-[\w.-]+$/.test(packName)) return { success: false, error: "数据包名称不合法" };
+  if (!/^mwm-[\w.-]+$/.test(packName)) return { success: false, error: tGlobal("worldsLib.err.packName", "数据包名称不合法") };
   try {
     await window.mcss.fs.remove(join(datapacksDir(serverDir), packName));
     return { success: true };
@@ -141,7 +142,7 @@ export async function repair(
   }
   const root = datapacksDir(serverDir);
   const packs = await listDirs(root);
-  if (!packs.length) return { success: false, error: "未找到 world/datapacks 目录" };
+  if (!packs.length) return { success: false, error: tGlobal("worldsLib.err.noPacks", "未找到 world/datapacks 目录") };
 
   const fixed: string[] = [];
   for (const pack of packs) {

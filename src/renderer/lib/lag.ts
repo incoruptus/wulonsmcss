@@ -6,6 +6,8 @@
  * 这是**唯一不需要插件**就能拿到的真实卡顿信号，比 F3 里看更可靠。
  */
 
+import { tGlobal } from "../i18n/core";
+
 export interface LagEvent {
   /** 本地时间戳（毫秒） */
   at: number;
@@ -40,6 +42,6 @@ export function parseLag(line: string): LagEvent | null {
 
 /** 把毫秒说成人话 */
 export function describeLag(ms: number): string {
-  if (ms < 1000) return `${ms} 毫秒`;
-  return `${(ms / 1000).toFixed(1)} 秒`;
+  if (ms < 1000) return tGlobal("lag.ms", "{n} 毫秒", { n: ms });
+  return tGlobal("lag.sec", "{n} 秒", { n: (ms / 1000).toFixed(1) });
 }

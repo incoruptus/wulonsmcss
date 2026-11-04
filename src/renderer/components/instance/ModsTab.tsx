@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, FolderOpen, GitCompare, Link2, RefreshCw, 
 import { Button, IconButton } from "@/components/ui/button";
 import { Checkbox, Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
+import { useI18n } from "@/i18n";
 import type { Instance, ModMeta } from "@/lib/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
 import { useConfig } from "@/stores/config";
@@ -25,6 +26,7 @@ interface DiffRow {
 const EMPTY_INDEX: Record<string, { p: string; v: string; n?: string }> = {};
 
 export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?: () => void }) {
+  const { t } = useI18n();
   const modsDir = `${instance.dir}\\mods`;
   const [mods, setMods] = useState<ModMeta[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,7 +68,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
   }, [mods, query]);
 
   async function pickClient() {
-    const dir = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
+    const dir = await pickPath({ mode: "dir", title: t("mods.pickClientDir", "选择 .minecraft 目录") });
     if (dir) setClientDir(dir);
     setDiff(null);
     setSelected(new Set());
@@ -74,7 +76,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
 
   async function compare(source: "local" | "cloud") {
     if (!clientDir) {
-      toast.error("先选客户端 .minecraft 目录");
+      toast.error(t("mods.errNoClientDir", "先选客户端 .minecraft 目录"));
       return;
     }
     setComparing(true);
@@ -94,7 +96,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
               mtime: 0,
             }));
       if (source === "cloud" && serverList.length === 0) {
-        toast.error("还没有拿到这台服务器的模组清单，请先在运行服务器的那台电脑上打开「设置 → 跨端同步」同步一次");
+        toast.error(t("mods.errNoCatalog", "还没有拿到这台服务器的模组清单，请先在运行服务器的那台电脑上打开「设置 → 跨端同步」同步一次"));
         return;
       }
       const byId = (list: ModMeta[]) => {
@@ -125,7 +127,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       setDiff(rows);
       setSelected(new Set());
     } catch (e) {
-      toast.error(`比对失败：${(e as Error).message}`);
+      toast.error(t("mods.errCompare", "比对失败：{msg}", { msg: (e as Error).message }));
     } finally {
       setComparing(false);
     }
@@ -156,11 +158,11 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
 
   async function downloadSelected() {
     if (!selectedRows.length) return;
-    if (serverBusy) return toast.error("请先停止服务器，再同步模组");
+    if (serverBusy) return toast.error(t("mods.errStopFirst", "请先停止服务器，再同步模组"));
     const clientSide = selectedRows.filter((r) => r.client?.environment === "client");
     if (clientSide.length) {
       const ok = window.confirm(
-        `有 ${clientSide.length} 个模组只该装在玩家电脑上，装到服务器可能报错或导致无法启动，仍要继续？`,
+        t("mods.confirmClientOnly", "有 {n} 个模组只该装在玩家电脑上，装到服务器可能报错或导致无法启动，仍要继续？", { n: clientSide.length }),
       );
       if (!ok) return;
     }
@@ -182,18 +184,18 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       }
       const ok = res.downloaded.length + res.copied.length;
       if (ok) {
-        toast.success(`已同步 ${ok} 个模组到服务端`, {
+        toast.success(t("mods.syncOk", "已同步 {n} 个模组到服务端", { n: ok }), {
           description: [
-            res.downloaded.length ? `Modrinth 下载 ${res.downloaded.length}` : "",
-            res.copied.length ? `本地复制 ${res.copied.length}` : "",
-            res.failed.length ? `失败 ${res.failed.length}` : "",
+            res.downloaded.length ? t("mods.syncDownloaded", "Modrinth 下载 {n}", { n: res.downloaded.length }) : "",
+            res.copied.length ? t("mods.syncCopied", "本地复制 {n}", { n: res.copied.length }) : "",
+            res.failed.length ? t("mods.syncFailed", "失败 {n}", { n: res.failed.length }) : "",
           ]
             .filter(Boolean)
             .join(" · "),
         });
       }
       if (res.failed.length) {
-        toast.error(`${res.failed.length} 个失败`, {
+        toast.error(t("mods.failedCount", "{n} 个失败", { n: res.failed.length }), {
           description: res.failed.map((x) => `${x.file}：${x.error}`).slice(0, 3).join("；"),
         });
       }
@@ -201,7 +203,7 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       setSelected(new Set());
       await load();
     } catch (e) {
-      toast.error(`同步失败：${(e as Error).message}`);
+      toast.error(t("mods.errSync", "同步失败：{msg}", { msg: (e as Error).message }));
     } finally {
       setSyncing(false);
     }
@@ -212,11 +214,11 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-700" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索已装模组…" className="h-8 pl-8 text-[13px]" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("mods.search.placeholder", "搜索已装模组…")} className="h-8 pl-8 text-[13px]" />
         </div>
         <Button variant="secondary" size="sm" onClick={load} loading={loading}>
           <RefreshCw className="size-3.5" />
-          刷新
+          {t("mods.refresh", "刷新")}
         </Button>
         <Button
           variant="secondary"
@@ -228,16 +230,16 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
             const missing = mods
               .filter((m) => !index[m.file])
               .map((m) => ({ id: m.id, file: m.file, version: m.version, name: m.name }));
-            if (!missing.length) return toast.info("已经全部关联过了");
+            if (!missing.length) return toast.info(t("mods.alreadyLinked", "已经全部关联过了"));
             setMatching(true);
             try {
               const resolved = await window.mcss.mods.resolveModrinth(missing);
-              if (!resolved.length) return toast.warning("未匹配到任何模组，可手动点击「绑定」");
+              if (!resolved.length) return toast.warning(t("mods.matchNone", "未匹配到任何模组，可手动点击「绑定」"));
               const merged = { ...index };
               for (const r of resolved) merged[r.file] = { p: r.p, v: r.v, n: r.n };
               await useConfig.getState().patch({ modrinthIndex: merged });
-              toast.success(`已匹配 ${resolved.length} / ${missing.length} 个`, {
-                description: "匹配到的模组会写入邀请码与进服包",
+              toast.success(t("mods.matchOk", "已匹配 {done} / {total} 个", { done: resolved.length, total: missing.length }), {
+                description: t("mods.matchOkDesc", "匹配到的模组会写入邀请码与进服包"),
               });
             } catch (e) {
               toast.error((e as Error).message);
@@ -247,9 +249,9 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
           }}
         >
           <Link2 className="size-3.5" />
-          自动匹配
+          {t("mods.autoMatch", "自动匹配")}
         </Button>
-        <IconButton label="打开 mods 目录" size="sm" onClick={() => window.mcss.app.openPath(modsDir)}>
+        <IconButton label={t("mods.openDir", "打开 mods 目录")} size="sm" onClick={() => window.mcss.app.openPath(modsDir)}>
           <FolderOpen className="size-3.5" />
         </IconButton>
       </div>
@@ -257,29 +259,29 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       <Card>
         <div className="flex flex-wrap items-center gap-2">
           <GitCompare className="size-4 text-gray-800" />
-          <span className="t-label-14 font-medium text-gray-1000">检查模组是否齐全</span>
-          <span className="t-label-12 text-gray-700">对比服务器的模组和朋友的客户端，找出缺少或版本不一致的模组</span>
+          <span className="t-label-14 font-medium text-gray-1000">{t("mods.check.title", "检查模组是否齐全")}</span>
+          <span className="t-label-12 text-gray-700">{t("mods.check.desc", "对比服务器的模组和朋友的客户端，找出缺少或版本不一致的模组")}</span>
           <div className="ml-auto flex items-center gap-2">
             <Input
               value={clientDir}
               onChange={(e) => setClientDir(e.target.value)}
-              placeholder="客户端 .minecraft 目录"
+              placeholder={t("mods.clientDir.placeholder", "客户端 .minecraft 目录")}
               className="h-8 w-[260px] font-mono text-[12px]"
             />
             <Button variant="secondary" size="sm" onClick={pickClient}>
-              选择
+              {t("mods.choose", "选择")}
             </Button>
             <Button size="sm" onClick={() => compare("local")} loading={comparing} disabled={!clientDir}>
-              对比本机客户端
+              {t("mods.compareLocal", "对比本机客户端")}
             </Button>
             <Button
               size="sm"
               variant="secondary"
               onClick={() => compare("cloud")}
               disabled={!clientDir || !catalog}
-              title={catalog ? `已同步清单更新于 ${formatDateTime(catalog.fetchedAt)}` : "还没有从另一台设备同步到清单"}
+              title={catalog ? t("mods.cloudHint.updated", "已同步清单更新于 {time}", { time: formatDateTime(catalog.fetchedAt) }) : t("mods.cloudHint.none", "还没有从另一台设备同步到清单")}
             >
-              对比已同步清单
+              {t("mods.compareCloud", "对比已同步清单")}
             </Button>
           </div>
         </div>
@@ -287,11 +289,10 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
         <div className="mt-2 t-label-12 text-gray-700">
           {catalog ? (
             <>
-              已同步清单：{catalog.mods.length} 个模组 · 由另一台设备于 {formatDateTime(catalog.updatedAt)} 同步
-              （本机拉取于 {formatDateTime(catalog.fetchedAt)}）
+              {t("mods.syncedSummary", "已同步清单：{n} 个模组 · 由另一台设备于 {updated} 同步（本机拉取于 {fetched}）", { n: catalog.mods.length, updated: formatDateTime(catalog.updatedAt), fetched: formatDateTime(catalog.fetchedAt) })}
             </>
           ) : (
-            "还没有同步过这台服务器的清单。在运行服务器的那台电脑上打开「设置 → 跨端同步」同步一次，之后就能用这份清单和本机客户端对比。"
+            t("mods.syncedNone", "还没有同步过这台服务器的清单。在运行服务器的那台电脑上打开「设置 → 跨端同步」同步一次，之后就能用这份清单和本机客户端对比。")
           )}
         </div>
 
@@ -303,9 +304,9 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
                 onClick={downloadSelected}
                 loading={syncing}
                 disabled={!selectedRows.length || serverBusy}
-                title={serverBusy ? "先停止服务器再同步 Mod" : undefined}
+                title={serverBusy ? t("mods.stopFirst", "先停止服务器再同步 Mod") : undefined}
               >
-                下载选中的 {selectedRows.length} 个到服务端
+                {t("mods.downloadSelected", "下载选中的 {n} 个到服务端", { n: selectedRows.length })}
               </Button>
               <Button
                 size="sm"
@@ -318,50 +319,50 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
                   )
                 }
               >
-                {selectable.length && selectable.every((r) => selected.has(r.key)) ? "取消全选" : "全选可下载"}
+                {selectable.length && selectable.every((r) => selected.has(r.key)) ? t("mods.unselectAll", "取消全选") : t("mods.selectAll", "全选可下载")}
               </Button>
               <span className="t-label-12 text-gray-700">
-                仅选择客户端已有的模组，服务端已有的模组不会重复下载，下载完成后建议重启服务器。
+                {t("mods.selectHint", "仅选择客户端已有的模组，服务端已有的模组不会重复下载，下载完成后建议重启服务器。")}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="green" size="sm">一致 {summary.same}</Badge>
-              <Badge variant="amber" size="sm">版本不一致 {summary.version}</Badge>
-              <Badge variant="red" size="sm">客户端缺少 {summary.serverOnly}</Badge>
-              <Badge variant="gray" size="sm">仅客户端 {summary.clientOnly}</Badge>
+              <Badge variant="green" size="sm">{t("mods.badge.same", "一致 {n}", { n: summary.same })}</Badge>
+              <Badge variant="amber" size="sm">{t("mods.badge.version", "版本不一致 {n}", { n: summary.version })}</Badge>
+              <Badge variant="red" size="sm">{t("mods.badge.serverOnly", "客户端缺少 {n}", { n: summary.serverOnly })}</Badge>
+              <Badge variant="gray" size="sm">{t("mods.badge.clientOnly", "仅客户端 {n}", { n: summary.clientOnly })}</Badge>
             </div>
 
             <ClientSyncPanel plan={syncPlan} mcDir={clientDir} onSynced={() => void compare("local")} />
             <div className="max-h-[46vh] overflow-auto rounded-lg bg-background-100 shadow-geist-border scroll-thin">
-              <table className="w-full min-w-[680px] border-collapse text-left">
-                <thead className="sticky top-0 bg-background-100">
-                  <tr className="border-b border-gray-300">
-                    <th className="w-8 px-3 py-2" aria-label="选择" />
-                    <th className="t-label-12 px-3 py-2 font-medium text-gray-700">Mod</th>
-                    <th className="t-label-12 px-3 py-2 font-medium text-gray-700">服务端</th>
-                    <th className="t-label-12 px-3 py-2 font-medium text-gray-700">客户端</th>
-                    <th className="t-label-12 px-3 py-2 font-medium text-gray-700">结论</th>
+              <table className="data-table min-w-[680px]">
+                <thead className="sticky top-0 bg-background-200">
+                  <tr>
+                    <th className="w-8 px-3 py-2" aria-label={t("mods.col.select", "选择")} />
+                    <th>Mod</th>
+                    <th>{t("mods.col.server", "服务端")}</th>
+                    <th>{t("mods.col.client", "客户端")}</th>
+                    <th>{t("mods.col.verdict", "结论")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(diff ?? []).map((row) => (
-                    <tr key={row.key} className="border-b border-gray-300/60 last:border-0">
-                      <td className="px-3 py-2">
+                    <tr key={row.key}>
+                      <td>
                         {row.client && (row.status === "client-only" || row.status === "version") ? (
                           <Checkbox
                             checked={selected.has(row.key)}
                             onCheckedChange={(v) => toggleSelected(row.key, v === true)}
-                            aria-label={`选择 ${row.name}`}
+                            aria-label={t("mods.selectRow", "选择 {name}", { name: row.name })}
                           />
                         ) : null}
                       </td>
-                      <td className="px-3 py-2">
+                      <td>
                         <div className="t-label-13 text-gray-1000">{row.name}</div>
                         <div className="t-mono-12 text-gray-700">{row.key}</div>
                       </td>
-                      <td className="px-3 py-2 t-mono-12 text-gray-900">{row.server?.version || "—"}</td>
-                      <td className="px-3 py-2 t-mono-12 text-gray-900">{row.client?.version || "—"}</td>
-                      <td className="px-3 py-2">
+                      <td className="t-mono-12 text-gray-900">{row.server?.version || "—"}</td>
+                      <td className="t-mono-12 text-gray-900">{row.client?.version || "—"}</td>
+                      <td>
                         <Verdict status={row.status} />
                       </td>
                     </tr>
@@ -376,16 +377,16 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       {mods.length === 0 && !loading ? (
         <Card>
           <EmptyState
-            title="还没有装 Mod"
-            desc="可将 jar 放入 mods 目录，或在资源库中一键安装，安装时会按游戏版本与加载器自动过滤。"
+            title={t("mods.empty.title", "还没有装 Mod")}
+            desc={t("mods.empty.desc", "可将 jar 放入 mods 目录，或在资源库中一键安装，安装时会按游戏版本与加载器自动过滤。")}
             action={
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button onClick={onBrowse} disabled={!onBrowse}>
-                  去资源库
+                  {t("mods.goLibrary", "去资源库")}
                 </Button>
                 <Button variant="secondary" onClick={() => window.mcss.app.openPath(modsDir)}>
                   <FolderOpen className="size-4" />
-                  打开 mods 目录
+                  {t("mods.openDir", "打开 mods 目录")}
                 </Button>
               </div>
             }
@@ -394,41 +395,41 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       ) : (
         <Card className="p-0">
           <div className="max-h-[52vh] overflow-auto scroll-thin">
-            <table className="w-full min-w-[760px] border-collapse text-left">
-              <thead className="sticky top-0 z-10 bg-background-100">
-                <tr className="border-b border-gray-300">
-                  <th className="t-label-12 px-3 py-2 font-medium text-gray-700">名称</th>
-                  <th className="t-label-12 px-3 py-2 font-medium text-gray-700">版本</th>
-                  <th className="t-label-12 px-3 py-2 font-medium text-gray-700">环境</th>
-                  <th className="t-label-12 px-3 py-2 font-medium text-gray-700">分发</th>
-                  <th className="t-label-12 px-3 py-2 font-medium text-gray-700">大小</th>
+            <table className="data-table min-w-[760px]">
+              <thead className="sticky top-0 z-10 bg-background-200">
+                <tr>
+                  <th>{t("mods.col.name", "名称")}</th>
+                  <th>{t("mods.col.version", "版本")}</th>
+                  <th>{t("mods.col.env", "环境")}</th>
+                  <th>{t("mods.col.dist", "分发")}</th>
+                  <th>{t("mods.col.size", "大小")}</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((m) => (
-                  <tr key={m.path} className="border-b border-gray-300/60 last:border-0">
-                    <td className="px-3 py-2">
+                  <tr key={m.path}>
+                    <td>
                       <div className="t-label-13 text-gray-1000">{m.name}</div>
                       <div className="t-mono-12 truncate text-gray-700" title={m.file}>{m.file}</div>
                     </td>
-                    <td className="px-3 py-2 t-mono-12 text-gray-900">{m.version || "—"}</td>
-                    <td className="px-3 py-2">
+                    <td className="t-mono-12 text-gray-900">{m.version || "—"}</td>
+                    <td>
                       <Badge variant={m.environment === "server" ? "blue" : m.environment === "client" ? "amber" : "gray"} size="sm">
-                        {m.environment === "*" ? "双端" : m.environment}
+                        {m.environment === "*" ? t("mods.env.both", "双端") : m.environment}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2">
+                    <td>
                       {modrinthIndex[m.file] ? (
                         <Badge variant="green" size="sm" title={modrinthIndex[m.file].n}>
-                          可自动分发
+                          {t("mods.autoDist", "可自动分发")}
                         </Badge>
                       ) : (
                         <Button size="xs" variant="ghost" onClick={() => setBinding(m)}>
-                          绑定
+                          {t("mods.bind", "绑定")}
                         </Button>
                       )}
                     </td>
-                    <td className="px-3 py-2 t-mono-12 text-gray-700">{formatBytes(m.size)}</td>
+                    <td className="t-mono-12 text-gray-700">{formatBytes(m.size)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -438,8 +439,8 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
       )}
       <p className="t-label-12 text-gray-700">
         {Object.keys(modrinthIndex).length
-          ? `${filtered.filter((m) => modrinthIndex[m.file]).length} / ${filtered.length} 个已关联 Modrinth。关联的模组会写入邀请码与进服包，玩家可自动补齐。`
-          : "尚无关联 Modrinth 的模组：从资源库安装的会自动关联，手动放入的可点击「绑定」。"}
+          ? t("mods.linkedCount", "{linked} / {total} 个已关联 Modrinth。关联的模组会写入邀请码与进服包，玩家可自动补齐。", { linked: filtered.filter((m) => modrinthIndex[m.file]).length, total: filtered.length })
+          : t("mods.noneLinked", "尚无关联 Modrinth 的模组：从资源库安装的会自动关联，手动放入的可点击「绑定」。")}
       </p>
 
       <BindModDialog
@@ -454,23 +455,24 @@ export function ModsTab({ instance, onBrowse }: { instance: Instance; onBrowse?:
 }
 
 function Verdict({ status }: { status: DiffRow["status"] }) {
+  const { t } = useI18n();
   if (status === "same")
     return (
       <span className="inline-flex items-center gap-1 t-label-12 text-green-900">
-        <CheckCircle2 className="size-3.5" /> 一致
+        <CheckCircle2 className="size-3.5" /> {t("mods.verdict.same", "一致")}
       </span>
     );
   if (status === "version")
     return (
       <span className="inline-flex items-center gap-1 t-label-12 text-amber-900">
-        <AlertTriangle className="size-3.5" /> 版本不同
+        <AlertTriangle className="size-3.5" /> {t("mods.verdict.version", "版本不同")}
       </span>
     );
   if (status === "server-only")
     return (
       <span className="inline-flex items-center gap-1 t-label-12 text-red-900">
-        <XCircle className="size-3.5" /> 客户端缺少
+        <XCircle className="size-3.5" /> {t("mods.verdict.serverOnly", "客户端缺少")}
       </span>
     );
-  return <span className="t-label-12 text-gray-700">仅客户端</span>;
+  return <span className="t-label-12 text-gray-700">{t("mods.verdict.clientOnly", "仅客户端")}</span>;
 }

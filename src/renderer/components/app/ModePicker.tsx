@@ -3,6 +3,7 @@ import { Dialog, DialogBody, DialogHeader } from "@/components/ui/overlay";
 import { useConfig } from "@/stores/config";
 import type { AppMode } from "@/lib/types";
 import { cx } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 /**
  * 模式选择：只问一次
@@ -13,6 +14,7 @@ import { cx } from "@/lib/utils";
 export function ModePicker({ open }: { open: boolean }) {
   const setMode = useConfig((s) => s.setMode);
   const patch = useConfig((s) => s.patch);
+  const { t } = useI18n();
 
   function choose(mode: AppMode) {
     void setMode(mode);
@@ -26,33 +28,33 @@ export function ModePicker({ open }: { open: boolean }) {
   return (
     <Dialog open={open} onOpenChange={() => {}} widthClass="max-w-2xl" hideClose>
       <DialogHeader
-        title="你主要想做什么？"
-        desc="该选择只影响首页默认展示的内容，功能不受限制，可随时在左下角切换。"
+        title={t("modePicker.title", "你主要想做什么？")}
+        desc={t("modePicker.desc", "该选择只影响首页默认展示的内容，功能不受限制，可随时在左下角切换。")}
       />
       <DialogBody className="space-y-2.5">
         <Choice
           icon={<Gamepad2 className="size-5" />}
-          title="去朋友的服务器玩"
-          desc="粘贴房间码或服务器地址，即可检查还缺哪些内容、能否直接进入。"
+          title={t("modePicker.player.title", "去朋友的服务器玩")}
+          desc={t("modePicker.player.desc", "粘贴房间码或服务器地址，即可检查还缺哪些内容、能否直接进入。")}
           onClick={() => choose("player")}
         />
         <Choice
           icon={<Server className="size-5" />}
-          title="开一台服务器，让朋友来玩"
-          desc="建服、安装模组或插件、查看控制台、备份世界、发送邀请链接。"
+          title={t("modePicker.host.title", "开一台服务器，让朋友来玩")}
+          desc={t("modePicker.host.desc", "建服、安装模组或插件、查看控制台、备份世界、发送邀请链接。")}
           onClick={() => choose("host")}
         />
         <Choice
           icon={<Sparkles className="size-5" />}
-          title="两个都要"
-          desc="先以开服模式进入，首页显示你的服务器；想玩时可在左下角切换到玩家模式。"
+          title={t("modePicker.both.title", "两个都要")}
+          desc={t("modePicker.both.desc", "先以开服模式进入，首页显示你的服务器；想玩时可在左下角切换到玩家模式。")}
           onClick={() => choose("host")}
         />
         <p className="pt-1 t-label-12 text-gray-700">
-          两种模式共用同一份数据，服务器、模组与存档均保存在本机，切换模式不会丢失内容。
+          {t("modePicker.note", "两种模式共用同一份数据，服务器、模组与存档均保存在本机，切换模式不会丢失内容。")}
         </p>
         <button className="pt-1 text-left t-label-12 text-brand-700 hover:underline" onClick={lookAround}>
-          还不确定，先浏览界面 →
+          {t("modePicker.later", "还不确定，先浏览界面 →")}
         </button>
       </DialogBody>
     </Dialog>

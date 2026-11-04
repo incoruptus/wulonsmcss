@@ -6,6 +6,8 @@
  * 桌面/网页、玩家/服主四线共用同一套判定，测试也不用 mock 网络。
  */
 
+import { tGlobal } from "@/i18n/core";
+
 export type ReachKind = "local" | "lan" | "ipv6" | "public" | "tunnel" | "manual";
 
 export interface ReachTarget {
@@ -56,17 +58,18 @@ export type PlayerVerdict = "ready" | "offline" | "unknown";
 
 const RANK: Record<ReachKind, number> = { lan: 0, ipv6: 1, public: 2, tunnel: 3, manual: 4, local: 9 };
 
-const KIND_LABEL: Record<ReachKind, string> = {
-  local: "本机",
-  lan: "同一网络",
-  ipv6: "直连",
-  public: "直连",
-  tunnel: "中转",
-  manual: "手动地址",
+const KIND_TEXT: Record<ReachKind, { key: string; text: string }> = {
+  local: { key: "reach.kind.local", text: "本机" },
+  lan: { key: "reach.kind.lan", text: "同一网络" },
+  ipv6: { key: "reach.kind.ipv6", text: "直连" },
+  public: { key: "reach.kind.public", text: "直连" },
+  tunnel: { key: "reach.kind.tunnel", text: "中转" },
+  manual: { key: "reach.kind.manual", text: "手动地址" },
 };
 
 export function kindLabel(kind: ReachKind): string {
-  return KIND_LABEL[kind] ?? "地址";
+  const item = KIND_TEXT[kind];
+  return item ? tGlobal(item.key, item.text) : tGlobal("reach.kind.address", "地址");
 }
 
 function valid(host: string, port: number): { host: string; port: number } | null {
@@ -187,20 +190,20 @@ export function playerVerdict(probes: ReachProbe[]): PlayerVerdict {
 export function hostSummary(verdict: HostVerdict): { title: string; detail: string } {
   switch (verdict) {
     case "public":
-      return { title: "朋友可以进来", detail: "这条地址已经能从外网连上，把它发给朋友即可。" };
+      return { title: tGlobal("reach.host.public.title", "朋友可以进来"), detail: tGlobal("reach.host.public.detail", "这条地址已经能从外网连上，把它发给朋友即可。") };
     case "tunnel":
-      return { title: "朋友可以通过中转进来", detail: "这条线路多一次中转；如果能直连，优先用直连地址。" };
+      return { title: tGlobal("reach.host.tunnel.title", "朋友可以通过中转进来"), detail: tGlobal("reach.host.tunnel.detail", "这条线路多一次中转；如果能直连，优先用直连地址。") };
     case "lan-only":
-      return { title: "只有同一网络能进", detail: "同一个 Wi-Fi 下的朋友可以进；外网朋友需要开一条中转线路。" };
+      return { title: tGlobal("reach.host.lan.title", "只有同一网络能进"), detail: tGlobal("reach.host.lan.detail", "同一个 Wi-Fi 下的朋友可以进；外网朋友需要开一条中转线路。") };
     case "local-only":
       return {
-        title: "朋友还进不来",
-        detail: "服务器只接受本机连接。检查服务器是否绑定了 127.0.0.1，或防火墙是否拦住了 Java。",
+        title: tGlobal("reach.host.local.title", "朋友还进不来"),
+        detail: tGlobal("reach.host.local.detail", "服务器只接受本机连接。检查服务器是否绑定了 127.0.0.1，或防火墙是否拦住了 Java。"),
       };
     case "offline":
-      return { title: "服务器没响应", detail: "先启动服务器，等它加载完成后再检查一次。" };
+      return { title: tGlobal("reach.host.offline.title", "服务器没响应"), detail: tGlobal("reach.host.offline.detail", "先启动服务器，等它加载完成后再检查一次。") };
     default:
-      return { title: "还没检查", detail: "点一下检查，看看朋友现在能不能进来。" };
+      return { title: tGlobal("reach.host.unknown.title", "还没检查"), detail: tGlobal("reach.host.unknown.detail", "点一下检查，看看朋友现在能不能进来。") };
   }
 }
 
@@ -215,11 +218,11 @@ export function hostTone(verdict: HostVerdict): "green" | "amber" | "red" | "gra
 export function playerSummary(verdict: PlayerVerdict): { title: string; detail: string } {
   switch (verdict) {
     case "ready":
-      return { title: "服务器在线", detail: "已连接服务器，可以进入游戏。" };
+      return { title: tGlobal("reach.player.ready.title", "服务器在线"), detail: tGlobal("reach.player.ready.detail", "已连接服务器，可以进入游戏。") };
     case "offline":
-      return { title: "服务器没响应", detail: "所有地址均已尝试，可能服务器未启动，或双方不在同一网络。" };
+      return { title: tGlobal("reach.player.offline.title", "服务器没响应"), detail: tGlobal("reach.player.offline.detail", "所有地址均已尝试，可能服务器未启动，或双方不在同一网络。") };
     default:
-      return { title: "还没探测", detail: "正在确认服务器状态。" };
+      return { title: tGlobal("reach.player.unknown.title", "还没探测"), detail: tGlobal("reach.player.unknown.detail", "正在确认服务器状态。") };
   }
 }
 
@@ -231,7 +234,11 @@ export function roomAddrsFrom(probes: ReachProbe[]): RoomAddrRef[] {
 
 /** 一句话解释每条探测结果，UI 直接用 */
 export function probeText(probe: ReachProbe): string {
-  if (!probe.checked) return probe.error || "无法探测";
-  if (probe.ok) return probe.ms != null ? `已连通 · ${probe.ms}ms` : "已连通";
-  return probe.error || "连不上";
+  if (!probe.checked) return probe.error || tGlobal("reach.probe.unknown", "无法探测");
+  if (probe.ok) {
+    return probe.ms != null
+      ? tGlobal("reach.probe.okWithMs", "已连通 · {ms}ms", { ms: probe.ms })
+      : tGlobal("reach.probe.ok", "已连通");
+  }
+  return probe.error || tGlobal("reach.probe.failed", "连不上");
 }

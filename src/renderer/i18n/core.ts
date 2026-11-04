@@ -48,3 +48,19 @@ export function translate(locale: Locale, key: string, fallback: string, vars: M
   const template = catalogs[locale][key] ?? catalogs[DEFAULT_LOCALE][key] ?? fallback;
   return interpolate(template, vars);
 }
+
+/**
+ * 非组件代码（同步引擎、IPC 封装）用的取词入口。
+ *
+ * I18nProvider 会把当前语言同步到 activeLocale；这些地方拿不到 hook，
+ * 也不该为了一个错误提示把整条调用链改成 React 组件。
+ */
+let activeLocale: Locale = DEFAULT_LOCALE;
+
+export function setActiveLocale(locale: Locale): void {
+  activeLocale = locale;
+}
+
+export function tGlobal(key: string, fallback: string, vars: MessageVars = {}): string {
+  return translate(activeLocale, key, fallback, vars);
+}

@@ -7,6 +7,8 @@
  *    也不能直接套这个包。
  */
 
+import { tGlobal } from "../i18n/core";
+
 export type DimensionSupport = "unsupported" | "legacy" | "supported" | "unknown";
 
 function parse(value: string): number[] | null {
@@ -35,13 +37,21 @@ export function dimensionSupport(mcVersion: string): DimensionSupport {
 export function dimensionSupportMessage(mcVersion: string): string {
   const kind = dimensionSupport(mcVersion);
   if (kind === "unsupported") {
-    return `${mcVersion} 的原版不支持数据包自定义维度（需要 1.16.2+），当前只能使用 mod 或插件实现。`;
+    return tGlobal(
+      "mcVersion.dimension.unsupported",
+      "{mc} 的原版不支持数据包自定义维度（需要 1.16.2+），当前只能使用 mod 或插件实现。",
+      { mc: mcVersion },
+    );
   }
   if (kind === "legacy") {
-    return `${mcVersion} 的原版支持自定义维度，但当前 MWM 生成器只输出 26.1 数据包格式，直接生成会导致服务器无法加载。`;
+    return tGlobal(
+      "mcVersion.dimension.legacy",
+      "{mc} 的原版支持自定义维度，但当前 MWM 生成器只输出 26.1 数据包格式，直接生成会导致服务器无法加载。",
+      { mc: mcVersion },
+    );
   }
   if (kind === "unknown") {
-    return "无法识别这个服务器的 Minecraft 版本，已禁用多世界生成，避免写入不兼容的数据包。";
+    return tGlobal("mcVersion.dimension.unknown", "无法识别这个服务器的 Minecraft 版本，已禁用多世界生成，避免写入不兼容的数据包。");
   }
   return "";
 }

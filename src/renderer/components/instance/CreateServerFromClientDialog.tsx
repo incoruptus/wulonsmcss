@@ -6,7 +6,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Slider } from "@/components/ui/field";
 import { Picker } from "@/components/ui/picker";
-import { Badge } from "@/components/ui/misc";
+import { Badge, Progress } from "@/components/ui/misc";
 import { useConfig, makeInstance } from "@/stores/config";
 import { importSinglePlayerSave } from "@/lib/save-import";
 import type { ClientScan, ClientVersion, ModMeta, ServerType } from "@/lib/types";
@@ -15,6 +15,7 @@ import { javaMajorFor, pickJavaFor } from "@/lib/java-compat";
 import { syncClientMods } from "@/lib/client-mods";
 import { serverTypeLabel } from "@/lib/config-model";
 import { pickPath } from "@/lib/path-picker";
+import { useI18n } from "@/i18n";
 
 const CORE_LABEL: Record<string, string> = {
   fabric: "Fabric",
@@ -23,8 +24,8 @@ const CORE_LABEL: Record<string, string> = {
   paper: "Paper",
 };
 
-function loaderText(loader: string, version: string): string {
-  if (loader === "vanilla") return "原版";
+function loaderText(loader: string, version: string, t: (key: string, fallback: string) => string): string {
+  if (loader === "vanilla") return t("createClient.vanilla", "原版");
   return `${loader[0].toUpperCase()}${loader.slice(1)}${version ? ` ${version}` : ""}`;
 }
 
@@ -35,6 +36,7 @@ export function CreateServerFromClientDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const addInstance = useConfig((s) => s.addInstance);
   const profile = useConfig((s) => s.cfg.clientProfiles[0]);
@@ -140,26 +142,26 @@ export function CreateServerFromClientDialog({
   }
 
   async function create() {
-    if (!scan || !current) return toast.error("先扫描一个客户端目录");
-    if (!name.trim()) return toast.error("给服务器起个名字");
+    if (!scan || !current) return toast.error(t("createClient.noClientDir", "先扫描一个客户端目录"));
+    if (!name.trim()) return toast.error(t("createClient.noName", "给服务器起个名字"));
     if (unsupported) {
-      return toast.error(`${loaderText(current.loader, current.loaderVersion)} 客户端暂不支持一键开服`);
+      return toast.error(t("createClient.unsupported", "{loader} 客户端暂不支持一键开服", { loader: loaderText(current.loader, current.loaderVersion, t) }));
     }
     const targetCore: ServerType =
       current.loader === "fabric" ? "fabric" : current.loader === "forge" ? "forge" : core;
     if (targetCore === "paper" && !["vanilla"].includes(current.loader)) {
-      return toast.error("该客户端已安装加载器，无法直接使用 Paper 核心");
+      return toast.error(t("createClient.loaderInstalled", "该客户端已安装加载器，无法直接使用 Paper 核心"));
     }
     if (clientOnly) {
       const ok = window.confirm(
-        `所选模组中有 ${clientOnly} 个标记为「仅客户端」，服务端通常不需要这些模组，可能导致启动失败，仍要继续？`,
+        t("createClient.clientOnlyConfirm", "所选模组中有 {n} 个标记为「仅客户端」，服务端通常不需要这些模组，可能导致启动失败，仍要继续？", { n: clientOnly }),
       );
       if (!ok) return;
     }
 
     setCreating(true);
     setPercent(0);
-    setStage("检查 Java…");
+    setStage(t("createClient.checkingJava", "检查 Java…"));
     const unsub = window.mcss.versions.onProgress((p) => {
       setStage(p.stage);
       setPercent(p.percent);
@@ -168,7 +170,7 @@ export function CreateServerFromClientDialog({
       const info = await window.mcss.app.info();
       const javas = await window.mcss.app.detectJava().catch(() => []);
       const java = pickJavaFor(javas, javaMajorFor(current.mcVersion));
-      if (!java) throw new Error(`该版本需要 Java ${javaMajorFor(current.mcVersion)}，请先完成安装`);
+      if (!java) throw new Error(t("createClient.javaMissing", "该版本需要 Java {need}，请先完成安装", { need: javaMajorFor(current.mcVersion) }));
 
       const builds = await window.mcss.versions.serverBuilds(targetCore, current.mcVersion).catch(() => []);
       const chosenBuild =
@@ -178,7 +180,7 @@ export function CreateServerFromClientDialog({
             ? current.loaderVersion || builds[0]
             : builds[0];
       if (targetCore !== "vanilla" && !chosenBuild) {
-        throw new Error(`${serverTypeLabel(targetCore)} ${current.mcVersion} 没有可用构建，请检查网络或更换版本`);
+        throw new Error(t("createClient.noBuilds", "{type} {mc} 没有可用构建，请检查网络或更换版本", { type: serverTypeLabel(targetCore), mc: current.mcVersion }));
       }
 
       const base = `${info.appData}\\instances\\${safeName(name)}`;
@@ -186,7 +188,7 @@ export function CreateServerFromClientDialog({
       let seq = 2;
       while (await window.mcss.fs.exists(serverDir)) serverDir = `${base}-${seq++}`;
 
-      setStage("创建服务端目录…");
+      setStage(t("createClient.creatingDir", "创建服务端目录…"));
       const inst = makeInstance({
         name: name.trim(),
         dir: serverDir,
@@ -208,18 +210,18 @@ export function CreateServerFromClientDialog({
         build: targetCore === "paper" || targetCore === "forge" ? chosenBuild : undefined,
         javaPath: java.path,
       });
-      if (!install.ok) throw new Error(install.error || "服务端安装失败");
+      if (!install.ok) throw new Error(install.error || t("createClient.installFailed", "服务端安装失败"));
 
       if (saveName) {
         const chosen = saves.find((s) => s.name === saveName);
-        if (!chosen) throw new Error("选中的单人存档已经找不到了，请重新扫描客户端目录");
-        setStage("复制单人存档…");
+        if (!chosen) throw new Error(t("createClient.saveMissing", "选中的单人存档已经找不到了，请重新扫描客户端目录"));
+        setStage(t("createClient.copyingSave", "复制单人存档…"));
         setPercent(84);
         await importSinglePlayerSave(window.mcss.fs, chosen.path, serverDir);
       }
 
       await addInstance(inst);
-      setStage("同步客户端 Mod…");
+      setStage(t("createClient.syncingMods", "同步客户端 Mod…"));
       setPercent(88);
       const sync = selectedMods.length ? await syncClientMods(serverDir, selectedMods) : null;
       if (sync && Object.keys(sync.index).length) {
@@ -228,24 +230,24 @@ export function CreateServerFromClientDialog({
         });
       }
       const synced = sync ? sync.downloaded.length + sync.copied.length : 0;
-      toast.success("服务器已创建", {
+      toast.success(t("createClient.created", "服务器已创建"), {
         description: [
           `${inst.name} · ${current.mcVersion} · ${serverTypeLabel(targetCore)}`,
-          synced ? `已同步 ${synced} 个 Mod` : "没有选 Mod",
-          sync?.failed.length ? `${sync.failed.length} 个失败` : "",
+          synced ? t("createClient.syncedMods", "已同步 {n} 个 Mod", { n: synced }) : t("createClient.noModsSelected", "没有选 Mod"),
+          sync?.failed.length ? t("createClient.failedCount", "{n} 个失败", { n: sync.failed.length }) : "",
         ]
           .filter(Boolean)
           .join(" · "),
       });
       if (sync?.failed.length) {
-        toast.error(`${sync.failed.length} 个 Mod 没同步成功`, {
+        toast.error(t("createClient.syncFailed", "{n} 个 Mod 没同步成功", { n: sync.failed.length }), {
           description: sync.failed.map((f) => `${f.file}：${f.error}`).slice(0, 3).join("；"),
         });
       }
       onOpenChange(false);
       navigate(`/instances/${inst.id}`);
     } catch (e) {
-      toast.error("开服失败", { description: (e as Error).message });
+      toast.error(t("createClient.createFailed", "开服失败"), { description: (e as Error).message });
     } finally {
       unsub();
       setCreating(false);
@@ -257,17 +259,17 @@ export function CreateServerFromClientDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => (creating ? undefined : onOpenChange(v))} widthClass="max-w-2xl">
       <DialogHeader
-        title="用现有客户端开服"
-        desc="无需重新选择版本与核心：先扫描现有客户端，再把所需模组和单人存档带到服务端。"
+        title={t("createClient.title", "用现有客户端开服")}
+        desc={t("createClient.desc", "无需重新选择版本与核心：先扫描现有客户端，再把所需模组和单人存档带到服务端。")}
       />
       <DialogBody className="space-y-3">
-        <Field label="客户端目录" hint="请指向 .minecraft 目录本身，扫描过程不会修改任何文件">
+        <Field label={t("createClient.dirLabel", "客户端目录")} hint={t("createClient.dirHint", "请指向 .minecraft 目录本身，扫描过程不会修改任何文件")}>
           <div className="flex gap-2">
-            <Input value={dir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" placeholder="C:\\Users\\你\\AppData\\Roaming\\.minecraft" />
+            <Input value={dir} onChange={(e) => setDir(e.target.value)} className="font-mono text-[12px]" placeholder={t("createClient.dirPlaceholder", "C:\\Users\\你\\AppData\\Roaming\\.minecraft")} />
             <Button
               variant="secondary"
               onClick={async () => {
-                const picked = await pickPath({ mode: "dir", title: "选择 .minecraft 目录" });
+                const picked = await pickPath({ mode: "dir", title: t("mods.pickClientDir", "选择 .minecraft 目录") });
                 if (picked) setDir(picked);
                 else void window.mcss.client.scan(dir).catch(() => {});
               }}
@@ -286,30 +288,30 @@ export function CreateServerFromClientDialog({
 
         {scan && scan.versions.length === 0 ? (
           <div className="rounded-lg bg-amber-700/10 p-3 t-label-13 text-amber-900">
-            该目录下未找到 versions 文件夹，请指向 .minecraft 目录本身，或选择已安装游戏版本的客户端。
+            {t("createClient.noVersions", "该目录下未找到 versions 文件夹，请指向 .minecraft 目录本身，或选择已安装游戏版本的客户端。")}
           </div>
         ) : null}
 
         {scan && scan.versions.length > 0 ? (
           <>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="用哪个客户端版本" hint={`识别到 ${scan.versions.length} 个版本`}>
+              <Field label={t("createClient.versionLabel", "用哪个客户端版本")} hint={t("createClient.versionHint", "识别到 {n} 个版本", { n: scan.versions.length })}>
                 <Picker
                   value={versionId}
                   onValueChange={setVersionId}
                   options={scan.versions.map((v) => ({
                     value: v.id,
-                    label: `${v.name} · ${v.mcVersion} ${loaderText(v.loader, v.loaderVersion)}`,
+                    label: `${v.name} · ${v.mcVersion} ${loaderText(v.loader, v.loaderVersion, t)}`,
                   }))}
                 />
               </Field>
-              <Field label="用哪种服务端" hint={current?.loader === "vanilla" ? "原版客户端建议搭配 Paper，玩家无需安装额外内容" : "跟随客户端加载器"}>
+              <Field label={t("createClient.typeLabel", "用哪种服务端")} hint={current?.loader === "vanilla" ? t("createClient.typeHintVanilla", "原版客户端建议搭配 Paper，玩家无需安装额外内容") : t("createClient.typeHintFollow", "跟随客户端加载器")}>
                 {current?.loader === "vanilla" ? (
                   <Picker
                     value={core}
                     onValueChange={(v) => setCore(v as ServerType)}
                     options={[
-                      { value: "paper", label: "Paper（推荐）" },
+                      { value: "paper", label: t("createClient.paperRecommended", "Paper（推荐）") },
                       { value: "vanilla", label: "Vanilla" },
                     ]}
                   />
@@ -325,44 +327,44 @@ export function CreateServerFromClientDialog({
               <div className="flex items-start gap-2 rounded-lg bg-amber-700/10 p-3">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-900" />
                 <p className="t-label-13 leading-6 text-amber-900">
-                  {loaderText(current.loader, current.loaderVersion)} 客户端暂不支持一键开服。
-                  已有 {loaderText(current.loader, current.loaderVersion)} 服务端可以通过「全部服务器 → 导入现有服务器」接入；
-                  或者换一个 Fabric 客户端版本。
+                  {t("createClient.unsupportedNote", "{loader} 客户端暂不支持一键开服。", { loader: loaderText(current.loader, current.loaderVersion, t) })}
+                  {t("createClient.unsupportedNote2", "已有 {loader} 服务端可以通过「全部服务器 → 导入现有服务器」接入；", { loader: loaderText(current.loader, current.loaderVersion, t) })}
+                  {t("createClient.unsupportedNote3", "或者换一个 Fabric 客户端版本。")}
                 </p>
               </div>
             ) : null}
 
             <Field
-              label="把单人存档一起带过来"
+              label={t("createClient.saveLabel", "把单人存档一起带过来")}
               hint={
                 saves.length
-                  ? "只复制一份到新服务器，原存档仍保留在 .minecraft/saves 里"
-                  : "没有找到 .minecraft/saves。可以先打开一次单人世界，或创建服务器后手动导入"
+                  ? t("createClient.saveHint", "只复制一份到新服务器，原存档仍保留在 .minecraft/saves 里")
+                  : t("createClient.saveHintNone", "没有找到 .minecraft/saves。可以先打开一次单人世界，或创建服务器后手动导入")
               }
             >
               <Picker
                 value={saveName}
                 onValueChange={setSaveName}
                 options={[
-                  { value: "", label: "不带存档，只开新服" },
+                  { value: "", label: t("createClient.saveNone", "不带存档，只开新服") },
                   ...saves.map((s) => ({ value: s.name, label: s.name })),
                 ]}
               />
             </Field>
             {saveName ? (
               <p className="t-label-12 text-gray-700">
-                会把这个存档复制成新服务器的 world。原存档不会被改动；存档版本要和服务器版本一致，不一致时启动可能失败。
+                {t("createClient.saveNote", "会把这个存档复制成新服务器的 world。原存档不会被改动；存档版本要和服务器版本一致，不一致时启动可能失败。")}
               </p>
             ) : null}
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="服务器名称">
+              <Field label={t("createClient.nameLabel", "服务器名称")}>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </Field>
-              <Field label="端口" hint="默认 25565">
+              <Field label={t("createClient.portLabel", "端口")} hint={t("createClient.portHint", "默认 25565")}>
                 <Input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} />
               </Field>
-              <Field label={`最大内存 ${memoryMax}G`}>
+              <Field label={t("createClient.memoryMax", "最大内存 {gb}G", { gb: memoryMax })}>
                 <Slider min={2} max={16} step={1} value={[memoryMax]} onValueChange={([v]) => setMemoryMax(v)} />
               </Field>
             </div>
@@ -370,9 +372,9 @@ export function CreateServerFromClientDialog({
             <div className="rounded-xl bg-background-100 p-3 shadow-geist-border">
               <div className="flex flex-wrap items-center gap-2">
                 <Package className="size-4 text-gray-800" />
-                <span className="t-label-14 font-medium text-gray-1000">客户端 Mod</span>
+                <span className="t-label-14 font-medium text-gray-1000">{t("createClient.modsTitle", "客户端 Mod")}</span>
                 <span className="t-label-12 text-gray-700">
-                  {scan.mods.length} 个 · 勾选要下到服务端的
+                  {t("createClient.modsCount", "{n} 个 · 勾选要下到服务端的", { n: scan.mods.length })}
                 </span>
                 <Button
                   size="xs"
@@ -386,12 +388,12 @@ export function CreateServerFromClientDialog({
                     )
                   }
                 >
-                  全选服务端可用
+                  {t("createClient.selectAll", "全选服务端可用")}
                 </Button>
               </div>
               <div className="mt-2 max-h-[30vh] space-y-1 overflow-y-auto scroll-thin">
                 {scan.mods.length === 0 ? (
-                  <p className="t-label-12 py-3 text-gray-700">该客户端未安装模组，创建后将得到一个干净的服务端。</p>
+                  <p className="t-label-12 py-3 text-gray-700">{t("createClient.noMods", "该客户端未安装模组，创建后将得到一个干净的服务端。")}</p>
                 ) : (
                   scan.mods.map((m) => (
                     <ModRow
@@ -408,34 +410,32 @@ export function CreateServerFromClientDialog({
             {selectedMods.length ? (
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-background-200 px-3 py-2 t-label-12 text-gray-700">
                 <CheckCircle2 className="size-3.5 text-green-900" />
-                将同步 {selectedMods.length} 个 Mod；匹配不到 Modrinth 的会直接复制你客户端的 jar。
-                {clientOnly ? <span className="text-amber-900">其中 {clientOnly} 个标记仅客户端，请确认。</span> : null}
+                {t("createClient.syncHint", "将同步 {n} 个 Mod；匹配不到 Modrinth 的会直接复制你客户端的 jar。", { n: selectedMods.length })}
+                {clientOnly ? <span className="text-amber-900">{t("createClient.clientOnlyHint", "其中 {n} 个标记仅客户端，请确认。", { n: clientOnly })}</span> : null}
               </div>
             ) : null}
 
             {creating ? (
               <div>
                 <div className="flex justify-between t-label-12 text-gray-700">
-                  <span>{stage || "准备中…"}</span>
+                  <span>{stage || t("createClient.preparing", "准备中…")}</span>
                   <span>{percent}%</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
-                  <div className="h-full bg-brand-600 transition-[width] duration-200" style={{ width: `${percent}%` }} />
-                </div>
+                <Progress value={percent} label={stage || t("createClient.preparing", "准备中")} className="mt-1" />
               </div>
             ) : null}
           </>
         ) : scanning ? (
-          <div className="py-6 t-label-13 text-gray-700">正在扫描客户端…</div>
+          <div className="py-6 t-label-13 text-gray-700">{t("createClient.scanning", "正在扫描客户端…")}</div>
         ) : null}
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={creating}>
-          取消
+          {t("createClient.cancel", "取消")}
         </Button>
         <Button onClick={create} loading={creating} disabled={!scan || !current || unsupported}>
           <Server className="size-4" />
-          创建服务端并同步
+          {t("createClient.create", "创建服务端并同步")}
         </Button>
       </DialogFooter>
     </Dialog>
@@ -451,7 +451,8 @@ function ModRow({
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
 }) {
-  const env = mod.environment === "client" ? "仅客户端" : mod.environment === "server" ? "服务端" : "双端";
+  const { t } = useI18n();
+  const env = mod.environment === "client" ? t("createClient.env.clientOnly", "仅客户端") : mod.environment === "server" ? t("createClient.env.server", "服务端") : t("createClient.env.both", "双端");
   return (
     <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-100">
       <Checkbox checked={checked} onCheckedChange={(v) => onCheckedChange(v === true)} />

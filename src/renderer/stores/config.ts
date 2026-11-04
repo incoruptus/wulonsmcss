@@ -5,6 +5,7 @@ import { uid } from "@/lib/utils";
 import { CONFIG_VERSION, normalizeConfig } from "@/lib/config-model";
 import { DEFAULT_PALETTE, isPaletteId } from "@/lib/themes";
 import { detectShell } from "@/lib/shell";
+import { tGlobal } from "@/i18n/core";
 
 /** 默认模式：网页=玩家（"打开网页就能玩"），桌面=服主（开服器） */
 function defaultMode(): AppMode {
@@ -67,7 +68,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
       return saved;
     } catch (e) {
       // 只读目录/磁盘满时不能假装保存成功
-      toast.error("设置没有写进磁盘", { description: (e as Error).message });
+      toast.error(tGlobal("storeConfig.persistFailed", "设置没有写进磁盘"), { description: (e as Error).message });
       return optimistic;
     }
   },
@@ -132,6 +133,8 @@ export function makeInstance(partial: Partial<Instance> & { name: string; dir: s
     memoryMax: 4,
     jvmArgs: "",
     port: 25565,
+    // 已有服务器默认按长期开放处理；新建向导里选了「今晚玩」才置为 room
+    lifecycle: "persistent",
     createdAt: now,
     updatedAt: now,
     ...partial,

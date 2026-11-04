@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { NetDoctor } from "@/lib/types";
+import { tGlobal } from "@/i18n/core";
 
 export function useNetDoctor(opts?: { auto?: boolean }) {
   const [doctor, setDoctor] = useState<NetDoctor | null>(null);
@@ -15,7 +16,7 @@ export function useNetDoctor(opts?: { auto?: boolean }) {
       setDoctor(next);
       return next;
     } catch (e) {
-      setError((e as Error)?.message || "体检失败");
+      setError((e as Error)?.message || tGlobal("netDoctor.failed", "体检失败"));
       return null;
     } finally {
       setChecking(false);

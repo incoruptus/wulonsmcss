@@ -7,6 +7,8 @@
  * 设计取舍见 docs/LAUNCH-DESIGN.md。
  */
 
+import { tGlobal } from "../i18n/core";
+
 export type Platform = "windows" | "macos" | "linux";
 
 export interface Rule {
@@ -173,7 +175,7 @@ export async function buildLaunchPlan(ctx: LaunchContext): Promise<LaunchPlan> {
 
     const rel = lib.downloads?.artifact?.path ?? mavenToPath(lib.name);
     if (!rel) {
-      warnings.push(`看不懂的库坐标：${lib.name}`);
+      warnings.push(tGlobal("launchPlan.warnUnknownLib", "看不懂的库坐标：{name}", { name: lib.name }));
       continue;
     }
     const full = joinPath(librariesDir, rel);
@@ -217,7 +219,7 @@ export async function buildLaunchPlan(ctx: LaunchContext): Promise<LaunchPlan> {
     game = version.minecraftArguments.split(/\s+/).map((a) => subst(a, vars));
   } else {
     game = ["--username", ctx.username, "--gameDir", ctx.gameDir, "--version", version.id];
-    warnings.push("版本 JSON 没有参数，使用最小参数集");
+    warnings.push(tGlobal("launchPlan.warnMinimalArgs", "版本 JSON 没有参数，使用最小参数集"));
   }
 
   // 直接把游戏开进服务器
@@ -228,7 +230,7 @@ export async function buildLaunchPlan(ctx: LaunchContext): Promise<LaunchPlan> {
   const command = [ctx.javaPath, ...jvm, version.mainClass ?? "net.minecraft.client.main.Main", ...game];
 
   if (missing.length) {
-    warnings.push(`缺少 ${missing.length} 个文件，通常通过启动器打开一次游戏即可补齐`);
+    warnings.push(tGlobal("launchPlan.warnMissingFiles", "缺少 {n} 个文件，通常通过启动器打开一次游戏即可补齐", { n: missing.length }));
   }
 
   return { command, missing, warnings };

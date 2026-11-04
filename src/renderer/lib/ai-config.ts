@@ -7,6 +7,8 @@
  * 关键是**校验**：AI 给的东西一律当不可信输入，只接受白名单里的键、类型对得上的值。
  */
 
+import { tGlobal } from "../i18n/core";
+
 export interface ConfigChange {
   key: string;
   from: string;
@@ -80,7 +82,9 @@ export function extractJson(text: string): unknown {
   const candidate = fenced ? fenced[1] : trimmed;
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("AI 回复里没有找到可用的配置内容，请把整段回复一起粘贴");
+  if (start < 0 || end <= start) {
+    throw new Error(tGlobal("aiConfig.errNoJson", "AI 回复里没有找到可用的配置内容，请把整段回复一起粘贴"));
+  }
   return JSON.parse(candidate.slice(start, end + 1));
 }
 
@@ -99,7 +103,12 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
   const obj = (data ?? {}) as { changes?: unknown; notes?: unknown };
   const rawChanges = obj.changes;
   if (!rawChanges || typeof rawChanges !== "object") {
-    return { changes: [], rejected: [], notes: "", error: "AI 回复里没有配置改动，请让它按提示词格式重新生成" };
+    return {
+      changes: [],
+      rejected: [],
+      notes: "",
+      error: tGlobal("aiConfig.errNoChanges", "AI 回复里没有配置改动，请让它按提示词格式重新生成"),
+    };
   }
 
   const changes: ConfigChange[] = [];
@@ -107,28 +116,34 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
 
   for (const [key, rawValue] of Object.entries(rawChanges as Record<string, unknown>)) {
     if (!(key in props)) {
-      rejected.push({ key, reason: "服务器没有这个配置项" });
+      rejected.push({ key, reason: tGlobal("aiConfig.reject.unknownKey", "服务器没有这个配置项") });
       continue;
     }
     if (rawValue === null || rawValue === undefined || typeof rawValue === "object") {
-      rejected.push({ key, reason: "这个值格式不对，只支持文字、数字或开关" });
+      rejected.push({ key, reason: tGlobal("aiConfig.reject.badValue", "这个值格式不对，只支持文字、数字或开关") });
       continue;
     }
 
     const value = String(rawValue).trim();
     if (typeof rawValue === "boolean" || isBool(value)) {
       if (!isBool(value)) {
-        rejected.push({ key, reason: "这个开关只能填 true 或 false" });
+        rejected.push({ key, reason: tGlobal("aiConfig.reject.boolOnly", "这个开关只能填 true 或 false") });
         continue;
       }
     }
     if (isNumber(props[key]) && !isNumber(value)) {
-      rejected.push({ key, reason: `这里需要填数字（当前值为 ${props[key]}）` });
+      rejected.push({
+        key,
+        reason: tGlobal("aiConfig.reject.numberRequired", "这里需要填数字（当前值为 {value}）", { value: props[key] }),
+      });
       continue;
     }
     const allowed = ENUMS[key];
     if (allowed && allowed.length && !allowed.includes(value)) {
-      rejected.push({ key, reason: `有效取值范围：${allowed.join(" / ")}` });
+      rejected.push({
+        key,
+        reason: tGlobal("aiConfig.reject.enumRange", "有效取值范围：{range}", { range: allowed.join(" / ") }),
+      });
       continue;
     }
 
@@ -140,7 +155,9 @@ export function parseConfigReply(reply: string, props: Record<string, string>): 
       from,
       to: value,
       level: SENSITIVE.has(key) ? "warn" : "ok",
-      note: SENSITIVE.has(key) ? "此项修改会影响玩家连接方式，请确认无误后再应用" : undefined,
+      note: SENSITIVE.has(key)
+        ? tGlobal("aiConfig.reject.sensitiveNote", "此项修改会影响玩家连接方式，请确认无误后再应用")
+        : undefined,
     });
   }
 

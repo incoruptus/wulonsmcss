@@ -8,6 +8,7 @@
  * 只带排障需要的字段：不收集账号、UUID、聊天记录、绝对路径以外的隐私。
  */
 
+import { tGlobal } from "@/i18n/core";
 import { deflate, fromB64Url, hash6, inflate, toB64Url, type RoomDescriptorV1 } from "./room";
 import type { ReachReport } from "./reach";
 import type { CheckupResult } from "./checkup";
@@ -94,7 +95,7 @@ export async function encodeDiagnostic(d: DiagnosticV1): Promise<string> {
 export async function decodeDiagnostic(input: string): Promise<DiagnosticV1> {
   const text = String(input || "");
   const match = text.match(/d1[zp]\.[0-9a-z]{6}\.[A-Za-z0-9\-_]+/);
-  if (!match) throw new Error("无法识别诊断码，应以 d1z. 或 d1p. 开头");
+  if (!match) throw new Error(tGlobal("diagnose.err.badPrefix", "无法识别诊断码，应以 d1z. 或 d1p. 开头"));
 
   const [, mode, check, body] = /^d1([zp])\.([0-9a-z]{6})\.([A-Za-z0-9\-_]+)$/.exec(match[0])!;
   let bytes = fromB64Url(body);
@@ -102,21 +103,21 @@ export async function decodeDiagnostic(input: string): Promise<DiagnosticV1> {
     try {
       bytes = await inflate(bytes);
     } catch {
-      throw new Error("诊断码内容损坏，可能复制时遗漏了部分字符");
+      throw new Error(tGlobal("diagnose.err.corruptPartial", "诊断码内容损坏，可能复制时遗漏了部分字符"));
     }
   }
 
   const json = new TextDecoder().decode(bytes);
-  if (hash6(json) !== check) throw new Error("诊断码校验未通过，可能复制时遗漏了部分字符");
+  if (hash6(json) !== check) throw new Error(tGlobal("diagnose.err.checksum", "诊断码校验未通过，可能复制时遗漏了部分字符"));
 
   let parsed: DiagnosticV1;
   try {
     parsed = JSON.parse(json) as DiagnosticV1;
   } catch {
-    throw new Error("诊断码内容损坏");
+    throw new Error(tGlobal("diagnose.err.corrupt", "诊断码内容损坏"));
   }
-  if (parsed.v !== 1) throw new Error("诊断码来自更高版本，请升级后再查看");
-  if (!parsed.room?.mc || !Array.isArray(parsed.probes)) throw new Error("诊断码信息不完整");
+  if (parsed.v !== 1) throw new Error(tGlobal("diagnose.err.newerVersion", "诊断码来自更高版本，请升级后再查看"));
+  if (!parsed.room?.mc || !Array.isArray(parsed.probes)) throw new Error(tGlobal("diagnose.err.incomplete", "诊断码信息不完整"));
   return parsed;
 }
 
@@ -126,14 +127,14 @@ export function diagnosticNext(d: DiagnosticV1): { title: string; detail: string
   if (!online.length) {
     if (!d.probes.length) {
       return {
-        title: "邀请里没有可用地址",
-        detail: "让朋友重新发一次邀请，或者你在联机页重新生成一条邀请。",
+        title: tGlobal("diag.next.noAddr.title", "邀请里没有可用地址"),
+        detail: tGlobal("diag.next.noAddr.detail", "让朋友重新发一次邀请，或者你在联机页重新生成一条邀请。"),
         action: "network",
       };
     }
     return {
-      title: "朋友还没连上",
-      detail: "先确认服务器已经启动。服务器已经在运行时，去联机页开一条中转线路，再把新地址发给朋友。",
+      title: tGlobal("diag.next.offline.title", "朋友还没连上"),
+      detail: tGlobal("diag.next.offline.detail", "先确认服务器已经启动。服务器已经在运行时，去联机页开一条中转线路，再把新地址发给朋友。"),
       action: "network",
     };
   }
@@ -141,37 +142,37 @@ export function diagnosticNext(d: DiagnosticV1): { title: string; detail: string
   const client = d.client;
   if (!client) {
     return {
-      title: "让朋友再发一次诊断",
-      detail: "网络已经通了，但这次没有读到朋友的客户端信息。让他在加入页重新点一次「复制诊断」。",
+      title: tGlobal("diag.next.reDiagnose.title", "让朋友再发一次诊断"),
+      detail: tGlobal("diag.next.reDiagnose.detail", "网络已经通了，但这次没有读到朋友的客户端信息。让他在加入页重新点一次「复制诊断」。"),
     };
   }
   if (client.verdict === "need-mods") {
     return {
-      title: "让朋友补齐模组",
-      detail: `网络已经通了，朋友还缺 ${client.missing.length} 个模组。把进服包发给他导入，或者让他装上同样的模组。`,
+      title: tGlobal("diag.next.needMods.title", "让朋友补齐模组"),
+      detail: tGlobal("diag.next.needMods.detail", "网络已经通了，朋友还缺 {n} 个模组。把进服包发给他导入，或者让他装上同样的模组。", { n: client.missing.length }),
     };
   }
   if (client.verdict === "need-version") {
     return {
-      title: "让朋友换成对应版本",
-      detail: "网络已经通了，但朋友没有这个版本和加载器。让他用进服包，或者装成与服务器一致的版本。",
+      title: tGlobal("diag.next.needVersion.title", "让朋友换成对应版本"),
+      detail: tGlobal("diag.next.needVersion.detail", "网络已经通了，但朋友没有这个版本和加载器。让他用进服包，或者装成与服务器一致的版本。"),
     };
   }
   if (client.verdict === "no-client" || client.verdict === "no-version") {
     return {
-      title: "朋友还没装好游戏",
-      detail: "网络已经通了，但朋友的电脑上没找到可用的 Minecraft。让他先安装 Java 版并登录，再回来试。",
+      title: tGlobal("diag.next.noClient.title", "朋友还没装好游戏"),
+      detail: tGlobal("diag.next.noClient.detail", "网络已经通了，但朋友的电脑上没找到可用的 Minecraft。让他先安装 Java 版并登录，再回来试。"),
     };
   }
   if (client.verdict === "ready") {
     return {
-      title: "检查正版验证和白名单",
-      detail: "网络和客户端都正常。确认服务器没有开启正版验证、白名单里也有朋友的名字，再让他进一次。",
+      title: tGlobal("diag.next.auth.title", "检查正版验证和白名单"),
+      detail: tGlobal("diag.next.auth.detail", "网络和客户端都正常。确认服务器没有开启正版验证、白名单里也有朋友的名字，再让他进一次。"),
     };
   }
   return {
-    title: "让朋友再试一次",
-    detail: "网络已经通了，客户端还需要进一步检查。让朋友重新复制诊断，或把游戏里的报错一起发来。",
+    title: tGlobal("diag.next.fallback.title", "让朋友再试一次"),
+    detail: tGlobal("diag.next.fallback.detail", "网络已经通了，客户端还需要进一步检查。让朋友重新复制诊断，或把游戏里的报错一起发来。"),
   };
 }
 
@@ -180,14 +181,14 @@ export function diagnosticHeadline(d: DiagnosticV1): string {
   const online = d.probes.filter((p) => p.checked && p.ok);
   if (!online.length) {
     return d.probes.length
-      ? "玩家未能连接任何地址，请先确认服务器运行状态与中转连接。"
-      : "玩家未获取到可探测的地址，邀请可能生成有误。";
+      ? tGlobal("diag.headline.none", "玩家未能连接任何地址，请先确认服务器运行状态与中转连接。")
+      : tGlobal("diag.headline.noProbe", "玩家未获取到可探测的地址，邀请可能生成有误。");
   }
   const client = d.client;
-  if (!client) return "网络连接正常，但尚未读取到玩家的客户端信息。";
-  if (client.verdict === "ready") return "网络与客户端均正常，问题可能出在正版验证或白名单。";
-  if (client.verdict === "need-mods") return `网络连接正常，但玩家缺少 ${client.missing.length} 个模组。`;
-  if (client.verdict === "need-version") return "网络连接正常，但玩家没有对应版本与加载器的服务器。";
-  if (client.verdict === "no-client" || client.verdict === "no-version") return "网络连接正常，但该玩家的机器上没有可用客户端。";
-  return "网络连接正常，客户端仍需进一步检查。";
+  if (!client) return tGlobal("diag.headline.noClientInfo", "网络连接正常，但尚未读取到玩家的客户端信息。");
+  if (client.verdict === "ready") return tGlobal("diag.headline.ready", "网络与客户端均正常，问题可能出在正版验证或白名单。");
+  if (client.verdict === "need-mods") return tGlobal("diag.headline.needMods", "网络连接正常，但玩家缺少 {n} 个模组。", { n: client.missing.length });
+  if (client.verdict === "need-version") return tGlobal("diag.headline.needVersion", "网络连接正常，但玩家没有对应版本与加载器的服务器。");
+  if (client.verdict === "no-client" || client.verdict === "no-version") return tGlobal("diag.headline.noClient", "网络连接正常，但该玩家的机器上没有可用客户端。");
+  return tGlobal("diag.headline.fallback", "网络连接正常，客户端仍需进一步检查。");
 }

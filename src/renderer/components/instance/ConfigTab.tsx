@@ -8,6 +8,7 @@ import { Card, EmptyState, SegmentedControl } from "@/components/ui/misc";
 import { Callout } from "@/components/ui/callout";
 import type { Instance } from "@/lib/types";
 import { AiConfigDialog } from "@/components/instance/AiConfigDialog";
+import { useI18n } from "@/i18n";
 
 import { BOOL_META, BOOL_ORDER, SELECT_META, TEXT_META } from "@/lib/server-properties";
 
@@ -17,6 +18,7 @@ const BOOL_KEYS = BOOL_ORDER;
 const TEXT_FIELDS = Object.entries(TEXT_META).map(([key, meta]) => ({ key, ...meta }));
 
 export function ConfigTab({ instance }: { instance: Instance }) {
+  const { t } = useI18n();
   const path = `${instance.dir}\\server.properties`;
   const [props, setProps] = useState<Props | null>(null);
   const [draft, setDraft] = useState<Props>({});
@@ -31,7 +33,7 @@ export function ConfigTab({ instance }: { instance: Instance }) {
     try {
       const exists = await window.mcss.fs.exists(path);
       if (!exists) {
-        setError("尚未生成 server.properties，启动一次服务器后会自动创建。");
+        setError(t("config.noProperties", "尚未生成 server.properties，启动一次服务器后会自动创建。"));
         return;
       }
       const data = await window.mcss.props.read(path);
@@ -73,10 +75,10 @@ export function ConfigTab({ instance }: { instance: Instance }) {
       } else {
         await window.mcss.props.write(path, { ...props, ...draft });
       }
-      toast.success("已保存，重启服务器后生效");
+      toast.success(t("config.saved", "已保存，重启服务器后生效"));
       await load();
     } catch (e) {
-      toast.error(`保存失败：${(e as Error).message}`);
+      toast.error(t("config.saveFailed", "保存失败：{msg}", { msg: (e as Error).message }));
     } finally {
       setSaving(false);
     }
@@ -87,12 +89,12 @@ export function ConfigTab({ instance }: { instance: Instance }) {
       <Card>
         <EmptyState
           icon={<AlertCircle className="size-5" />}
-          title="读不到配置"
+          title={t("config.readError", "读不到配置")}
           desc={error}
           action={
             <Button variant="secondary" onClick={load}>
               <RefreshCw className="size-4" />
-              重试
+              {t("config.retry", "重试")}
             </Button>
           }
         />
@@ -100,12 +102,12 @@ export function ConfigTab({ instance }: { instance: Instance }) {
     );
   }
 
-  if (!props) return <div className="t-label-13 text-gray-700">加载中…</div>;
+  if (!props) return <div className="t-label-13 text-gray-700">{t("config.loading", "加载中…")}</div>;
 
   return (
     <div className="space-y-4">
-      <Callout tone="info" title="这里改的是服务器规则">
-        难度、人数、正版验证、死亡掉落等都在这里。不知道怎么选就保持默认；保存后重启服务器才会生效。
+      <Callout tone="info" title={t("config.callout.title", "这里改的是服务器规则")}>
+        {t("config.callout.desc", "难度、人数、正版验证、死亡掉落等都在这里。不知道怎么选就保持默认；保存后重启服务器才会生效。")}
       </Callout>
 
       <div className="flex items-center justify-between">
@@ -114,31 +116,31 @@ export function ConfigTab({ instance }: { instance: Instance }) {
             value={mode}
             onValueChange={setMode}
             options={[
-              { value: "form", label: "表单" },
-              { value: "raw", label: "原始文件（高级）" },
+              { value: "form", label: t("config.mode.form", "表单") },
+              { value: "raw", label: t("config.mode.raw", "原始文件（高级）") },
             ]}
           />
-          {dirty ? <span className="t-label-12 text-amber-900">● 未保存</span> : null}
+          {dirty ? <span className="t-label-12 text-amber-900">{t("config.unsaved", "● 未保存")}</span> : null}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setAiOpen(true)}>
             <Sparkles className="size-3.5" />
-            AI 助手
+            {t("config.ai", "AI 助手")}
           </Button>
           <Button
             variant="secondary"
             size="sm"
             onClick={() => {
-              if (dirty && !window.confirm("存在未保存的修改，确定放弃并重新载入？")) return;
+              if (dirty && !window.confirm(t("config.confirmReload", "存在未保存的修改，确定放弃并重新载入？"))) return;
               void load();
             }}
           >
             <RefreshCw className="size-3.5" />
-            重新载入
+            {t("config.reload", "重新载入")}
           </Button>
           <Button size="sm" onClick={save} loading={saving} disabled={!dirty && mode === "form"}>
             <Save className="size-3.5" />
-            保存
+            {t("config.save", "保存")}
           </Button>
         </div>
       </div>
@@ -153,9 +155,9 @@ export function ConfigTab({ instance }: { instance: Instance }) {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="space-y-3">
-            <h3 className="t-h-14 text-gray-1000">基础</h3>
+            <h3 className="t-h-14 text-gray-1000">{t("config.section.basic", "基础")}</h3>
             {TEXT_FIELDS.map((f) => (
-              <Field key={f.key} label={f.label} hint={f.hint}>
+              <Field key={f.key} label={t(f.labelKey, f.label)} hint={f.hintKey && f.hint ? t(f.hintKey, f.hint) : f.hint}>
                 <Input
                   value={draft[f.key] ?? ""}
                   onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
@@ -166,17 +168,17 @@ export function ConfigTab({ instance }: { instance: Instance }) {
 
           <div className="space-y-4">
             <Card className="space-y-3">
-              <h3 className="t-h-14 text-gray-1000">玩法</h3>
+              <h3 className="t-h-14 text-gray-1000">{t("config.section.gameplay", "玩法")}</h3>
               {Object.entries(SELECT_META).map(([key, meta]) => (
-                <Field key={key} label={meta.label} hint={meta.hint}>
+                <Field key={key} label={t(meta.labelKey, meta.label)} hint={t(meta.hintKey, meta.hint)}>
                   <Picker
                     value={draft[key] ?? meta.options[0].value}
                     onValueChange={(v) => setDraft({ ...draft, [key]: v })}
-                    options={meta.options}
+                    options={meta.options.map((o) => ({ value: o.value, label: t(o.labelKey, o.label) }))}
                   />
                 </Field>
               ))}
-              <Field label="强制游戏模式">
+              <Field label={t("config.forceGamemode", "强制游戏模式")}>
                 <Switch
                   checked={draft["force-gamemode"] === "true"}
                   onCheckedChange={(v) => setDraft({ ...draft, "force-gamemode": String(v) })}
@@ -185,30 +187,33 @@ export function ConfigTab({ instance }: { instance: Instance }) {
             </Card>
 
             <Card>
-              <h3 className="t-h-14 mb-2 text-gray-1000">开关</h3>
+              <h3 className="t-h-14 mb-2 text-gray-1000">{t("config.section.toggles", "开关")}</h3>
               <div className="grid gap-2 sm:grid-cols-2">
-                {BOOL_KEYS.map((key) => (
+                {BOOL_KEYS.map((key) => {
+                  const meta = BOOL_META[key];
+                  return (
                   <label key={key} className="flex items-start justify-between gap-3 rounded-md px-1 py-1">
                     <span className="min-w-0">
-                      <span className="t-label-13 block text-gray-900">{BOOL_META[key]?.label ?? key}</span>
-                      {BOOL_META[key]?.hint ? (
-                        <span className="t-label-12 mt-0.5 block leading-4 text-gray-700">{BOOL_META[key].hint}</span>
+                      <span className="t-label-13 block text-gray-900">{meta ? t(meta.labelKey, meta.label) : key}</span>
+                      {meta?.hint ? (
+                        <span className="t-label-12 mt-0.5 block leading-4 text-gray-700">{meta.hintKey ? t(meta.hintKey, meta.hint) : meta.hint}</span>
                       ) : null}
                     </span>
                     <Switch
                       checked={draft[key] === "true"}
                       onCheckedChange={(v) => {
                         if (key === "online-mode" && !v) {
-                          if (!window.confirm("关闭后任何客户端均可进入，玩家名称可能被冒用，确认关闭？")) return;
+                          if (!window.confirm(t("config.confirmOnlineMode", "关闭后任何客户端均可进入，玩家名称可能被冒用，确认关闭？"))) return;
                         }
                         if (key === "hardcore" && v) {
-                          if (!window.confirm("极限模式下死亡后无法复活，且难以恢复，确认开启？")) return;
+                          if (!window.confirm(t("config.confirmHardcore", "极限模式下死亡后无法复活，且难以恢复，确认开启？"))) return;
                         }
                         setDraft({ ...draft, [key]: String(v) });
                       }}
                     />
                   </label>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </div>

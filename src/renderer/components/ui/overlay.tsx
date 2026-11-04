@@ -3,6 +3,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { X } from "lucide-react";
+import { useI18n } from "@/i18n";
 import { cx } from "@/lib/utils";
 
 export interface DialogProps {
@@ -15,13 +16,14 @@ export interface DialogProps {
 }
 
 export function Dialog({ open, onOpenChange, children, className, widthClass = "max-w-xl", hideClose }: DialogProps) {
+  const { t } = useI18n();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] transition-opacity duration-200 data-[state=closed]:opacity-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] transition-opacity duration-[var(--dur-modal)] data-[state=closed]:opacity-0" />
         <DialogPrimitive.Content
           className={cx(
-            "fixed left-1/2 top-[6dvh] z-50 flex max-h-[88dvh] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl bg-background-100 shadow-geist-modal transition-[transform,opacity] duration-200 ease-swift focus:outline-none data-[state=closed]:scale-[0.98] data-[state=closed]:opacity-0 sm:top-1/2 sm:max-h-[86dvh] sm:w-[92vw] sm:-translate-y-1/2",
+            "fixed left-1/2 top-[6dvh] z-50 flex max-h-[88dvh] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl bg-background-100 shadow-geist-modal transition-[transform,opacity] duration-[var(--dur-modal)] ease-[var(--ease-out)] focus:outline-none data-[state=closed]:scale-[var(--pop-scale)] data-[state=closed]:opacity-0 sm:top-1/2 sm:max-h-[86dvh] sm:w-[92vw] sm:-translate-y-1/2",
             widthClass,
             className,
           )}
@@ -29,7 +31,7 @@ export function Dialog({ open, onOpenChange, children, className, widthClass = "
           {children}
           {hideClose ? null : (
             <DialogPrimitive.Close
-              aria-label="关闭"
+              aria-label={t("common.close", "关闭")}
               className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-1000"
             >
               <X className="size-4" />
@@ -151,19 +153,24 @@ export function PopoverContent({
 }
 
 export function Tip({ children, tip, side = "top" }: { children: React.ReactNode; tip: React.ReactNode; side?: "top" | "bottom" | "left" | "right" }) {
+  // 自带 Provider：Tip 会被页面、对话框、独立渲染的组件分别使用，
+  // 不能要求每个调用方都在外层记得包一层。
   return (
-    <TooltipPrimitive.Root>
-      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-      <TooltipPrimitive.Portal>
-        <TooltipPrimitive.Content
-          side={side}
-          sideOffset={6}
-          className="z-50 max-w-64 origin-[var(--radix-tooltip-content-transform-origin)] rounded-lg bg-gray-1000 px-2.5 py-1.5 text-[12px] leading-4 text-background-100 shadow-geist-md"
-        >
-          {tip}
-        </TooltipPrimitive.Content>
-      </TooltipPrimitive.Portal>
-    </TooltipPrimitive.Root>
+    <TooltipPrimitive.Provider delayDuration={300}>
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content
+            side={side}
+            sideOffset={6}
+            collisionPadding={8}
+            className="z-50 max-w-64 origin-[var(--radix-tooltip-content-transform-origin)] rounded-lg bg-gray-1000 px-2.5 py-1.5 text-[12px] leading-4 text-background-100 shadow-geist-md"
+          >
+            {tip}
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    </TooltipPrimitive.Provider>
   );
 }
 

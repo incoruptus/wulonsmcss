@@ -1,5 +1,6 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
+import { useI18n } from "@/i18n";
 import { cx } from "@/lib/utils";
 
 export interface PickerOption {
@@ -27,10 +28,12 @@ export function Picker({
   options,
   className,
   size = "md",
-  placeholder = "请选择",
+  placeholder,
   disabled,
   ...rest
 }: PickerProps) {
+  const { t } = useI18n();
+  const placeholderText = placeholder ?? t("common.select", "请选择");
   const current = options.find((option) => option.value === value);
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
@@ -45,8 +48,8 @@ export function Picker({
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={<span className="truncate text-gray-700">{placeholder}</span>} className="min-w-0 flex-1 truncate">
-          <span className="truncate">{current?.label ?? placeholder}</span>
+        <SelectPrimitive.Value placeholder={<span className="truncate text-gray-700">{placeholderText}</span>} className="min-w-0 flex-1 truncate">
+          <span className="truncate">{current?.label ?? placeholderText}</span>
         </SelectPrimitive.Value>
         <SelectPrimitive.Icon className="ml-auto shrink-0"><ChevronDown className="size-3.5 text-gray-700" /></SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>

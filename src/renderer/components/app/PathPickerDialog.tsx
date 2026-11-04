@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/field";
 import type { DirEntry } from "@/lib/types";
 import { settlePath, usePathPicker } from "@/lib/path-picker";
 import { cx } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 interface Drive {
   path: string;
@@ -95,6 +96,7 @@ export function PathPickerDialog() {
   const [filename, setFilename] = useState("");
   const alive = useRef(true);
   const loadSeq = useRef(0);
+  const { t } = useI18n();
 
   useEffect(() => {
     alive.current = true;
@@ -131,11 +133,11 @@ export function PathPickerDialog() {
       const candidates: Place[] = [];
       if (info) {
         const home = info.documents ? parentOf(info.documents) : "";
-        if (home) candidates.push({ label: "桌面", path: joinPath(home, "Desktop") });
-        if (info.documents) candidates.push({ label: "文档", path: info.documents });
-        if (home) candidates.push({ label: "下载", path: joinPath(home, "Downloads") });
+        if (home) candidates.push({ label: t("pathPicker.place.desktop", "桌面"), path: joinPath(home, "Desktop") });
+        if (info.documents) candidates.push({ label: t("pathPicker.place.documents", "文档"), path: info.documents });
+        if (home) candidates.push({ label: t("pathPicker.place.downloads", "下载"), path: joinPath(home, "Downloads") });
         if (info.minecraftDir) candidates.push({ label: ".minecraft", path: info.minecraftDir });
-        if (info.appData) candidates.push({ label: "应用数据", path: info.appData });
+        if (info.appData) candidates.push({ label: t("pathPicker.place.appData", "应用数据"), path: info.appData });
       }
       const checked = await Promise.all(
         candidates.map(async (p) => ((await window.mcss.fs.exists(p.path).catch(() => false)) ? p : null)),
@@ -178,7 +180,11 @@ export function PathPickerDialog() {
     } catch (e) {
       if (alive.current && seq === loadSeq.current) {
         setError(
-          `连不上本机助手，读取不了这台电脑的目录。确认助手已启动后刷新页面；如果浏览器问是否允许访问本地网络，请点允许。(${(e as Error).message})`,
+          t(
+            "pathPicker.err.agent",
+            "连不上本机助手，读取不了这台电脑的目录。确认助手已启动后刷新页面；如果浏览器问是否允许访问本地网络，请点允许。({msg})",
+            { msg: (e as Error).message },
+          ),
         );
       }
       return;
@@ -186,7 +192,7 @@ export function PathPickerDialog() {
     if (seq !== loadSeq.current) return;
     if (!exists) {
       if (alive.current) {
-        setError("这个路径不存在，或者没有权限读取。可以从左侧的磁盘和常用位置重新进。");
+        setError(t("pathPicker.err.notFound", "这个路径不存在，或者没有权限读取。可以从左侧的磁盘和常用位置重新进。"));
         setTyped(target);
       }
       return;
@@ -198,7 +204,7 @@ export function PathPickerDialog() {
       setEntries(list);
       setSelected(null);
     } catch (e) {
-      if (alive.current && seq === loadSeq.current) setError((e as Error).message || "读取目录失败");
+      if (alive.current && seq === loadSeq.current) setError((e as Error).message || t("pathPicker.err.readDir", "读取目录失败"));
     } finally {
       if (alive.current && seq === loadSeq.current) setLoading(false);
     }
@@ -224,9 +230,18 @@ export function PathPickerDialog() {
 
   const title =
     pending.title ||
-    (pending.mode === "dir" ? "选择文件夹" : pending.mode === "save" ? "保存到" : "选择文件");
+    (pending.mode === "dir"
+      ? t("pathPicker.title.dir", "选择文件夹")
+      : pending.mode === "save"
+        ? t("pathPicker.title.save", "保存到")
+        : t("pathPicker.title.file", "选择文件"));
   const confirmLabel =
-    pending.confirmLabel || (pending.mode === "dir" ? "选择这个文件夹" : pending.mode === "save" ? "保存" : "选择");
+    pending.confirmLabel ||
+    (pending.mode === "dir"
+      ? t("pathPicker.confirm.dir", "选择这个文件夹")
+      : pending.mode === "save"
+        ? t("pathPicker.confirm.save", "保存")
+        : t("pathPicker.confirm.file", "选择"));
   const canConfirm =
     pending.mode === "dir" ? Boolean(dir) : pending.mode === "file" ? Boolean(selected) : Boolean(dir && filename.trim());
   const trail = crumbs(dir);
@@ -238,7 +253,7 @@ export function PathPickerDialog() {
     else {
       const name = filename.trim();
       if (/[<>:"/\\|?*\u0000-\u001F]/.test(name) || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name)) {
-        setError("这个文件名在 Windows 上不能用，换一个名字。");
+        setError(t("pathPicker.err.filename", "这个文件名在 Windows 上不能用，换一个名字。"));
         return;
       }
       settlePath(joinPath(dir, name));
@@ -260,23 +275,23 @@ export function PathPickerDialog() {
         title={title}
         desc={
           pending.mode === "dir"
-            ? "在这台电脑上点进目标文件夹，然后确认。列表由本机助手读取，看到的就是实际内容。"
+            ? t("pathPicker.desc.dir", "在这台电脑上点进目标文件夹，然后确认。列表由本机助手读取，看到的就是实际内容。")
             : pending.mode === "file"
-              ? "点一下文件即可选中；双击直接确认。"
-              : "先选保存位置，再填文件名。"
+              ? t("pathPicker.desc.file", "点一下文件即可选中；双击直接确认。")
+              : t("pathPicker.desc.save", "先选保存位置，再填文件名。")
         }
       />
       <DialogBody className="space-y-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Button size="xs" variant="ghost" onClick={() => void load(parentOf(dir))} disabled={!dir || loading} title="上一级">
+          <Button size="xs" variant="ghost" onClick={() => void load(parentOf(dir))} disabled={!dir || loading} title={t("pathPicker.up", "上一级")}>
             <ArrowUp className="size-3.5" />
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => void load(dir)} disabled={!dir || loading} title="刷新">
+          <Button size="xs" variant="ghost" onClick={() => void load(dir)} disabled={!dir || loading} title={t("pathPicker.refresh", "刷新")}>
             {loading ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
           </Button>
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5 rounded-lg bg-background-200 px-2 py-1">
             {trail.length === 0 ? (
-              <span className="t-label-12 text-gray-700">选择磁盘</span>
+              <span className="t-label-12 text-gray-700">{t("pathPicker.drives", "选择磁盘")}</span>
             ) : (
               trail.map((item, index) => (
                 <span key={item.path} className="flex min-w-0 items-center">
@@ -332,11 +347,11 @@ export function PathPickerDialog() {
               <div className="space-y-2 p-3">
                 <p className="t-label-12 leading-5 text-amber-900">{error}</p>
                 <Button size="xs" variant="secondary" onClick={() => window.location.reload()}>
-                  刷新页面
+                  {t("pathPicker.refreshPage", "刷新页面")}
                 </Button>
               </div>
             ) : visible.length === 0 ? (
-              <p className="p-3 t-label-12 text-gray-700">这个文件夹是空的。</p>
+              <p className="p-3 t-label-12 text-gray-700">{t("pathPicker.empty", "这个文件夹是空的。")}</p>
             ) : (
               visible.map((entry) => {
                 const isSelected = selected === entry.path;
@@ -377,8 +392,12 @@ export function PathPickerDialog() {
 
         {pending.mode === "save" ? (
           <div className="flex items-center gap-2">
-            <span className="t-label-12 shrink-0 text-gray-700">文件名</span>
-            <Input value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="保存文件名" />
+            <span className="t-label-12 shrink-0 text-gray-700">{t("pathPicker.filename", "文件名")}</span>
+            <Input
+              value={filename}
+              onChange={(e) => setFilename(e.target.value)}
+              placeholder={t("pathPicker.filenamePlaceholder", "保存文件名")}
+            />
           </div>
         ) : null}
 
@@ -393,19 +412,19 @@ export function PathPickerDialog() {
               }
             }}
             className="font-mono text-[12px]"
-            placeholder="也可以直接粘贴完整路径后回车"
-            aria-label="路径"
+            placeholder={t("pathPicker.pathPlaceholder", "也可以直接粘贴完整路径后回车")}
+            aria-label={t("pathPicker.pathAria", "路径")}
           />
           <Button size="sm" variant="secondary" onClick={() => void load(typed)} disabled={!typed.trim() || loading}>
             <CornerDownLeft className="size-3.5" />
-            前往
+            {t("pathPicker.go", "前往")}
           </Button>
         </div>
       </DialogBody>
 
       <DialogFooter>
         <Button variant="secondary" onClick={() => settlePath(null)}>
-          取消
+          {t("pathPicker.cancel", "取消")}
         </Button>
         <Button onClick={confirm} disabled={!canConfirm}>
           {confirmLabel}

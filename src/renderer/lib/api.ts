@@ -102,6 +102,17 @@ export interface McssApi {
     /** 开机自启（网页版由 agent 写 HKCU Run，桌面版由 Electron 托管） */
     autostart: () => Promise<{ enabled: boolean; command: string; exe: string }>;
     setAutostart: (enabled: boolean) => Promise<{ enabled: boolean; command: string; exe: string }>;
+    /** 轻量更新：只换应用层 asar，运行时变了才提示下完整包 */
+    updateCheck: () => Promise<{
+      current: string;
+      latest: string;
+      available: boolean;
+      notes: string;
+      size: number;
+      runtimeOk: boolean;
+    }>;
+    updateDownload: () => Promise<{ version: string; size: number }>;
+    updateApply: () => Promise<{ ok: boolean }>;
   };
   config: {
     read: () => Promise<AppConfig>;

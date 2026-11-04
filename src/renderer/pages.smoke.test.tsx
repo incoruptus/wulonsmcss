@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
+import { I18nProvider } from "@/i18n";
 import { useConfig } from "@/stores/config";
 import Join from "./pages/Join";
 import Settings from "./pages/Settings";
@@ -56,8 +57,17 @@ function seedConfig() {
 }
 
 function render(node: React.ReactElement, path = "/") {
-  return renderToString(<MemoryRouter initialEntries={[path]}>{node}</MemoryRouter>);
+  // 页面里的界面文案走 useI18n，测试也要在 Provider 里渲染
+  return renderToString(
+    <I18nProvider>
+      <MemoryRouter initialEntries={[path]}>{node}</MemoryRouter>
+    </I18nProvider>,
+  );
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("页面渲染回归", () => {
   it("加入页：没有房间码时渲染粘贴框，不白屏", () => {
@@ -83,9 +93,11 @@ describe("页面渲染回归", () => {
     stubBridge();
     seedConfig();
     const html = renderToString(
-      <MemoryRouter initialEntries={["/instances/i1/content?view=browse"]}>
-        <ContentTab instance={instance as never} />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter initialEntries={["/instances/i1/content?view=browse"]}>
+          <ContentTab instance={instance as never} />
+        </MemoryRouter>
+      </I18nProvider>,
     );
     expect(html).toContain("已装模组");
     expect(html).toContain("资源库");
@@ -105,4 +117,14 @@ describe("页面渲染回归", () => {
     const html = render(<Settings />, "/settings");
     expect(html).toContain("外观");
   });
+  it("英文界面：设置页渲染英文，不再出现中文标题", () => {
+    stubBridge();
+    seedConfig();
+    vi.stubGlobal("localStorage", { getItem: () => "en-US", setItem: () => {} });
+    const html = render(<Settings />, "/settings");
+    expect(html).toContain("Settings");
+    expect(html).toContain("Appearance");
+    expect(html).not.toContain("关于开服茶");
+  });
+
 });

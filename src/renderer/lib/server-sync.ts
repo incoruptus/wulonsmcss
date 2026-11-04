@@ -11,6 +11,7 @@
  */
 
 import type { ModMeta } from "./types";
+import { tGlobal } from "../i18n/core";
 
 /** 和 ModsTab 的 DiffRow 结构兼容，但不反过来依赖组件 */
 export interface DiffLike {
@@ -93,7 +94,7 @@ export async function applyServerToClient(mcDir: string, items: ModMeta[]): Prom
 
   for (const item of items) {
     if (!item.path) {
-      result.failed.push({ file: item.file, error: "云端清单没有文件路径" });
+      result.failed.push({ file: item.file, error: tGlobal("serverSync.errNoPath", "云端清单没有文件路径") });
       continue;
     }
     const dest = joinDir(modsDir, item.file);
@@ -107,7 +108,7 @@ export async function applyServerToClient(mcDir: string, items: ModMeta[]): Prom
       result.copied.push(item.file);
       files.push(dest);
     } catch (e) {
-      result.failed.push({ file: item.file, error: (e as Error)?.message || "复制失败" });
+      result.failed.push({ file: item.file, error: (e as Error)?.message || tGlobal("serverSync.errCopy", "复制失败") });
     }
   }
 

@@ -8,6 +8,7 @@
 import { buildDimension, normalizeDimension, type MwmWorld } from "../../../wulons-mcss-mwm/src/generate.js";
 import { buildPackMeta } from "../../../wulons-mcss-mwm/src/templates/pack_mcmeta.js";
 import { TYPE_MAP, inferTypeFromDimension } from "../../../wulons-mcss-mwm/src/templates/dimension_types.js";
+import { tGlobal } from "../i18n/core";
 
 export interface WorldConfig extends MwmWorld {
   name: string;
@@ -33,7 +34,7 @@ export function buildWorldPack(world: WorldConfig, namespace = "wulons"): Genera
   const packName = `mwm-${namespace}-${world.name}`;
   const label = world.label || world.name;
   const template = TYPE_MAP[world.type || "overworld"];
-  if (!template) throw new Error(`未知的世界类型: ${world.type}`);
+  if (!template) throw new Error(tGlobal("mwm.err.unknownType", "未知的世界类型: {type}", { type: world.type }));
 
   const files: PackFile[] = [
     { path: "pack.mcmeta", content: json(buildPackMeta(label, world.description)) },
@@ -51,7 +52,7 @@ export function buildMegaPack(worlds: WorldConfig[], namespace = "wulons"): Gene
 
   for (const world of worlds) {
     const template = TYPE_MAP[world.type || "overworld"];
-    if (!template) throw new Error(`未知的世界类型: ${world.type}`);
+    if (!template) throw new Error(tGlobal("mwm.err.unknownType", "未知的世界类型: {type}", { type: world.type }));
     files.push({ path: `data/${namespace}/dimension_type/${world.name}.json`, content: json(template.type) });
     files.push({
       path: `data/${namespace}/dimension/${world.name}.json`,

@@ -6,10 +6,11 @@
  * 并发调用共享同一轮（单飞）。
  */
 
+import { tGlobal } from "@/i18n/core";
 import { create } from "zustand";
 import type { AppConfig } from "../types";
 import { isPairCodeWellFormed } from "./crypto";
-import { gistFind, gistPull, gistPush, type GistCandidate } from "./gist";
+import { GistHttpError, gistFind, gistPull, gistPush, type GistCandidate } from "./gist";
 import { mergeSyncState, toSyncInstance, type MergeResult } from "./merge";
 import { buildEnvelope, parseEnvelope, quickHash, serializeEnvelope, stableJson } from "./pack";
 import {
@@ -105,15 +106,15 @@ async function buildPayload(cfg: AppConfig, deps: SyncDeps): Promise<SyncPayload
 async function runOnce(deps: SyncDeps, manual: boolean): Promise<SyncOutcome> {
   const cfg = deps.getConfig();
   const sync = cfg.sync;
-  if (!sync?.token) throw new Error("尚未填写 GitHub Token");
+  if (!sync?.token) throw new Error(tGlobal("sync.error.noToken", "尚未填写 GitHub Token"));
   if (!sync.pairCode || !isPairCodeWellFormed(sync.pairCode)) {
-    throw new Error("配对码尚未就绪，请先生成，或粘贴另一台设备的配对码");
+    throw new Error(tGlobal("sync.error.noPairCode", "配对码尚未就绪，请先生成，或粘贴另一台设备的配对码"));
   }
   if (!manual && sync.backoffUntil && Date.now() < sync.backoffUntil) {
     return { pulled: false, pushed: false, applied: null, skipped: true };
   }
 
-  setStatus({ phase: "syncing", at: Date.now(), message: "正在同步…" });
+  setStatus({ phase: "syncing", at: Date.now(), message: tGlobal("sync.phase.syncing", "正在同步…") });
   try {
     let pulled = false;
     let applied: MergeResult["applied"] | null = null;
@@ -126,7 +127,7 @@ async function runOnce(deps: SyncDeps, manual: boolean): Promise<SyncOutcome> {
       try {
         remote = await gistPull(sync);
       } catch (e) {
-        if (!/找不到同步仓库/.test((e as Error).message)) throw e;
+        if (!(e instanceof GistHttpError && e.status === 404)) throw e;
       }
     }
     if (remote) parsed = await parseEnvelope(remote.text, sync.pairCode);
@@ -212,15 +213,19 @@ async function runOnce(deps: SyncDeps, manual: boolean): Promise<SyncOutcome> {
     });
 
     const bits: string[] = [];
-    if (applied) bits.push(`新增 ${applied.added} · 更新 ${applied.updated} · 删除 ${applied.deleted}`);
+    if (applied) bits.push(tGlobal("sync.result.bits", "新增 {added} · 更新 {updated} · 删除 {deleted}", { added: applied.added, updated: applied.updated, deleted: applied.deleted }));
     setStatus({
       phase: "ok",
       at: Date.now(),
-      message: bits.length ? `同步完成 · ${bits.join(" · ")}` : pushed || pulled ? "同步完成" : "已经是最新",
+      message: bits.length
+        ? tGlobal("sync.result.doneWith", "同步完成 · {detail}", { detail: bits.join(" · ") })
+        : pushed || pulled
+          ? tGlobal("sync.result.done", "同步完成")
+          : tGlobal("sync.result.upToDate", "已经是最新"),
     });
     return { pulled, pushed, applied };
   } catch (e) {
-    const message = (e as Error).message || "同步失败";
+    const message = (e as Error).message || tGlobal("sync.error.failed", "同步失败");
     const streak = (sync.failStreak ?? 0) + 1;
     try {
       await deps.saveSync({ lastError: message, failStreak: streak, backoffUntil: Date.now() + backoffDelayMs(streak) });

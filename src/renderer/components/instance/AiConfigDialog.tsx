@@ -9,6 +9,7 @@ import { Callout } from "@/components/ui/callout";
 import { applyChanges, buildConfigPrompt, parseConfigReply, type ParseResult } from "@/lib/ai-config";
 import { copyText } from "@/lib/utils";
 import type { Instance } from "@/lib/types";
+import { useI18n } from "@/i18n";
 
 /**
  * AI 配置助手：描述需求 → 复制提示词 → 粘回 JSON → 校验 → 应用。
@@ -27,6 +28,7 @@ export function AiConfigDialog({
   props: Record<string, string>;
   onApply: (next: Record<string, string>) => void;
 }) {
+  const { t } = useI18n();
   const [wish, setWish] = useState("");
   const [reply, setReply] = useState("");
   const [result, setResult] = useState<ParseResult | null>(null);
@@ -47,20 +49,20 @@ export function AiConfigDialog({
       widthClass="max-w-2xl"
     >
       <DialogHeader
-        title="AI 配置助手"
-        desc="简要描述你期望的服务器玩法与规则，复制提示词给任意 AI，再把 AI 的回复粘贴到下面；开服茶会检查能改的项目并填入表单。"
+        title={t("ai.title", "AI 配置助手")}
+        desc={t("ai.desc", "简要描述你期望的服务器玩法与规则，复制提示词给任意 AI，再把 AI 的回复粘贴到下面；开服茶会检查能改的项目并填入表单。")}
       />
       <DialogBody className="space-y-3">
-        <Callout tone="info" title="三步就能用">
-          先写下你想要的玩法，再复制提示词发给任意 AI，最后把 AI 的回复粘贴到下面。开服茶只接受能安全修改的配置项，改完还需要你点「保存」。
+        <Callout tone="info" title={t("ai.steps.title", "三步就能用")}>
+          {t("ai.steps.body", "先写下你想要的玩法，再复制提示词发给任意 AI，最后把 AI 的回复粘贴到下面。开服茶只接受能安全修改的配置项，改完还需要你点「保存」。")}
         </Callout>
 
         <div>
-          <div className="t-label-12 mb-1 text-gray-700">描述你期望的服务器玩法与规则</div>
+          <div className="t-label-12 mb-1 text-gray-700">{t("ai.wish.label", "描述你期望的服务器玩法与规则")}</div>
           <Input
             value={wish}
             onChange={(e) => setWish(e.target.value)}
-            placeholder="例如：4 人周末联机生存，开启死亡不掉落，怪物难度适中"
+            placeholder={t("ai.wish.placeholder", "例如：4 人周末联机生存，开启死亡不掉落，怪物难度适中")}
           />
         </div>
 
@@ -74,19 +76,19 @@ export function AiConfigDialog({
                 props,
                 wish,
               );
-              (await copyText(prompt)) ? toast.success("提示词已复制，可发送给任意 AI 工具生成配置") : toast.error("复制失败");
+              (await copyText(prompt)) ? toast.success(t("ai.copyPromptDone", "提示词已复制，可发送给任意 AI 工具生成配置")) : toast.error(t("ai.copyFailed", "复制失败"));
             }}
           >
             <ClipboardCopy className="size-3.5" />
-            复制提示词
+            {t("ai.copyPrompt", "复制提示词")}
           </Button>
           <span className="t-label-12 self-center text-gray-700">
-            提示词会自动带上当前配置和能改的项目
+            {t("ai.promptHint", "提示词会自动带上当前配置和能改的项目")}
           </span>
         </div>
 
         <div>
-          <div className="t-label-12 mb-1 text-gray-700">粘贴 AI 回复的完整内容</div>
+          <div className="t-label-12 mb-1 text-gray-700">{t("ai.reply.label", "粘贴 AI 回复的完整内容")}</div>
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
@@ -98,16 +100,16 @@ export function AiConfigDialog({
             <Button
               size="sm"
               onClick={() => {
-                if (!reply.trim()) return toast.info("请先粘贴 AI 的回复");
+                if (!reply.trim()) return toast.info(t("ai.replyEmpty", "请先粘贴 AI 的回复"));
                 setResult(parseConfigReply(reply, props));
               }}
             >
               <Wand2 className="size-3.5" />
-              检查配置
+              {t("ai.check", "检查配置")}
             </Button>
             {result ? (
               <Button size="sm" variant="ghost" onClick={reset}>
-                清空重填
+                {t("ai.reset", "清空重填")}
               </Button>
             ) : null}
           </div>
@@ -118,12 +120,12 @@ export function AiConfigDialog({
             <div className="rounded-lg bg-red-700/10 p-2.5 t-label-12 text-red-900">
               <div>{result.error}</div>
               <div className="mt-1 text-red-900/80">
-                把 AI 的完整回复重新粘贴一次；如果还是没有配置内容，让它按提示词重新生成。
+                {t("ai.retryHint", "把 AI 的完整回复重新粘贴一次；如果还是没有配置内容，让它按提示词重新生成。")}
               </div>
             </div>
           ) : (
             <div className="space-y-2">
-              {result.notes ? <p className="t-label-12 text-gray-800">AI 说明：{result.notes}</p> : null}
+              {result.notes ? <p className="t-label-12 text-gray-800">{t("ai.notes", "AI 说明：{notes}", { notes: result.notes })}</p> : null}
 
               {result.changes.length ? (
                 <div className="divide-y divide-gray-300 rounded-lg bg-background-100 shadow-geist-border">
@@ -135,19 +137,19 @@ export function AiConfigDialog({
                       <span className="t-mono-12 text-green-900">{c.to}</span>
                       {c.level === "warn" ? (
                         <Badge variant="amber" size="sm" title={c.note}>
-                          需确认
+                          {t("ai.needsConfirm", "需确认")}
                         </Badge>
                       ) : null}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="t-label-12 text-gray-700">未检测到可应用的配置修改。</div>
+                <div className="t-label-12 text-gray-700">{t("ai.noChanges", "未检测到可应用的配置修改。")}</div>
               )}
 
               {result.rejected.length ? (
                 <div className="rounded-lg bg-amber-700/10 p-2.5">
-                  <div className="t-label-12 mb-1 text-amber-900">以下配置项不在可改范围内，已自动忽略：</div>
+                  <div className="t-label-12 mb-1 text-amber-900">{t("ai.rejected", "以下配置项不在可改范围内，已自动忽略：")}</div>
                   {result.rejected.map((r) => (
                     <div key={r.key} className="t-mono-12 text-amber-900">
                       {r.key} — {r.reason}
@@ -161,20 +163,20 @@ export function AiConfigDialog({
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => onOpenChange(false)}>
-          取消
+          {t("ai.cancel", "取消")}
         </Button>
         <Button
           disabled={!result || Boolean(result.error) || !result.changes.length}
           onClick={() => {
             if (!result || !result.changes.length) return;
             onApply(applyChanges(props, result.changes));
-            toast.success(`已将 ${result.changes.length} 项配置修改填入表单`, { description: "配置已填入表单，请点击「保存」使其生效" });
+            toast.success(t("ai.applied", "已将 {n} 项配置修改填入表单", { n: result.changes.length }), { description: t("ai.appliedDesc", "配置已填入表单，请点击「保存」使其生效") });
             reset();
             onOpenChange(false);
           }}
         >
           <Sparkles className="size-3.5" />
-          应用到表单
+          {t("ai.apply", "应用到表单")}
         </Button>
       </DialogFooter>
     </Dialog>

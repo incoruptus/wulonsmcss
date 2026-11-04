@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/field";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import type { DirEntry, Instance } from "@/lib/types";
 import { formatBytes } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 /**
  * 插件页（插件服：Paper / Purpur）
@@ -15,6 +16,7 @@ import { formatBytes } from "@/lib/utils";
  * 只回答三件事：装了什么、启用没有、从哪装。
  */
 export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrowse?: () => void }) {
+  const { t } = useI18n();
   const pluginsDir = `${instance.dir}\\plugins`;
   const [files, setFiles] = useState<DirEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -47,7 +49,7 @@ export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrows
       else await window.mcss.mods.disable(file.path);
       await load();
     } catch (e) {
-      toast.error(`操作失败：${(e as Error).message}`);
+      toast.error(t("plugins.errToggle", "操作失败：{msg}", { msg: (e as Error).message }));
     }
   }
 
@@ -58,53 +60,53 @@ export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrows
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-700" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索已装插件…" className="h-8 pl-8 text-[13px]" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("plugins.search.placeholder", "搜索已装插件…")} className="h-8 pl-8 text-[13px]" />
         </div>
         <Badge variant="violet" size="sm">
-          <Plug className="size-3" /> 插件
+          <Plug className="size-3" /> {t("plugins.badge", "插件")}
         </Badge>
         <span className="t-label-12 text-gray-700">
-          启用 {enabled} / 共 {files.length}
+          {t("plugins.enabledCount", "启用 {on} / 共 {total}", { on: enabled, total: files.length })}
         </span>
         <Button variant="secondary" size="sm" onClick={load} loading={loading}>
           <RefreshCw className="size-3.5" />
-          刷新
+          {t("plugins.refresh", "刷新")}
         </Button>
         <Button size="sm" onClick={onBrowse} disabled={!onBrowse}>
           <PackageSearch className="size-3.5" />
-          去资源库装
+          {t("plugins.browse", "去资源库装")}
         </Button>
-        <IconButton label="打开 plugins 目录" size="sm" onClick={() => window.mcss.app.openPath(pluginsDir)}>
+        <IconButton label={t("plugins.openDir", "打开 plugins 目录")} size="sm" onClick={() => window.mcss.app.openPath(pluginsDir)}>
           <FolderOpen className="size-3.5" />
         </IconButton>
       </div>
 
       <p className="t-label-12 text-gray-800">
-        插件仅在服务端运行，玩家使用原版客户端即可进入；安装后重启服务器生效。
+        {t("plugins.note", "插件仅在服务端运行，玩家使用原版客户端即可进入；安装后重启服务器生效。")}
       </p>
 
       {files.length === 0 && !loading ? (
         <Card>
           <EmptyState
             icon={<Plug className="size-5" />}
-            title="还没有装插件"
-            desc="领地保护、传送、经济、权限等插件都可以在「资源库」里搜索安装，安装后重启服务器生效。"
+            title={t("plugins.empty.title", "还没有装插件")}
+            desc={t("plugins.empty.desc", "领地保护、传送、经济、权限等插件都可以在「资源库」里搜索安装，安装后重启服务器生效。")}
             action={
               <Button onClick={onBrowse} disabled={!onBrowse}>
-                去资源库
+                {t("plugins.empty.action", "去资源库")}
               </Button>
             }
           />
         </Card>
       ) : (
         <div className="rounded-xl bg-background-100 shadow-geist-border">
-          <table className="w-full border-collapse text-left">
+          <table className="data-table">
             <thead>
-              <tr className="border-b border-gray-300">
-                <th className="t-label-12 px-3 py-2 font-medium text-gray-700">插件</th>
-                <th className="t-label-12 px-3 py-2 font-medium text-gray-700">大小</th>
-                <th className="t-label-12 px-3 py-2 font-medium text-gray-700">状态</th>
-                <th className="t-label-12 px-3 py-2 font-medium text-gray-700"></th>
+              <tr>
+                <th>{t("plugins.col.plugin", "插件")}</th>
+                <th>{t("plugins.col.size", "大小")}</th>
+                <th>{t("plugins.col.status", "状态")}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -112,17 +114,17 @@ export function PluginsTab({ instance, onBrowse }: { instance: Instance; onBrows
                 const off = /\.disabled$/i.test(f.name);
                 const label = f.name.replace(/\.disabled$/i, "");
                 return (
-                  <tr key={f.path} className="border-b border-gray-200 last:border-0">
-                    <td className="t-mono-12 px-3 py-2 text-gray-1000">{label}</td>
-                    <td className="t-mono-12 px-3 py-2 text-gray-800">{formatBytes(f.size)}</td>
-                    <td className="px-3 py-2">
+                  <tr key={f.path}>
+                    <td className="t-mono-12 text-gray-1000">{label}</td>
+                    <td className="t-mono-12 text-gray-800">{formatBytes(f.size)}</td>
+                    <td>
                       <Badge variant={off ? "gray" : "green"} size="sm">
-                        {off ? "已禁用" : "启用中"}
+                        {off ? t("plugins.disabled", "已禁用") : t("plugins.enabled", "启用中")}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => toggle(f)}>
-                        {off ? "启用" : "禁用"}
+                        {off ? t("plugins.enable", "启用") : t("plugins.disable", "禁用")}
                       </Button>
                     </td>
                   </tr>

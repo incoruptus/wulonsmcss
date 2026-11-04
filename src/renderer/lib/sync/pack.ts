@@ -5,6 +5,7 @@
  * - 信封：format + version + checksum 三道闸门，载荷一律 AES-GCM 密文
  */
 
+import { tGlobal } from "@/i18n/core";
 import { decryptPayload, encryptPayload, pairIdOf } from "./crypto";
 import { SYNC_FORMAT, SYNC_FORMAT_VERSION, type SyncEnvelopeV1, type SyncPayloadV1 } from "./types";
 
@@ -89,13 +90,13 @@ function parseEnvelopeBase(text: string): SyncEnvelopeV1 {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error("该文件不是同步包，JSON 解析失败");
+    throw new Error(tGlobal("sync.pack.badJson", "该文件不是同步包，JSON 解析失败"));
   }
   const env = raw as Partial<SyncEnvelopeV1>;
-  if (env.format !== SYNC_FORMAT) throw new Error("该文件不是 Wulon's MCSS 的同步包");
-  if (env.version !== SYNC_FORMAT_VERSION) throw new Error("同步包来自更高版本的应用，请先升级");
-  if (typeof env.payload !== "string" || typeof env.checksum !== "string") throw new Error("同步包内容不完整");
-  if (quickHash(env.payload) !== env.checksum) throw new Error("同步包校验和不一致，可能传输被截断");
+  if (env.format !== SYNC_FORMAT) throw new Error(tGlobal("sync.pack.notOurs", "该文件不是 Wulon's MCSS 的同步包"));
+  if (env.version !== SYNC_FORMAT_VERSION) throw new Error(tGlobal("sync.pack.fromNewer", "同步包来自更高版本的应用，请先升级"));
+  if (typeof env.payload !== "string" || typeof env.checksum !== "string") throw new Error(tGlobal("sync.pack.incomplete", "同步包内容不完整"));
+  if (quickHash(env.payload) !== env.checksum) throw new Error(tGlobal("sync.pack.checksum", "同步包校验和不一致，可能传输被截断"));
   return env as SyncEnvelopeV1;
 }
 
@@ -113,17 +114,19 @@ export async function parseEnvelope(text: string, pairCode: string): Promise<Syn
     try {
       payloadJson = new TextDecoder().decode(b64ToBytes(env.payload));
     } catch {
-      throw new Error("同步内容无法解码");
+      throw new Error(tGlobal("sync.pack.undecodable", "同步内容无法解码"));
     }
   }
   let payload: unknown;
   try {
     payload = JSON.parse(payloadJson);
   } catch {
-    throw new Error("同步内容无法解析");
+    throw new Error(tGlobal("sync.pack.unparsable", "同步内容无法解析"));
   }
   const p = payload as Partial<SyncPayloadV1>;
-  if (!Array.isArray(p.instances) || !Array.isArray(p.tombstones)) throw new Error("同步内容结构异常");
+  if (!Array.isArray(p.instances) || !Array.isArray(p.tombstones)) {
+    throw new Error(tGlobal("sync.pack.badStructure", "同步内容结构异常"));
+  }
   return p as SyncPayloadV1;
 }
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Slider } from "@/components/ui/field";
 import { useConfig } from "@/stores/config";
 import type { Instance } from "@/lib/types";
+import { useI18n } from "@/i18n";
 
 export function InstanceSettingsDialog({
   open,
@@ -16,6 +17,7 @@ export function InstanceSettingsDialog({
   onOpenChange: (v: boolean) => void;
   instance: Instance;
 }) {
+  const { t } = useI18n();
   const updateInstance = useConfig((s) => s.updateInstance);
   const [name, setName] = useState(instance.name);
   const [javaPath, setJavaPath] = useState(instance.javaPath);
@@ -43,19 +45,19 @@ export function InstanceSettingsDialog({
       port: Number(port) || instance.port,
       jvmArgs,
     });
-    toast.success("已保存（重启服务器后生效）");
+    toast.success(t("instanceSettings.saved", "已保存（重启服务器后生效）"));
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} widthClass="max-w-lg">
-      <DialogHeader title="服务器设置" desc="改动将在下次启动服务器时生效。" />
+      <DialogHeader title={t("instanceSettings.title", "服务器设置")} desc={t("instanceSettings.desc", "改动将在下次启动服务器时生效。")} />
       <DialogBody className="space-y-4">
-        <Field label="名称">
+        <Field label={t("instanceSettings.name", "名称")}>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
 
-        <Field label="Java 运行时" hint={javaPath || "未指定"}>
+        <Field label={t("instanceSettings.java", "Java 运行时")} hint={javaPath || t("instanceSettings.javaUnset", "未指定")}>
           <div className="flex gap-2">
             <Input value={javaPath} onChange={(e) => setJavaPath(e.target.value)} className="font-mono text-[12px]" />
             <Button
@@ -71,28 +73,28 @@ export function InstanceSettingsDialog({
         </Field>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={`初始内存 ${memoryMin} GB`}>
+          <Field label={t("instanceSettings.memoryMin", "初始内存 {gb} GB", { gb: memoryMin })}>
             <Slider min={1} max={32} step={1} value={[memoryMin]} onValueChange={([v]) => setMemoryMin(Math.min(v, memoryMax))} />
           </Field>
-          <Field label={`最大内存 ${memoryMax} GB`}>
+          <Field label={t("instanceSettings.memoryMax", "最大内存 {gb} GB", { gb: memoryMax })}>
             <Slider min={1} max={32} step={1} value={[memoryMax]} onValueChange={([v]) => setMemoryMax(Math.max(v, memoryMin))} />
           </Field>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="端口" hint="服务器连接端口，修改后原有邀请将失效，需重新生成">
+          <Field label={t("instanceSettings.port", "端口")} hint={t("instanceSettings.portHint", "服务器连接端口，修改后原有邀请将失效，需重新生成")}>
             <Input value={port} onChange={(e) => setPort(e.target.value.replace(/[^\d]/g, ""))} />
           </Field>
-          <Field label="JVM 附加参数" hint="高级选项，不确定时留空即可，仅在服务端明确要求时填写">
+          <Field label={t("instanceSettings.jvmArgs", "JVM 附加参数")} hint={t("instanceSettings.jvmArgsHint", "高级选项，不确定时留空即可，仅在服务端明确要求时填写")}>
             <Input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} className="font-mono text-[12px]" />
           </Field>
         </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={() => onOpenChange(false)}>
-          取消
+          {t("instanceSettings.cancel", "取消")}
         </Button>
-        <Button onClick={save}>保存</Button>
+        <Button onClick={save}>{t("instanceSettings.save", "保存")}</Button>
       </DialogFooter>
     </Dialog>
   );

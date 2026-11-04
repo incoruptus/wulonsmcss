@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { tGlobal } from "../i18n/core";
 
 export function cx(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -42,12 +43,12 @@ export function formatDateTime(ts: number): string {
 export function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "刚刚";
-  if (min < 60) return `${min} 分钟前`;
+  if (min < 1) return tGlobal("utils.ago.justNow", "刚刚");
+  if (min < 60) return tGlobal("utils.ago.minutes", "{n} 分钟前", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} 小时前`;
+  if (hr < 24) return tGlobal("utils.ago.hours", "{n} 小时前", { n: hr });
   const day = Math.floor(hr / 24);
-  if (day < 30) return `${day} 天前`;
+  if (day < 30) return tGlobal("utils.ago.days", "{n} 天前", { n: day });
   return formatDate(ts);
 }
 
@@ -58,11 +59,19 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-/** 下载量这类大数：12.3 万 / 1.2 亿，列表里比原始数字好读 */
+/** 当前语言标记：大数单位这类格式没法只靠 fallback 表达，用词典里的标记判断 */
+function localeTag(): "zh-CN" | "en-US" {
+  return tGlobal("utils.localeTag", "zh-CN") === "en-US" ? "en-US" : "zh-CN";
+}
+
+/** 下载量这类大数：中文 12.3 万 / 1.2 亿，英文 12K / 120M，列表里比原始数字好读 */
 export function formatCount(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "0";
-  if (n >= 1e8) return `${(n / 1e8).toFixed(n >= 1e9 ? 0 : 1)} 亿`;
-  if (n >= 1e4) return `${(n / 1e4).toFixed(n >= 1e5 ? 0 : 1)} 万`;
+  if (localeTag() === "en-US") {
+    return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+  }
+  if (n >= 1e8) return tGlobal("utils.count.yi", "{n} 亿", { n: (n / 1e8).toFixed(n >= 1e9 ? 0 : 1) });
+  if (n >= 1e4) return tGlobal("utils.count.wan", "{n} 万", { n: (n / 1e4).toFixed(n >= 1e5 ? 0 : 1) });
   return Math.round(n).toLocaleString("zh-CN");
 }
 

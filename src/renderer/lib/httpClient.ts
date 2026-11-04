@@ -7,6 +7,7 @@
 
 import type { McssApi } from "./api";
 import { isLoopbackUrl, readAgentToken, storeAgentToken } from "./shell";
+import { tGlobal } from "../i18n/core";
 
 interface InvokeEnvelope {
   channel: string;
@@ -65,14 +66,14 @@ export function createHttpClient(base: string, token: string): McssApi {
         res = await post({ channel, args } satisfies InvokeEnvelope);
       }
     } catch (e) {
-      throw new Error(`无法连接本机助手（${base}），请确认其是否已启动。`);
+      throw new Error(tGlobal("httpClient.connectFailed", "无法连接本机助手（{base}），请确认其是否已启动。", { base }));
     }
     const text = await res.text();
     let data: { result?: T; error?: string } = {};
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
-      throw new Error(`助手返回了无法解析的内容：${text.slice(0, 120)}`);
+      throw new Error(tGlobal("httpClient.badResponse", "助手返回了无法解析的内容：{text}", { text: text.slice(0, 120) }));
     }
     if (!res.ok || data.error) throw new Error(friendlyAgentError(data.error, res.status));
     return data.result as T;
@@ -83,18 +84,27 @@ export function createHttpClient(base: string, token: string): McssApi {
     if (error?.startsWith("UNSUPPORTED:")) {
       const channel = error.slice("UNSUPPORTED:".length);
       const name: Record<string, string> = {
-        versions: "下载服务端 / 新建服务器",
-        frp: "中转线路",
-        worlds: "多世界生成",
-        sync: "跨设备同步",
-        "app:detect-java": "Java 探测",
+        versions: tGlobal("httpClient.cap.versions", "下载服务端 / 新建服务器"),
+        frp: tGlobal("httpClient.cap.frp", "中转线路"),
+        worlds: tGlobal("httpClient.cap.worlds", "多世界生成"),
+        sync: tGlobal("httpClient.cap.sync", "跨设备同步"),
+        "app:detect-java": tGlobal("httpClient.cap.detectJava", "Java 探测"),
       };
       const group = channel.split(":")[0];
       const label = name[group] ?? name[channel] ?? channel;
-      return `${label}需要桌面版，网页版暂不支持，安装 Wulon's MCSS 桌面版后即可使用。`;
+      return tGlobal(
+        "httpClient.unsupported",
+        "{label}需要桌面版，网页版暂不支持，安装 Wulon's MCSS 桌面版后即可使用。",
+        { label },
+      );
     }
-    if (status === 401) return "这台浏览器还没有和本机助手配对。刷新页面会自动重新配对；仍然失败时，重新启动助手。";
-    return error || `助手返回 ${status}`;
+    if (status === 401) {
+      return tGlobal(
+        "httpClient.notPaired",
+        "这台浏览器还没有和本机助手配对。刷新页面会自动重新配对；仍然失败时，重新启动助手。",
+      );
+    }
+    return error || tGlobal("httpClient.status", "助手返回 {status}", { status });
   }
 
   /* ---------------- 事件（SSE 单连接，按 channel 分发） ---------------- */
@@ -184,6 +194,10 @@ export function createHttpClient(base: string, token: string): McssApi {
       lanAddress: () => invoke("app:lan-address"),
       autostart: () => invoke("app:autostart"),
       setAutostart: (enabled: boolean) => invoke("app:autostart-set", enabled),
+      // 网页版刷新即是最新，没有可替换的应用层；设置页会据此显示说明而不是报错
+      updateCheck: () => Promise.reject(new Error(tGlobal("httpClient.updateIsLatest", "网页版刷新后即为最新版本"))),
+      updateDownload: () => Promise.reject(new Error(tGlobal("httpClient.updateNotNeeded", "网页版无需下载更新"))),
+      updateApply: () => Promise.reject(new Error(tGlobal("httpClient.updateNotApply", "网页版无需应用更新"))),
     },
     config: {
       read: () => invoke("config:read"),

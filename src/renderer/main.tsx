@@ -33,11 +33,7 @@ try {
   document.documentElement.dataset.palette = "white";
 }
 
-// Sora：拉丁字形随包（OFL）；中文由 globals.css 里的系统黑体链兜底
-import "@fontsource/sora/400.css";
-import "@fontsource/sora/500.css";
-import "@fontsource/sora/600.css";
-import "@fontsource/sora/700.css";
+// 字体统一在 globals.css 的 @font-face 里声明：Sora VF / MiSans VF / Geist Mono VF。
 
 /**
  * 页面开着的时候部署了新版本：提示刷新。
@@ -76,13 +72,13 @@ function watchForUpdates() {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <I18nProvider>
+    <I18nProvider>
+      <ErrorBoundary>
         <HashRouter>
           <App />
         </HashRouter>
-      </I18nProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </I18nProvider>
   </React.StrictMode>,
 );
 

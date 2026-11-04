@@ -24,6 +24,7 @@ import type {
   ThemeMode,
 } from "./types";
 import { DEFAULT_PALETTE, isPaletteId } from "./themes";
+import { tGlobal } from "../i18n/core";
 
 export const CONFIG_VERSION = 28 as const;
 
@@ -48,21 +49,22 @@ export function contentKindOf(t: ServerType): ContentKind {
 export function clientRequirementOf(t: ServerType): string {
   switch (t) {
     case "vanilla":
-      return "支持原版客户端直连";
+      return tGlobal("configModel.clientReq.vanilla", "支持原版客户端直连");
     case "paper":
     case "purpur":
-      return "支持原版客户端直连（插件仅在服务端运行）";
+      return tGlobal("configModel.clientReq.paper", "支持原版客户端直连（插件仅在服务端运行）");
     case "fabric":
-      return "需使用 Fabric 客户端并安装同款模组";
+      return tGlobal("configModel.clientReq.fabric", "需使用 Fabric 客户端并安装同款模组");
     case "forge":
-      return "需使用 Forge 客户端并安装同款模组";
+      return tGlobal("configModel.clientReq.forge", "需使用 Forge 客户端并安装同款模组");
     case "neoforge":
-      return "需使用 NeoForge 客户端并安装同款模组";
+      return tGlobal("configModel.clientReq.neoforge", "需使用 NeoForge 客户端并安装同款模组");
   }
 }
 
 export function serverTypeLabel(t: ServerType): string {
-  return { vanilla: "原版", fabric: "Fabric", forge: "Forge", neoforge: "NeoForge", paper: "Paper", purpur: "Purpur" }[t];
+  if (t === "vanilla") return tGlobal("configModel.serverType.vanilla", "原版");
+  return { fabric: "Fabric", forge: "Forge", neoforge: "NeoForge", paper: "Paper", purpur: "Purpur" }[t];
 }
 
 const SERVER_TYPES: ServerType[] = ["vanilla", "fabric", "forge", "neoforge", "paper", "purpur"];
