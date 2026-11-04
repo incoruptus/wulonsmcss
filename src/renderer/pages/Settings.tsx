@@ -74,7 +74,7 @@ export default function Settings() {
                   onValueChange={(value) => setLocale(value as Locale)}
                   options={[
                     { value: "zh-CN", label: "简体中文" },
-                    { value: "en", label: "English" },
+                    { value: "en-US", label: "English" },
                   ]}
                 />
               </Field>

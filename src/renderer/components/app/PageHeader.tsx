@@ -19,8 +19,8 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 max-w-3xl">
-        <h1 className="t-h-24 text-balance text-gray-1000">{title}</h1>
-        {desc ? <p className="t-copy-13 mt-1.5 text-pretty text-gray-800">{desc}</p> : null}
+        <h1 className="t-h-30 text-balance text-gray-1000">{title}</h1>
+        {desc ? <p className="t-copy-14 mt-2 max-w-[72ch] text-pretty text-gray-800">{desc}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2 lg:justify-end">{actions}</div> : null}
     </div>

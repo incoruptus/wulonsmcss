@@ -47,7 +47,7 @@ export function Callout({
 }) {
   const t = TONE[tone];
   return (
-    <div className={cx("flex items-start gap-2 rounded-xl border p-3", t.box, className)}>
+    <div className={cx("flex items-start gap-[9px] rounded-xl border p-3", t.box, className)}>
       {t.icon}
       <div className="min-w-0 flex-1">
         <div className={cx("t-label-13 font-semibold", t.title)}>{title}</div>

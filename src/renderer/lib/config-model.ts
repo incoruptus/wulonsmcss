@@ -173,6 +173,9 @@ export function normalizeConfig(
         lastStartedAt: typeof i.lastStartedAt === "number" ? i.lastStartedAt : undefined,
         icon: typeof i.icon === "string" ? i.icon : undefined,
         importedFrom: typeof i.importedFrom === "string" ? i.importedFrom : undefined,
+        // 联机形态：老配置没有这个字段，按长期服务器处理；写进去的值必须原样保留，
+        // 否则切到「临时房间」后会被读回时重置，看起来像切了没反应
+        lifecycle: i.lifecycle === "room" ? "room" : "persistent",
         schedule: i.schedule,
       };
     });

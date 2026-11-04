@@ -23,7 +23,7 @@ export function Dialog({ open, onOpenChange, children, className, widthClass = "
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] transition-opacity duration-[var(--dur-modal)] data-[state=closed]:opacity-0" />
         <DialogPrimitive.Content
           className={cx(
-            "fixed left-1/2 top-[6dvh] z-50 flex max-h-[88dvh] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl bg-background-100 shadow-geist-modal transition-[transform,opacity] duration-[var(--dur-modal)] ease-[var(--ease-out)] focus:outline-none data-[state=closed]:scale-[var(--pop-scale)] data-[state=closed]:opacity-0 sm:top-1/2 sm:max-h-[86dvh] sm:w-[92vw] sm:-translate-y-1/2",
+            "fixed left-1/2 top-[6dvh] z-50 flex max-h-[min(86dvh,760px)] w-[calc(100vw-24px)] -translate-x-1/2 flex-col overflow-hidden rounded-2xl bg-background-100 shadow-geist-modal transition-[transform,opacity] duration-[var(--dur-modal)] ease-[var(--ease-out)] focus:outline-none data-[state=closed]:scale-[var(--pop-scale)] data-[state=closed]:opacity-0 sm:top-1/2 sm:w-[92vw] sm:-translate-y-1/2",
             widthClass,
             className,
           )}

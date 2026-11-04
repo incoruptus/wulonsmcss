@@ -20,13 +20,13 @@ import { useI18n } from "@/i18n";
 
 const navItemClass = (isActive: boolean) =>
   cx(
-    "group relative flex h-10 items-center gap-3 rounded-lg px-3 t-label-13 transition-colors duration-150",
+    "group relative flex min-h-8 items-center gap-[9px] rounded-lg px-[10px] py-[5px] t-label-13 transition-colors duration-150",
     isActive ? "bg-brand-100 font-medium text-brand-700" : "text-gray-800 hover:bg-gray-100 hover:text-gray-1000",
   );
 
 const bottomItemClass = (isActive: boolean) =>
   cx(
-    "flex h-9 items-center gap-2.5 rounded-lg px-2.5 t-label-13 transition-colors",
+    "flex min-h-8 items-center gap-[9px] rounded-lg px-[10px] py-[5px] t-label-13 transition-colors",
     isActive ? "bg-gray-100 font-medium text-gray-1000" : "text-gray-800 hover:bg-gray-100 hover:text-gray-1000",
   );
 

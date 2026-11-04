@@ -40,7 +40,7 @@ export function Badge({ className, variant, size, ...props }: BadgeProps) {
 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cx("rounded-xl bg-background-100 p-5 shadow-geist-border", className)} {...props}>
+    <div className={cx("rounded-xl bg-background-100 p-[18px] shadow-geist-border", className)} {...props}>
       {children}
     </div>
   );

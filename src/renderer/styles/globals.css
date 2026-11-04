@@ -569,6 +569,7 @@
 
 @layer utilities {
   .t-h-32 { font-size: 32px; line-height: 40px; letter-spacing: -0.04em; font-weight: 600; }
+  .t-h-30 { font-size: 30px; line-height: 38px; letter-spacing: -0.04em; font-weight: 600; }
   .t-h-24 { font-size: 24px; line-height: 32px; letter-spacing: -0.035em; font-weight: 600; }
   .t-h-20 { font-size: 20px; line-height: 28px; letter-spacing: -0.025em; font-weight: 600; }
   .t-h-16 { font-size: 16px; line-height: 24px; letter-spacing: -0.015em; font-weight: 600; }
@@ -576,6 +577,7 @@
   .t-copy-16 { font-size: 16px; line-height: 25px; }
   .t-copy-14 { font-size: 14px; line-height: 21px; }
   .t-copy-13 { font-size: 13px; line-height: 19px; }
+  .t-copy-12 { font-size: 12px; line-height: 18px; }
   .t-label-14 { font-size: 14px; line-height: 20px; }
   .t-label-13 { font-size: 13px; line-height: 18px; font-feature-settings: "tnum"; }
   .t-label-12 { font-size: 12px; line-height: 17px; }

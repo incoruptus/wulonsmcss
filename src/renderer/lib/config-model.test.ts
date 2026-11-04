@@ -169,4 +169,22 @@ describe("茶色主题迁移", () => {
       normalizeConfig({ ...V27, version: 28, palette: "oolong", palettePicked: true }, { defaultMode: "host" }).cfg.palette,
     ).toBe("white");
   });
+  it("实例的 lifecycle 会原样保留：临时房间不会被读回时重置", () => {
+    const room = normalizeConfig(
+      {
+        ...V27,
+        version: 28,
+        instances: [{ ...V27.instances[0], lifecycle: "room" }],
+      },
+      { defaultMode: "host" },
+    ).cfg;
+    expect(room.instances[0].lifecycle).toBe("room");
+
+    const legacy = normalizeConfig(
+      { ...V27, version: 28, instances: [{ ...V27.instances[0] }] },
+      { defaultMode: "host" },
+    ).cfg;
+    expect(legacy.instances[0].lifecycle).toBe("persistent");
+  });
+
 });
